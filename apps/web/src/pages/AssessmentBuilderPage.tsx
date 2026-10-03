@@ -71,6 +71,8 @@ export function AssessmentBuilderPage() {
   const [migrationBusy, setMigrationBusy] = useState(false)
   const revisionRef = useRef(0)
   const acknowledgedDocumentRef = useRef<AssessmentDocument | null>(null)
+  const latestDocumentRef = useRef(draft?.document)
+  latestDocumentRef.current = draft?.document
   const items = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
   const questions = useMemo(() => items.filter((item) => item.type !== 'section-information'), [items])
   const totalPoints = useMemo(() => items.reduce((total, item) => total + (questionTypesByType[item.type].supportsScoring ? Number(item.points || 0) || 0 : 0), 0), [items])
@@ -125,8 +127,10 @@ export function AssessmentBuilderPage() {
             acknowledgedDocumentRef.current = saved.document
             return saved
           })
-          void cacheAssessmentDraft(saved)
-          setSaveState('All changes saved')
+          if (latestDocumentRef.current === submittedDocument) {
+            void cacheAssessmentDraft(saved)
+            setSaveState('All changes saved')
+          }
         })
         .catch(() => setSaveState('Conflict: reload or duplicate'))
     }, 750)
@@ -292,6 +296,7 @@ export function AssessmentBuilderPage() {
     setMigrationBusy(true)
     try {
       const migrated = await migrateAssessmentDraftV2(draft.id, draft.revision)
+      setDraft(null)
       navigate(`/admin/assessments/${migrated.id}`, { replace: true })
     } finally {
       setMigrationBusy(false)
@@ -314,7 +319,7 @@ export function AssessmentBuilderPage() {
       <div className="assessment-studio-identity">
         <label>
           <span className="visually-hidden">Assessment name</span>
-          <AutoGrowTextarea className="assessment-studio-title" aria-label="Assessment name" maxLength={200} value={draft.document.title} onChange={(event) => updateDocument((document) => ({ ...document, title: event.target.value }))} />
+          <AutoGrowTextarea className="assessment-studio-title" aria-label="Assessment name" disabled={migrationBusy} maxLength={200} value={draft.document.title} onChange={(event) => updateDocument((document) => ({ ...document, title: event.target.value }))} />
         </label>
         <label className="assessment-studio-description">
           <span className="visually-hidden">Assessment description</span>
@@ -327,7 +332,7 @@ export function AssessmentBuilderPage() {
         <span className="assessment-save-state" data-state={saveState === 'All changes saved' ? 'saved' : 'pending'} aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
       </div>
       <div className="assessment-studio-actions">
-        {!isAssessmentV2(draft.document) ? <button type="button" disabled={migrationBusy} onClick={() => void migrateToV2()}>{migrationBusy ? 'Upgrading…' : 'Upgrade to sections'}</button> : null}
+        {!isAssessmentV2(draft.document) ? <button type="button" disabled={migrationBusy || saveState !== 'All changes saved'} onClick={() => void migrateToV2()}>{migrationBusy ? 'Upgrading…' : 'Upgrade to sections'}</button> : null}
         <button className="assessment-primary" type="button" onClick={openPublish}><PaperPlaneTilt aria-hidden="true" />Publish</button>
       </div>
       <div className="assessment-tabs" role="tablist" aria-label="Assessment builder">

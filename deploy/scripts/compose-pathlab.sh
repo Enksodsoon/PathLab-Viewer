@@ -71,6 +71,14 @@ esac
 # Compose gives inherited variables precedence over --env-file. Keep the
 # advertised capability consistent with the profile selected from that file.
 export PATHLAB_ASSESSMENT_ENABLED="${assessment}"
+alignment="$(sed -n 's/^PATHLAB_ALIGNMENT_ENABLED=//p' "${env_file}" | tail -n 1)"
+alignment="${alignment:-false}"
+case "${alignment}" in
+  true) compose_profiles+=(--profile alignment) ;;
+  false) ;;
+  *) echo "PATHLAB_ALIGNMENT_ENABLED must be true or false" >&2; exit 2 ;;
+esac
+export PATHLAB_ALIGNMENT_ENABLED="${alignment}"
 unset COMPOSE_PROFILES
 
 exec docker compose \

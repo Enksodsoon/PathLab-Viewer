@@ -319,6 +319,25 @@ test('keeps representative mobile controls at least 44 pixels in both axes', asy
   )
 })
 
+test('keeps slide menu actions visible and keyboard reachable in a short viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 568, height: 320 })
+  await page.getByRole('button', { name: 'More actions for Colon adenocarcinoma' }).click()
+  const menu = page.getByRole('menu')
+  await expect(menu).toBeVisible()
+  const bounds = await menu.boundingBox()
+  expect(bounds!.height).toBeLessThanOrEqual(304)
+  expect(bounds!.y).toBeGreaterThanOrEqual(8)
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(312)
+  await page.keyboard.press('End')
+  const last = page.getByRole('menuitem', { name: 'Move to Trash' })
+  await expect(last).toBeFocused()
+  await expect(last).toBeInViewport({ ratio: 1 })
+  await page.keyboard.press('Home')
+  await expect(page.getByRole('menuitem', { name: 'Details', exact: true })).toBeInViewport({ ratio: 1 })
+  await page.keyboard.press('Escape')
+  await expect(menu).not.toBeVisible()
+})
+
 test('keeps nested mobile breadcrumb links at least 44 pixels in both axes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/admin?location=folder:folder-organs')

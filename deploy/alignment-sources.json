@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "engines": [
+    {
+      "name": "hisalign-0.2.1",
+      "repository": "https://github.com/yifanfeng97/hisalign",
+      "commit": "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
+      "archiveSha256": "db866088a81e53816b591b7915dc1c205deb9512ef5a23a7545a6767fb7e3f6b",
+      "licenseDeclared": "MIT",
+      "licenseFileAtCommit": null,
+      "weights": []
+    },
+    {
+      "name": "valis-1.2.0",
+      "repository": "https://github.com/MathOnco/valis",
+      "commit": "325828c1dec444e6bb672a78e875537436dd3c20",
+      "archiveSha256": "ac57c00c6b0c90b23ff09a0c7fa84fc76441a8b2733669fcb4b6a08f4a5e859d",
+      "licenseDeclared": "MIT",
+      "licenseFile": "deploy/third_party/VALIS_LICENSE.txt",
+      "weights": []
+    }
+  ]
+}

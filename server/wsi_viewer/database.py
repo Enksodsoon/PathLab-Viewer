@@ -48,6 +48,7 @@ def pool_options_for(settings: Settings) -> PoolOptions:
         "assessment": 4,
         "general": 5,
         "worker": 2,
+        "alignment": 1,
         "tile": 1,
         "all": 5,
     }
@@ -64,6 +65,7 @@ def postgres_timeouts_for(settings: Settings) -> tuple[int, int]:
         "assessment": 2_000,
         "general": 5_000,
         "worker": 30_000,
+        "alignment": 30_000,
         "tile": 5_000,
         "all": 5_000,
     }[settings.service_role]

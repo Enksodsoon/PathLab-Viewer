@@ -1324,6 +1324,120 @@ class CollectionSlide(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ComparisonSet(Base):
+    __tablename__ = "comparison_sets"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_comparison_sets_version"),
+        CheckConstraint(
+            "status IN ('draft', 'queued', 'running', 'ready', 'partial', 'failed')",
+            name="ck_comparison_sets_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    reference_slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    member_slide_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    source_versions: Mapped[dict[str, str | None]] = mapped_column(JSON, nullable=False)
+    registrations: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    alignment_config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class ComparisonSetMember(Base):
+    __tablename__ = "comparison_set_members"
+    __table_args__ = (
+        UniqueConstraint("comparison_set_id", "slide_id", name="uq_comparison_set_member"),
+        CheckConstraint("position >= 0", name="ck_comparison_set_members_position"),
+        Index("ix_comparison_set_members_slide", "slide_id", "comparison_set_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    comparison_set_id: Mapped[str] = mapped_column(
+        ForeignKey("comparison_sets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    anchor_slide_id: Mapped[str | None] = mapped_column(
+        ForeignKey("slides.id", ondelete="SET NULL")
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ComparisonRegistrationRevision(Base):
+    __tablename__ = "comparison_registration_revisions"
+    __table_args__ = (
+        Index("ix_registration_revisions_set", "comparison_set_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    comparison_set_id: Mapped[str] = mapped_column(
+        ForeignKey("comparison_sets.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    set_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_version: Mapped[str | None] = mapped_column(String(128))
+    anchor_slide_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    algorithm_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    provenance: Mapped[str] = mapped_column(String(24), nullable=False)
+    registration: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ComparisonRegistrationCandidate(Base):
+    """Immutable output from one engine before an administrator promotes it."""
+
+    __tablename__ = "comparison_registration_candidates"
+    __table_args__ = (
+        Index(
+            "ix_registration_candidate_identity",
+            "comparison_set_id",
+            "slide_id",
+            "set_version",
+            "anchor_slide_id",
+            "engine",
+            "source_version",
+            "anchor_version",
+            "settings_digest",
+        ),
+        Index("ix_registration_candidates_set", "comparison_set_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    comparison_set_id: Mapped[str] = mapped_column(
+        ForeignKey("comparison_sets.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    set_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    anchor_slide_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    source_version: Mapped[str | None] = mapped_column(String(128))
+    anchor_version: Mapped[str | None] = mapped_column(String(128))
+    engine: Mapped[str] = mapped_column(String(40), nullable=False)
+    engine_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    settings_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    validation_state: Mapped[str] = mapped_column(String(24), nullable=False)
+    registration: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    artifact_path: Mapped[str | None] = mapped_column(String(500))
+    artifact_sha256: Mapped[str | None] = mapped_column(String(64))
+    failure_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class SavedView(Base):
     __tablename__ = "saved_views"
 

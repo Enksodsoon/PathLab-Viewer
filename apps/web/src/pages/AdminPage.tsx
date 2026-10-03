@@ -30,6 +30,7 @@ import {
   createCollection,
   createFolder,
   createSavedView,
+  createComparisonSet,
   deleteCollection,
   deleteLibrarySlide,
   deleteSavedView,
@@ -45,6 +46,7 @@ import {
   mutateFolder,
   mutateSlide,
   publishSlide,
+  registerComparisonSet,
   removeCollectionSlides,
   updateCollection,
   updateFolder,
@@ -75,6 +77,7 @@ import { SelectionActionBar } from '../components/library/SelectionActionBar'
 import { PublishConfirmationDialog } from '../components/library/PublishConfirmationDialog'
 import { ShareDialog } from '../components/library/ShareDialog'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
+import { SlideStackShelf } from '../components/library/SlideStackShelf'
 import { SlideViews, type SlideAction } from '../components/library/SlideViews'
 import {
   UploadWorkspace,
@@ -320,8 +323,7 @@ export function AdminPage() {
     values: Record<string, string | string[] | null>,
     replace = true,
   ) => {
-    // React Router's setter does not queue functional updates like React state.
-    // A pending search debounce must preserve a navigation change in this turn.
+    // Router updates do not queue like state updates; preserve same-turn navigation.
     const next = new URLSearchParams(latestUrl.current)
     for (const [key, value] of Object.entries(values)) {
       if (Array.isArray(value)) {
@@ -445,7 +447,7 @@ export function AdminPage() {
   }, [authorized, navigation.folderPath])
 
   useEffect(() => {
-    if (searchDraft.trim() === search) return
+    if ((url.get('q') || '') === searchDraft.trim()) return
     const pathname = window.location.pathname
     const timer = window.setTimeout(() => {
       if (window.location.pathname !== pathname) return
@@ -453,7 +455,7 @@ export function AdminPage() {
       setUrlValues({ q: searchDraft.trim() || null })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [search, searchDraft, setUrlValues])
+  }, [searchDraft, setUrlValues, url])
 
   const query = useMemo(() => ({
     location: storageOpen ? 'all' : location,
@@ -1591,6 +1593,13 @@ export function AdminPage() {
               {notice}
             </StatusMessage>
           ) : null}
+          {location === 'all' ? (
+            <SlideStackShelf
+              enabled={Boolean(navigation.capabilities?.alignment)}
+              slides={page.items}
+              onNotice={setNotice}
+            />
+          ) : null}
           {contentLoading ? (
             <div className="library-loading">
               <Loader
@@ -1716,6 +1725,22 @@ export function AdminPage() {
           onClear={() => setSelected(new Set())}
           onMove={() => openNamedDialog('move')}
           onCollection={() => openNamedDialog('add-collection')}
+          onCompare={selectedIds.length >= 2 && selectedIds.length <= 12 ? () => {
+            void (async () => {
+              try {
+                const reference = selectedSlides.find((slide) => /(^|[^a-z])h\s*&?\s*e([^a-z]|$)/i.test(slide.stain || slide.displayName)) ?? selectedSlides[0]
+                const comparison = await createComparisonSet(
+                  `${reference.caseId || 'Slide'} comparison`, selectedIds, reference.id,
+                )
+                await registerComparisonSet(comparison.id)
+                void navigate(`/admin/comparisons/${comparison.id}`)
+              } catch (caught) {
+                setNotice(caught instanceof ApiError && caught.status === 404
+                  ? 'Slide comparison is not enabled on this server.'
+                  : 'Could not create the comparison set.')
+              }
+            })()
+          } : undefined}
           onTags={() => openNamedDialog('tags')}
           onPublish={() => openNamedDialog('publish')}
           onUnpublish={() => runAction(unpublishSelected, 'Unpublish')}
@@ -1746,6 +1771,7 @@ export function AdminPage() {
                 (collection) => collection.id === location.slice('collection:'.length),
               )?.name].filter((name): name is string => Boolean(name))
               : []}
+            stackEnabled={navigation.capabilities?.alignment === true}
             onClose={() => setDetails(null)}
             onEdit={() => {
               void openEditor(details)

@@ -19,11 +19,12 @@ dependencies = [
   "itsdangerous>=2.2,<3",
   "lxml>=5,<7",
   "ome-types>=0.6,<1",
+  "opencv-python-headless>=4.10,<5",
   "pillow>=11.3,<13",
   "psycopg[binary]==3.3.4",
   "pydantic-settings>=2.10,<3",
   "pyvips>=3.0,<4",
-  "sqlalchemy>=2.0,<3",
+  "sqlalchemy>=2.0,<2.1",
   "tifffile==2026.8.23",
   "uvicorn[standard]>=0.35,<1",
 ]

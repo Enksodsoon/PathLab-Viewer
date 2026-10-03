@@ -1436,6 +1436,7 @@
     top:8px;
     right:8px;
     left:8px;
+    max-width:calc(100% - 16px);
     min-height:50px;
   }
 
@@ -1569,22 +1570,11 @@
 @media (max-width:420px) {
   .annotation-commandbar {
     gap:3px;
+    flex-wrap:wrap;
   }
 
   .annotation-commandbar button {
     padding-inline:7px;
-  }
-
-  .annotation-save-status {
-    display:inline-block;
-    min-width:0;
-    font-size:10px;
-    line-height:1.2;
-  }
-
-  .annotation-save-cluster button {
-    font-size:0;
-    gap:0;
   }
 
   .annotation-list {

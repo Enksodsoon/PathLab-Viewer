@@ -4,6 +4,7 @@ import type { LibrarySlide, LibrarySlideDetails } from '../../types'
 import { Link } from 'react-router-dom'
 import { canPreview } from './viewerNavigation'
 import { formatBytes } from './format'
+import { SlideStackSection } from './SlideStackSection'
 
 interface SlideDetailsPanelProps {
   slide: LibrarySlideDetails | LibrarySlide | null
@@ -12,6 +13,7 @@ interface SlideDetailsPanelProps {
   onPreview?: (slide: LibrarySlide) => void
   folderName?: string
   collectionNames?: string[]
+  stackEnabled?: boolean
 }
 
 export function SlideDetailsPanel({
@@ -21,6 +23,7 @@ export function SlideDetailsPanel({
   onPreview,
   folderName,
   collectionNames = [],
+  stackEnabled = false,
 }: SlideDetailsPanelProps) {
   if (!slide) return null
   const adminNote = 'adminNotes' in slide ? slide.adminNotes : ''
@@ -70,6 +73,7 @@ export function SlideDetailsPanel({
         <h4>Admin note</h4>
         <p className="admin-note">{adminNote || 'No administrator note.'}</p>
       </section>
+      <SlideStackSection slide={slide} enabled={stackEnabled} />
       <div className="details-actions">
         {canPreview(slide) ? (
           <>{onPreview ? <button type="button" onClick={() => onPreview(slide)}>Open viewer</button> : <Link to={`/admin/preview/${encodeURIComponent(slide.id)}`}>Open viewer</Link>}</>

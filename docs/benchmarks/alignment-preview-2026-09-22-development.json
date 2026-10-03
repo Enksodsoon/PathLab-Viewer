@@ -1,0 +1,491 @@
+{
+  "preparationVersion": "overview-orb1536-v1",
+  "pythonVersion": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "opencvVersion": "4.9.0",
+  "inputDigest": "4c3aa7a814004cec7275da94d404080c1d41935ea7f145a7dd4748af9e4cd790",
+  "scope": "single-thread local compute; no queue, startup, browser, or landmark accuracy",
+  "synthetic": false,
+  "records": [
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 0,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.2837252999888733,
+      "totalComputeSeconds": 0.43688399996608496,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 222609408,
+      "processLifetimePeakRssBytes": 234156032,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 0,
+      "cache": "warm",
+      "preparationCacheHits": 4,
+      "preparationSeconds": 2.489995677024126e-05,
+      "totalComputeSeconds": 0.1524788000388071,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 224608256,
+      "processLifetimePeakRssBytes": 234479616,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 1,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.07598630001302809,
+      "totalComputeSeconds": 0.22934359998907894,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 221827072,
+      "processLifetimePeakRssBytes": 234708992,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 1,
+      "cache": "warm",
+      "preparationCacheHits": 4,
+      "preparationSeconds": 1.8799910321831703e-05,
+      "totalComputeSeconds": 0.15455889992881566,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 221835264,
+      "processLifetimePeakRssBytes": 234708992,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 2,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.0741275999462232,
+      "totalComputeSeconds": 0.2211650999961421,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 224440320,
+      "processLifetimePeakRssBytes": 236183552,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 2,
+      "cache": "warm",
+      "preparationCacheHits": 4,
+      "preparationSeconds": 1.850002445280552e-05,
+      "totalComputeSeconds": 0.15081070002634078,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 222965760,
+      "processLifetimePeakRssBytes": 236183552,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 3,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.0743959000101313,
+      "totalComputeSeconds": 0.22280809993389994,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 222081024,
+      "processLifetimePeakRssBytes": 236183552,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 3,
+      "cache": "warm",
+      "preparationCacheHits": 4,
+      "preparationSeconds": 1.7699901945888996e-05,
+      "totalComputeSeconds": 0.14895269996486604,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 224063488,
+      "processLifetimePeakRssBytes": 236183552,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 4,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.07732330006547272,
+      "totalComputeSeconds": 0.22976360004395247,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 225124352,
+      "processLifetimePeakRssBytes": 236183552,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 0,
+      "slides": 4,
+      "repeat": 4,
+      "cache": "warm",
+      "preparationCacheHits": 4,
+      "preparationSeconds": 1.5900004655122757e-05,
+      "totalComputeSeconds": 0.15099250001367182,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 3,
+      "sampledRssBytes": 222130176,
+      "processLifetimePeakRssBytes": 236183552,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence",
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 0,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.11735840002074838,
+      "totalComputeSeconds": 0.25366719998419285,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 222519296,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 0,
+      "cache": "warm",
+      "preparationCacheHits": 2,
+      "preparationSeconds": 1.1899974197149277e-05,
+      "totalComputeSeconds": 0.1626661999616772,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 223313920,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 1,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.10171610000543296,
+      "totalComputeSeconds": 0.23359300009906292,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 223334400,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 1,
+      "cache": "warm",
+      "preparationCacheHits": 2,
+      "preparationSeconds": 1.3499986380338669e-05,
+      "totalComputeSeconds": 0.13446440000552684,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 223334400,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 2,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.09850890003144741,
+      "totalComputeSeconds": 0.23480710003059357,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 224882688,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 2,
+      "cache": "warm",
+      "preparationCacheHits": 2,
+      "preparationSeconds": 1.8600025214254856e-05,
+      "totalComputeSeconds": 0.13389950001146644,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 224124928,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 3,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.09883730008732527,
+      "totalComputeSeconds": 0.23270570009481162,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 223354880,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 3,
+      "cache": "warm",
+      "preparationCacheHits": 2,
+      "preparationSeconds": 1.3399985618889332e-05,
+      "totalComputeSeconds": 0.1340134999481961,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 223358976,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 4,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.0977197999600321,
+      "totalComputeSeconds": 0.2322398000396788,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 223272960,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 1,
+      "slides": 2,
+      "repeat": 4,
+      "cache": "warm",
+      "preparationCacheHits": 2,
+      "preparationSeconds": 1.1899974197149277e-05,
+      "totalComputeSeconds": 0.13599829992745072,
+      "acceptedOverviewPairs": 0,
+      "eligiblePairs": 1,
+      "sampledRssBytes": 224874496,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": [
+        "Needs refinement: weak coarse structural correspondence"
+      ]
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 0,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.10208260000217706,
+      "totalComputeSeconds": 0.7127842999761924,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 223129600,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 0,
+      "cache": "warm",
+      "preparationCacheHits": 3,
+      "preparationSeconds": 1.1999974958598614e-05,
+      "totalComputeSeconds": 0.6386708000209183,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 223145984,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 1,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.08327489998191595,
+      "totalComputeSeconds": 0.6940635999199003,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 223543296,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 1,
+      "cache": "warm",
+      "preparationCacheHits": 3,
+      "preparationSeconds": 1.3599987141788006e-05,
+      "totalComputeSeconds": 0.601268699974753,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 226062336,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 2,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.08699930005241185,
+      "totalComputeSeconds": 0.7048950000898913,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 224497664,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 2,
+      "cache": "warm",
+      "preparationCacheHits": 3,
+      "preparationSeconds": 1.1999974958598614e-05,
+      "totalComputeSeconds": 0.6342945999931544,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 224497664,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 3,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.0860922000138089,
+      "totalComputeSeconds": 0.7004082999192178,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 223596544,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 3,
+      "cache": "warm",
+      "preparationCacheHits": 3,
+      "preparationSeconds": 1.2899981811642647e-05,
+      "totalComputeSeconds": 0.6192225000122562,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 224555008,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 4,
+      "cache": "cold",
+      "preparationCacheHits": 0,
+      "preparationSeconds": 0.08418190001975745,
+      "totalComputeSeconds": 0.6935644999612123,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 223604736,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    },
+    {
+      "stack": 2,
+      "slides": 3,
+      "repeat": 4,
+      "cache": "warm",
+      "preparationCacheHits": 3,
+      "preparationSeconds": 1.079996582120657e-05,
+      "totalComputeSeconds": 0.6145730999996886,
+      "acceptedOverviewPairs": 2,
+      "eligiblePairs": 2,
+      "sampledRssBytes": 224563200,
+      "processLifetimePeakRssBytes": 243986432,
+      "rejections": []
+    }
+  ]
+}

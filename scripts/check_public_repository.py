@@ -28,7 +28,7 @@ HISTORICAL_SYNTHETIC_EMAIL_LINES = {
 # material. A changed receipt, line, or path receives no exemption. This affects
 # email findings only; every credential/IP/workstation rule still runs.
 LEGAL_EMAIL_RECEIPT = "docs/supply-chain/notice-material/public-legal-email-lines.json"
-LEGAL_EMAIL_RECEIPT_SHA256 = "3628a88e91d64e6d81a053ae0df28310686dd10a306d6b8c11f665d6dc3ef62b"
+LEGAL_EMAIL_RECEIPT_SHA256 = "7e09325084e042aceeefd7ade5588c74d19a0ae17bfbe138874095782231627a"
 
 
 def approved_legal_email_lines() -> dict[str, list[str]]:
@@ -339,6 +339,29 @@ def is_sensitive_repository_path(relative: str) -> bool:
     return any(part.casefold() in SENSITIVE_PATH_PARTS for part in Path(relative).parts)
 
 
+def is_recorded_opencv_version(relative: str, line: str, start: int, end: int) -> bool:
+    """Recognize the pinned public package version, never a network host."""
+    if line[start:end] != "4.14.0.94":
+        return False
+    if relative == "deploy/backend-requirements.txt":
+        return line[:start] == "opencv-python-headless=="
+    if relative not in {
+        "docs/supply-chain/dependency-inventory.json",
+        "docs/supply-chain/notice-material/archive-notices.json",
+    } and not relative.startswith(
+        "docs/supply-chain/software-inventories/"
+    ):
+        return False
+    prefix = line[:start]
+    return prefix.endswith((
+        "opencv-python-headless@", "opencv_python_headless-",
+        "https://pypi.org/pypi/opencv-python-headless/",
+    )) or bool(re.fullmatch(
+        r'\s*(?:"(?:version|versionInfo)": "4\.14\.0\.94",?|Version: 4\.14\.0\.94)\s*',
+        line,
+    ))
+
+
 def should_scan_text(relative: str) -> bool:
     path = Path(relative)
     return path.suffix.lower() in TEXT_SUFFIXES or path.name in {"Caddyfile", "Dockerfile"}
@@ -393,6 +416,8 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
                 findings.append((display, line_number, "non-example email address"))
         for match in IPV4_PATTERN.finditer(line):
             if is_embedded_numeric_identifier(line, match.start(), match.end()):
+                continue
+            if is_recorded_opencv_version(relative, line, match.start(), match.end()):
                 continue
             candidate = match.group(0)
             if is_public_ip(candidate) and (
@@ -467,7 +492,14 @@ def text_at_commit(commit: str, relative: str) -> str | None:
         result = git("show", f"{commit}:{relative}")
     except subprocess.CalledProcessError:
         return None
-    return result.stdout.decode("utf-8")
+    raw = result.stdout
+    # One historical document contains a CP1252 dash amid UTF-8 text. Decode
+    # that exact audited blob and still scan every line; unknown blobs fail.
+    if relative == "docs/alignment-validation.md" and hashlib.sha256(raw).hexdigest() == (
+        "a7e79e482c06e84c4eb4f3e7597e1f3b752775746b4c2ac79ca6974f6ae6cb99"
+    ):
+        raw = raw.replace(bytes([0x96]), "\u2013".encode("utf-8"))
+    return raw.decode("utf-8")
 
 
 def scan_history(base: str) -> list[Finding]:

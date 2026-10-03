@@ -1,34 +1,81 @@
 import hashlib
 import json
 import logging
+import math
+import multiprocessing
+import os
+import queue
 import shutil
 import signal
+import sqlite3
 import stat
+import sys
 import threading
 import time
+import xml.etree.ElementTree as ET
+from collections import OrderedDict
 from collections.abc import Callable
+from contextlib import suppress
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from sqlalchemy import CursorResult, delete, or_, select
-from sqlalchemy.exc import IntegrityError
+import cv2
+from PIL import Image
+from sqlalchemy import CursorResult, case, delete, func, or_, select
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
 
+from .alignment import (
+    AlignmentRejected,
+    register_pair,
+    rescale_registration,
+)
+from .alignment_engines import (
+    ENGINE_NATIVE,
+    ENGINE_VALIS,
+    ENGINE_VERSIONS,
+    merge_component_maps,
+    run_engine,
+    settings_digest,
+)
+from .alignment_fast import PREPARATION_VERSION, PreparationCache, register_prepared
+from .alignment_policy import VALIDATION_POLICY, case_ids_conflict, current_registration
+from .alignment_pyramid import (
+    _candidate_component_pairs,
+    component_bounds,
+    read_region,
+    refine_supported_patches,
+    register_components,
+)
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
 from .desktop_sync import record_sync_event, revision_for
 from .domain import SlideState
-from .models import AuditEvent, DesktopPairing, Job, Slide
+from .models import (
+    AuditEvent,
+    ComparisonRegistrationCandidate,
+    ComparisonRegistrationRevision,
+    ComparisonSet,
+    DesktopPairing,
+    Job,
+    Slide,
+)
 from .ome import OmeError, validate_ome_tiff
 from .runtime_protection import protection_snapshot
+from .stack_service import activate_ready_slide_memberships, remove_slide_from_stacks
 from .storage import StorageLayout
 from .worker_health import HeartbeatWriter
 
 JOB_POLL_INTERVAL_SECONDS = 2.0
+_preparation_cache = PreparationCache()
+_preview_maps: OrderedDict[tuple[Any, ...], dict[str, Any]] = OrderedDict()
+_preview_map_bytes = 0
+_worker_startup_seconds: float | None = None
 STALE_RECOVERY_INTERVAL_SECONDS = 60.0
 TUS_CLEANUP_INTERVAL_SECONDS = 30.0 * 60.0
 STORAGE_CAPACITY_CHECK_INTERVAL_SECONDS = 60.0
@@ -38,16 +85,154 @@ STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
 LOGGER = logging.getLogger(__name__)
 
 
-def _next_job_statement(*, now: datetime, postgres: bool) -> Select[tuple[Job]]:
+def _candidate_validation_state(
+    registration: dict[str, Any], engine: str, source_version: str, anchor_version: str
+) -> str:
+    candidate = {
+        **registration,
+        "provenance": "automatic",
+        "engine": engine,
+        "engineVersion": ENGINE_VERSIONS[engine],
+        "settingsDigest": settings_digest(engine, registration.get("engineSettings") or {}),
+        "sourceVersion": source_version,
+        "anchorVersion": anchor_version,
+    }
+    current = current_registration(
+        candidate, source_version=source_version, anchor_version=anchor_version
+    )
+    return "engineering_passed" if current and current.get("status") == "ready" else "rejected"
+
+
+def _registration_quality(registration: dict[str, Any] | None) -> tuple[int, float, int]:
+    """Rank navigation evidence without treating an approximate map as anatomy."""
+    registration = current_registration(registration)
+    if not registration or registration.get("status") == "stale":
+        return (0, 0.0, 0)
+    provenance = str(registration.get("provenance") or "")
+    status = str(registration.get("status") or "")
+    evidence = registration.get("evidence") or {}
+    overview_count = len(registration.get("overviewTriangles") or [])
+    triangle_count = len(registration.get("triangles") or [])
+    confidence = float(registration.get("confidence") or 0.0)
+    if provenance.startswith("manual"):
+        tier = 100
+    elif status == "ready" and triangle_count:
+        tier = 80
+    elif (
+        status == "approximate"
+        and overview_count
+        and evidence.get("source") == "bounded-pyramid-whole-slide-structure"
+    ):
+        tier = 60
+    elif (
+        status == "approximate"
+        and overview_count
+        and evidence.get("componentOrderPreserved") is True
+    ):
+        tier = 50
+    elif status == "approximate" and overview_count:
+        tier = 20
+    elif status == "rejected":
+        tier = 5
+    else:
+        tier = 10
+    return (tier, confidence, triangle_count or overview_count)
+
+
+def _best_compatible_registration(
+    database: OrmSession,
+    *,
+    comparison: ComparisonSet,
+    slide: Slide,
+    reference: Slide,
+) -> dict[str, Any] | None:
+    if case_ids_conflict(slide.case_id, reference.case_id):
+        return None
+    candidates: list[dict[str, Any]] = []
+    current = comparison.registrations.get(slide.id)
+    if (
+        current
+        and current.get("sourceVersion") == slide.sha256
+        and current.get("anchorVersion") == reference.sha256
+        and current.get("anchorSlideId", reference.id) == reference.id
+    ):
+        candidates.append(current)
+    revisions = database.scalars(
+        select(ComparisonRegistrationRevision).where(
+            ComparisonRegistrationRevision.comparison_set_id == comparison.id,
+            ComparisonRegistrationRevision.slide_id == slide.id,
+            ComparisonRegistrationRevision.source_version == slide.sha256,
+            ComparisonRegistrationRevision.anchor_slide_id == reference.id,
+        )
+    ).all()
+    for revision in revisions:
+        registration = revision.registration
+        if registration.get("anchorVersion") != reference.sha256:
+            continue
+        candidates.append(registration)
+    candidates = [
+        value
+        for item in candidates
+        if (value := current_registration(item)) and value.get("status") in {"ready", "approximate"}
+    ]
+    return max(candidates, key=_registration_quality, default=None)
+
+
+def _with_overview_fallback(
+    primary: dict[str, Any], secondary: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Keep a qualified coarse mesh without replacing stronger local evidence."""
+    if str(primary.get("provenance", "")).startswith("manual") or not secondary:
+        return primary
+    fallback = secondary.get("overviewFallback") or secondary
+    if (
+        fallback.get("status") != "approximate"
+        or not fallback.get("overviewTriangles")
+        or (fallback.get("evidence") or {}).get("source") != "bounded-sparse-overview"
+        or any(
+            not primary.get(key) or primary.get(key) != fallback.get(key)
+            for key in ("sourceVersion", "anchorVersion", "anchorSlideId")
+        )
+        or (current_registration(fallback) or {}).get("status") != "approximate"
+    ):
+        return primary
+    if primary.get("overviewTriangles") == fallback.get("overviewTriangles"):
+        result = deepcopy(primary)
+        result.pop("overviewFallback", None)
+        return result
+    result = deepcopy(primary)
+    result["overviewFallback"] = deepcopy(fallback)
+    result["overviewFallback"].pop("overviewFallback", None)
+    return result
+
+
+def _next_job_statement(
+    *,
+    now: datetime,
+    postgres: bool,
+    include_kinds: frozenset[str] | None = None,
+    exclude_kinds: frozenset[str] | None = None,
+) -> Select[tuple[Job]]:
     statement = (
         select(Job)
         .where(
             Job.status.in_({"queued", "retry_wait"}),
             or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
         )
-        .order_by(Job.created_at)
+        .order_by(
+            case(
+                ((Job.kind == "align") & (Job.checkpoint["phase"].as_string() == "preview"), 0),
+                (Job.kind.in_({"align", "align_benchmark"}), 2),
+                else_=1,
+            ),
+            Job.created_at,
+        )
         .limit(1)
     )
+    if include_kinds:
+        statement = statement.where(Job.kind.in_(include_kinds))
+    if exclude_kinds:
+        statement = statement.where(Job.kind.not_in(exclude_kinds))
     return statement.with_for_update(skip_locked=True) if postgres else statement
 
 
@@ -60,6 +245,17 @@ class DiskUsage(Protocol):
 
     @property
     def free(self) -> int: ...
+
+
+class ChildProcess(Protocol):
+    @property
+    def pid(self) -> int | None: ...
+
+    def is_alive(self) -> bool: ...
+
+    def terminate(self) -> None: ...
+
+    def join(self, timeout: float | None = None) -> None: ...
 
 
 class StorageCapacityMonitor:
@@ -135,9 +331,7 @@ class WorkerScheduler:
             self._next_stale_recovery = max(
                 self._next_stale_recovery, now + STALE_RECOVERY_INTERVAL_SECONDS
             )
-            self._next_tus_cleanup = max(
-                self._next_tus_cleanup, now + TUS_CLEANUP_INTERVAL_SECONDS
-            )
+            self._next_tus_cleanup = max(self._next_tus_cleanup, now + TUS_CLEANUP_INTERVAL_SECONDS)
             self._next_pairing_cleanup = max(
                 self._next_pairing_cleanup, now + PAIRING_CLEANUP_INTERVAL_SECONDS
             )
@@ -172,9 +366,7 @@ class WorkerScheduler:
         )
 
 
-def background_work_is_allowed(
-    factory: sessionmaker[OrmSession], *, enabled: bool
-) -> bool:
+def background_work_is_allowed(factory: sessionmaker[OrmSession], *, enabled: bool) -> bool:
     if not enabled:
         return True
     with factory() as database:
@@ -298,6 +490,7 @@ def expire_incomplete_uploads(
             for artifact in artifacts:
                 _unlink_upload_artifact(artifact)
             database.add(AuditEvent(action="upload.expired", target_id=slide.id))
+            remove_slide_from_stacks(database, slide.id)
             database.delete(slide)
             database.commit()
         expired += 1
@@ -312,30 +505,777 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
+    """Assemble one bounded pyramid level without opening the full-resolution WSI."""
+    descriptor = derivative / "slide.dzi"
+    root = ET.parse(descriptor).getroot()
+    namespace = root.tag.partition("}")[0].lstrip("{")
+    size = root.find(f"{{{namespace}}}Size")
+    if size is None:
+        raise OSError("DZI dimensions are unavailable")
+    full_width, full_height = int(size.attrib["Width"]), int(size.attrib["Height"])
+    tile_size = int(root.attrib["TileSize"])
+    overlap = int(root.attrib.get("Overlap", "0"))
+    image_format = root.attrib["Format"]
+    maximum_level = math.ceil(math.log2(max(full_width, full_height)))
+    level = maximum_level
+    while level > 0:
+        divisor = 2 ** (maximum_level - level)
+        if max(math.ceil(full_width / divisor), math.ceil(full_height / divisor)) <= maximum:
+            break
+        level -= 1
+    divisor = 2 ** (maximum_level - level)
+    width, height = math.ceil(full_width / divisor), math.ceil(full_height / divisor)
+    overview = Image.new("RGB", (width, height), "white")
+    tile_root = derivative / "slide_files" / str(level)
+    columns, rows = math.ceil(width / tile_size), math.ceil(height / tile_size)
+    for row in range(rows):
+        for column in range(columns):
+            path = tile_root / f"{column}_{row}.{image_format}"
+            if not path.exists() and (derivative / ".openslide-source.json").is_file():
+                from .tile_routes import materialize_local_openslide_tile_from_root
+
+                path = materialize_local_openslide_tile_from_root(
+                    derivative, derivative.name, path.relative_to(derivative).as_posix()
+                )
+            # Sparse DZI writers omit all-white tiles. The missing tile is
+            # background, not a corrupt pyramid and must not force engines
+            # back to the low-resolution thumbnail.
+            if not path.exists():
+                continue
+            with Image.open(path) as opened:
+                tile = opened.convert("RGB")
+            left = overlap if column else 0
+            top = overlap if row else 0
+            wanted_width = min(tile_size, width - column * tile_size)
+            wanted_height = min(tile_size, height - row * tile_size)
+            overview.paste(
+                tile.crop((left, top, left + wanted_width, top + wanted_height)),
+                (column * tile_size, row * tile_size),
+            )
+    return overview
+
+
+def _load_alignment_overview(derivative: Path) -> Image.Image:
+    """Prefer a bounded pyramid level for every registration engine."""
+    try:
+        return _load_dzi_overview(derivative)
+    except (FileNotFoundError, OSError, ET.ParseError):
+        with Image.open(derivative / "thumbnail.jpg") as opened:
+            return opened.convert("RGB")
+
+
+def _alignment_child(
+    reference_derivative: str,
+    moving_derivative: str,
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+    engine_name: str,
+    engine_settings: dict[str, Any] | None,
+    artifact_dir: str | None,
+    output: Any,
+    seed_registration: dict[str, Any] | None = None,
+) -> None:
+    # Give every native registration and any JVM it launches one process group
+    # so the OCI supervisor can stop the complete tree on timeout/cancellation.
+    if not sys.platform.startswith("win"):
+        os.setsid()
+    try:
+        cv2.setNumThreads(1)
+        cv2.setRNGSeed(0)
+
+        def overview(path: str) -> Image.Image:
+            return _load_alignment_overview(Path(path))
+
+        reference_image = overview(reference_derivative)
+        moving_image = overview(moving_derivative)
+        if engine_name == ENGINE_VALIS and all(
+            (Path(path) / "slide.dzi").is_file()
+            for path in (reference_derivative, moving_derivative)
+        ):
+            reference_boxes = component_bounds(reference_image, reference_full_size)
+            moving_boxes = component_bounds(moving_image, moving_full_size)
+            if 1 < len(reference_boxes) == len(moving_boxes):
+                started = time.monotonic()
+                pairs, _ = _candidate_component_pairs(
+                    reference_image,
+                    moving_image,
+                    reference_boxes,
+                    moving_boxes,
+                    reference_full_size,
+                    moving_full_size,
+                )
+                parts = []
+                failures = []
+                for index, (moving_index, reference_index) in enumerate(pairs):
+                    reference_crop, reference_frame = read_region(
+                        Path(reference_derivative), reference_boxes[reference_index], 2048
+                    )
+                    moving_crop, moving_frame = read_region(
+                        Path(moving_derivative), moving_boxes[moving_index], 2048
+                    )
+                    reference_size = (
+                        reference_crop.width * reference_frame[2],
+                        reference_crop.height * reference_frame[2],
+                    )
+                    moving_size = (
+                        moving_crop.width * moving_frame[2],
+                        moving_crop.height * moving_frame[2],
+                    )
+                    key = hashlib.sha256(
+                        repr(
+                            (
+                                hashlib.sha256(reference_crop.tobytes()).hexdigest(),
+                                hashlib.sha256(moving_crop.tobytes()).hexdigest(),
+                                reference_crop.mode,
+                                moving_crop.mode,
+                                reference_frame,
+                                moving_frame,
+                                reference_size,
+                                moving_size,
+                                settings_digest(engine_name, engine_settings),
+                                "ordered-components-v1",
+                            )
+                        ).encode()
+                    ).hexdigest()
+                    component_dir = (
+                        Path(artifact_dir) / f"component-{key}" if artifact_dir else None
+                    )
+                    receipt = component_dir / "valis-coordinate-map.json" if component_dir else None
+                    try:
+                        payload = None
+                        if receipt and receipt.is_file():
+                            with suppress(OSError, ValueError, TypeError):
+                                payload = json.loads(receipt.read_text())
+                        if (
+                            not isinstance(payload, dict)
+                            or payload.get("engineVersion") != ENGINE_VERSIONS[engine_name]
+                            or payload.get("status") not in {"ready", "approximate"}
+                            or not payload.get("movingToReference")
+                            or not (payload.get("triangles") or payload.get("overviewTriangles"))
+                        ):
+                            run = run_engine(
+                                engine_name,
+                                reference=reference_crop,
+                                moving=moving_crop,
+                                reference_full_size=reference_size,
+                                moving_full_size=moving_size,
+                                artifact_dir=component_dir,
+                                settings=engine_settings,
+                                progress=lambda values: output.put({"progress": values}),
+                            )
+                            payload = run.registration
+                        parts.append((payload, reference_frame, moving_frame))
+                    except AlignmentRejected as error:
+                        failures.append(
+                            {
+                                "movingComponent": moving_index,
+                                "referenceComponent": reference_index,
+                                "reason": str(error),
+                            }
+                        )
+                    output.put(
+                        {
+                            "progress": {
+                                "stage": "valis-components",
+                                "processedComponentPairs": index + 1,
+                                "totalComponentPairs": len(pairs),
+                            }
+                        }
+                    )
+                payload = merge_component_maps(parts)
+                payload["evidence"].update(
+                    {
+                        "componentOrderPreserved": True,
+                        "componentPolicy": "ordered-components-v1",
+                        "totalComponentPairs": len(pairs),
+                        "acceptedComponentPairs": payload["evidence"]["componentCount"],
+                        "componentFailures": failures,
+                    }
+                )
+                if failures:
+                    payload["reason"] = (
+                        "Partial component coverage; unresolved tissue needs refinement"
+                    )
+                artifact = (
+                    Path(artifact_dir) / "component-coordinate-map.json" if artifact_dir else None
+                )
+                if artifact:
+                    artifact.parent.mkdir(parents=True, exist_ok=True)
+                    artifact.write_text(json.dumps(payload))
+                output.put(
+                    {
+                        "ok": True,
+                        "result": payload,
+                        "artifactPath": str(artifact) if artifact else None,
+                        "artifactSha256": hashlib.sha256(artifact.read_bytes()).hexdigest()
+                        if artifact
+                        else None,
+                        "runtimeSeconds": time.monotonic() - started,
+                    }
+                )
+                return
+        if engine_name != ENGINE_NATIVE:
+            engine_run = run_engine(
+                engine_name,
+                reference=reference_image,
+                moving=moving_image,
+                reference_full_size=reference_full_size,
+                moving_full_size=moving_full_size,
+                artifact_dir=Path(artifact_dir) if artifact_dir else None,
+                settings=engine_settings,
+                progress=lambda values: output.put({"progress": values}),
+            )
+            output.put(
+                {
+                    "ok": True,
+                    "result": engine_run.registration,
+                    "artifactPath": str(engine_run.artifact_path)
+                    if engine_run.artifact_path
+                    else None,
+                    "artifactSha256": engine_run.artifact_sha256,
+                    "runtimeSeconds": engine_run.runtime_seconds,
+                }
+            )
+            return
+        if seed_registration and (
+            seed_registration.get("overviewTriangles") or seed_registration.get("triangles")
+        ):
+            refined = refine_supported_patches(
+                Path(reference_derivative),
+                Path(moving_derivative),
+                moving_image,
+                reference_full_size,
+                moving_full_size,
+                seed_registration,
+                checkpoint_dir=Path(artifact_dir) / "native-batches" if artifact_dir else None,
+                progress=lambda done, total: output.put(
+                    {
+                        "progress": {
+                            "stage": "guided-patches",
+                            "processedPatches": done,
+                            "totalPatches": total,
+                        }
+                    }
+                ),
+            )
+            output.put({"ok": True, "result": refined})
+            return
+        result = None
+        overview_error = None
+        try:
+            result = register_pair(reference_image, moving_image, max_dimension=4096)
+            result = rescale_registration(
+                result,
+                reference_thumbnail_size=reference_image.size,
+                moving_thumbnail_size=moving_image.size,
+                reference_full_size=reference_full_size,
+                moving_full_size=moving_full_size,
+            )
+        except AlignmentRejected as error:
+            overview_error = str(error)
+        if result is None or result.status != "ready":
+            if all(
+                (Path(path) / "slide.dzi").exists()
+                for path in (reference_derivative, moving_derivative)
+            ):
+                try:
+                    result = register_components(
+                        Path(reference_derivative),
+                        Path(moving_derivative),
+                        reference_image,
+                        moving_image,
+                        reference_full_size,
+                        moving_full_size,
+                        checkpoint_dir=Path(artifact_dir) / "native-batches"
+                        if artifact_dir
+                        else None,
+                        progress=lambda done, total: output.put(
+                            {
+                                "progress": {
+                                    "stage": "high-resolution-components",
+                                    "processedComponentPairs": done,
+                                    "totalComponentPairs": total,
+                                }
+                            }
+                        ),
+                    )
+                except AlignmentRejected as error:
+                    if result is None:
+                        raise
+                    result.evidence["componentRefinementReason"] = str(error)
+            elif result is None:
+                raise AlignmentRejected(overview_error or "No reliable correspondence found")
+        assert result is not None
+        output.put({"ok": True, "result": result.as_json()})
+    except Exception as error:
+        output.put({"ok": False, "type": type(error).__name__, "error": str(error)})
+
+
+def _process_rss_bytes(process_id: int, *, peak: bool = False) -> int:
+    if not sys.platform.startswith("win"):
+        try:
+            if peak:
+                for line in Path(f"/proc/{process_id}/status").read_text().splitlines():
+                    if line.startswith("VmHWM:"):
+                        return int(line.split()[1]) * 1024
+                return 0
+            pages = int(Path(f"/proc/{process_id}/statm").read_text().split()[1])
+            return pages * os.sysconf("SC_PAGE_SIZE")
+        except (FileNotFoundError, IndexError, OSError, ValueError):
+            return 0
+    import ctypes
+    from ctypes import wintypes
+
+    class ProcessMemoryCounters(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("PageFaultCount", wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    handle = ctypes.windll.kernel32.OpenProcess(0x1000 | 0x0400, False, process_id)
+    if not handle:
+        return 0
+    try:
+        counters = ProcessMemoryCounters()
+        counters.cb = ctypes.sizeof(counters)
+        if not ctypes.windll.psapi.GetProcessMemoryInfo(
+            handle, ctypes.byref(counters), counters.cb
+        ):
+            return 0
+        return int(counters.PeakWorkingSetSize if peak else counters.WorkingSetSize)
+    finally:
+        ctypes.windll.kernel32.CloseHandle(handle)
+
+
+def _descendant_process_ids(process_id: int) -> set[int]:
+    if sys.platform.startswith("win") or process_id <= 0:
+        return {process_id} if process_id > 0 else set()
+    discovered = {process_id}
+    pending = [process_id]
+    while pending:
+        parent = pending.pop()
+        children_file = Path(f"/proc/{parent}/task/{parent}/children")
+        try:
+            children = {int(value) for value in children_file.read_text().split()}
+        except (FileNotFoundError, OSError, ValueError):
+            children = set()
+        unseen = children - discovered
+        discovered.update(unseen)
+        pending.extend(unseen)
+    return discovered
+
+
+def _process_tree_rss_bytes(process_id: int) -> int:
+    return sum(_process_rss_bytes(pid) for pid in _descendant_process_ids(process_id))
+
+
+def _terminate_process_tree(process: ChildProcess) -> None:
+    if process.pid and not sys.platform.startswith("win"):
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+        process.join(2)
+        if process.is_alive():
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+    elif process.is_alive():
+        process.terminate()
+    process.join(2)
+
+
+def _run_alignment_bounded(
+    reference_derivative: Path,
+    moving_derivative: Path,
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+    *,
+    engine_name: str = ENGINE_NATIVE,
+    engine_settings: dict[str, Any] | None = None,
+    seed_registration: dict[str, Any] | None = None,
+    artifact_dir: Path | None = None,
+    timeout_seconds: int,
+    memory_bytes: int,
+    heartbeat: Callable[[], None] | None = None,
+    progress: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
+    if heartbeat:
+        heartbeat()
+    context = multiprocessing.get_context("spawn")
+    output = context.Queue(maxsize=1)
+    process = context.Process(
+        target=_alignment_child,
+        args=(
+            str(reference_derivative),
+            str(moving_derivative),
+            reference_full_size,
+            moving_full_size,
+            engine_name,
+            engine_settings,
+            str(artifact_dir) if artifact_dir else None,
+            output,
+            seed_registration,
+        ),
+        daemon=True,
+    )
+    process.start()
+    started = time.monotonic()
+    last_heartbeat = started
+    peak_memory_bytes = 0
+    try:
+        # Drain the result while the child is alive: Queue's feeder can block
+        # child shutdown until a large coordinate map has been consumed.
+        while True:
+            if heartbeat and time.monotonic() - last_heartbeat >= 0.5:
+                heartbeat()
+                last_heartbeat = time.monotonic()
+            if time.monotonic() - started > timeout_seconds:
+                _terminate_process_tree(process)
+                raise AlignmentRejected("registration exceeded the pair timeout")
+            current_memory_bytes = _process_tree_rss_bytes(process.pid or 0)
+            peak_memory_bytes = max(peak_memory_bytes, current_memory_bytes)
+            if current_memory_bytes > memory_bytes:
+                _terminate_process_tree(process)
+                raise AlignmentRejected(
+                    "registration exceeded the memory ceiling "
+                    f"({current_memory_bytes / 1024**3:.2f} GiB > "
+                    f"{memory_bytes / 1024**3:.2f} GiB)"
+                )
+            try:
+                result = output.get(timeout=0.2)
+                if "progress" in result:
+                    if progress:
+                        progress(result["progress"])
+                    continue
+                break
+            except queue.Empty:
+                if not process.is_alive():
+                    raise AlignmentRejected("registration process ended without a result") from None
+        process.join(2)
+        if not result.get("ok"):
+            raise AlignmentRejected(result.get("error") or "registration failed")
+        payload = cast(dict[str, Any], result["result"])
+        if result.get("artifactPath"):
+            payload["artifactPath"] = result["artifactPath"]
+        if result.get("artifactSha256"):
+            payload["artifactSha256"] = result["artifactSha256"]
+        if result.get("runtimeSeconds") is not None:
+            payload["runtimeSeconds"] = result["runtimeSeconds"]
+        payload["peakMemoryBytes"] = peak_memory_bytes
+        return payload
+    finally:
+        if process.is_alive():
+            _terminate_process_tree(process)
+        output.close()
+
+
+class AlignmentPreempted(Exception):
+    """Interactive foreground work takes priority over unpublished refinement."""
+
+
+def _map_bytes(value: Any) -> int:
+    """Conservative Python resident size, including containers rather than JSON only."""
+    if isinstance(value, dict):
+        return sys.getsizeof(value) + sum(_map_bytes(k) + _map_bytes(v) for k, v in value.items())
+    if isinstance(value, (list, tuple)):
+        return sys.getsizeof(value) + sum(_map_bytes(v) for v in value)
+    return sys.getsizeof(value)
+
+
+def _container_memory() -> dict[str, int]:
+    measurements = {}
+    for filename, key in (
+        ("memory.current", "containerMemoryBytes"),
+        ("memory.peak", "containerLifetimePeakMemoryBytes"),
+    ):
+        with suppress(OSError, ValueError):
+            measurements[key] = int((Path("/sys/fs/cgroup") / filename).read_text())
+    return measurements
+
+
+def _preview_alignment(
+    database: OrmSession,
+    layout: StorageLayout,
+    job: Job,
+    comparison: ComparisonSet,
+    reference: Slide,
+    moving: Slide,
+) -> None:
+    """Publish a conservative first pass and enqueue independent refinement."""
+    global _preview_map_bytes
+    started = time.monotonic()
+    checkpoint = dict(job.checkpoint or {})
+    expected_sources = (reference.sha256, moving.sha256)
+    deadline = datetime.fromisoformat(checkpoint["foregroundDeadlineAt"])
+    queue_seconds = max(
+        0.0, (datetime.now(UTC) - (deadline - timedelta(seconds=10))).total_seconds()
+    )
+    payload: dict[str, Any]
+    hits = 0
+    preparation_seconds = 0.0
+    pair_hit = False
+    try:
+        if case_ids_conflict(moving.case_id, reference.case_id):
+            raise AlignmentRejected("Needs refinement: slides have different case identifiers")
+        if datetime.now(UTC) >= deadline:
+            raise AlignmentRejected("Needs refinement: stack foreground deadline exceeded")
+        prepared = []
+        versions = []
+        for slide in (reference, moving):
+            metadata = slide.slide_metadata or {}
+            size = (int(metadata["width"]), int(metadata["height"]))
+            derivative = layout.for_slide(slide.id).private_derivative
+
+            def load(path: Path = derivative, dimensions: tuple[int, int] = size) -> Image.Image:
+                if (path / "slide.dzi").is_file():
+                    return read_region(path, (0, 0, *dimensions), maximum=1024)[0]
+                with Image.open(path / "thumbnail.jpg") as image:
+                    return image.convert("RGB")
+
+            # Source digest plus derivative geometry prevents cross-resolution reuse.
+            dzi = derivative / "slide.dzi"
+            geometry = (
+                hashlib.sha256(dzi.read_bytes()).hexdigest() if dzi.is_file() else "thumbnail"
+            )
+            key = f"{layout.root.resolve()}:{slide.sha256}:{geometry}"
+            sampling_scale = 1 if dzi.is_file() else None
+            if sampling_scale:
+                while max(size) / sampling_scale > 1024:
+                    sampling_scale *= 2
+            tick = time.monotonic()
+            value, hit = _preparation_cache.prepare(key, load, size, sampling_scale=sampling_scale)
+            preparation_seconds += time.monotonic() - tick
+            prepared.append(value)
+            versions.append((key, size))
+            hits += int(hit)
+        cache_key = (*versions, PREPARATION_VERSION, VALIDATION_POLICY)
+        if cache_key in _preview_maps:
+            _preview_maps.move_to_end(cache_key)
+            payload = deepcopy(_preview_maps[cache_key])
+            pair_hit = True
+        else:
+            if datetime.now(UTC) >= deadline:
+                raise AlignmentRejected("Needs refinement: stack foreground deadline exceeded")
+            payload = register_prepared(*prepared).as_json()
+            encoded_bytes = _map_bytes(payload)
+            while _preview_maps and _preview_map_bytes + encoded_bytes > 16 * 1024**2:
+                _, removed = _preview_maps.popitem(last=False)
+                _preview_map_bytes -= _map_bytes(removed)
+            if encoded_bytes <= 16 * 1024**2:
+                _preview_maps[cache_key] = deepcopy(payload)
+                _preview_map_bytes += encoded_bytes
+        if datetime.now(UTC) > deadline:
+            raise AlignmentRejected("Needs refinement: stack foreground deadline exceeded")
+    except (AlignmentRejected, OSError, ValueError, KeyError) as error:
+        payload = {
+            "status": "needs_refinement",
+            "reason": str(error),
+            "triangles": [],
+            "overviewTriangles": [],
+            "movingToReference": None,
+        }
+    payload.update(
+        provenance="automatic",
+        sourceVersion=moving.sha256,
+        anchorVersion=reference.sha256,
+        anchorSlideId=reference.id,
+        coordinateReferenceId=reference.id,
+        engine=ENGINE_NATIVE,
+        engineVersion=ENGINE_VERSIONS[ENGINE_NATIVE],
+        settingsDigest=settings_digest(ENGINE_NATIVE),
+    )
+    payload["evidence"] = {
+        **payload.get("evidence", {}),
+        "validationPolicy": VALIDATION_POLICY,
+        "phase": "preview",
+        "preparationVersion": PREPARATION_VERSION,
+        "stackAcceptedAt": (deadline - timedelta(seconds=10)).isoformat(),
+        "previewPublishedAt": datetime.now(UTC).isoformat(),
+        "preparationSeconds": preparation_seconds,
+        "computeSeconds": max(0.0, time.monotonic() - started - preparation_seconds),
+        "queueSeconds": queue_seconds,
+        "preparationCacheHits": hits,
+        "pairCacheHit": pair_hit,
+        "workerRssBytes": _process_rss_bytes(os.getpid()),
+        "workerLifetimePeakRssBytes": _process_rss_bytes(os.getpid(), peak=True),
+        "workerStartupSeconds": _worker_startup_seconds,
+        **_container_memory(),
+    }
+    # Reread before publication; edits/cancellation can arrive while OpenCV runs.
+    database.refresh(comparison)
+    database.refresh(job)
+    database.refresh(reference)
+    database.refresh(moving)
+    if case_ids_conflict(moving.case_id, reference.case_id):
+        payload.update(
+            status="needs_refinement",
+            reason="Needs refinement: slides have different case identifiers",
+            triangles=[],
+            overviewTriangles=[],
+            movingToReference=None,
+        )
+    if (
+        comparison.version != checkpoint["setVersion"]
+        or job.cancellation_requested_at
+        or comparison.source_versions.get(moving.id) != moving.sha256
+        or comparison.source_versions.get(reference.id) != reference.sha256
+        or expected_sources != (reference.sha256, moving.sha256)
+    ):
+        job.status = "cancelled"
+        job.failure_code = "ALIGNMENT_STALE"
+    else:
+        previous = _best_compatible_registration(
+            database, comparison=comparison, slide=moving, reference=reference
+        )
+        preserved = previous and _registration_quality(previous) > _registration_quality(payload)
+        metrics = payload["evidence"]
+        if preserved:
+            payload = _with_overview_fallback(cast(dict[str, Any], previous), payload)
+        comparison.registrations = {**comparison.registrations, moving.id: payload}
+        if not preserved or payload != previous:
+            database.add(
+                ComparisonRegistrationRevision(
+                    comparison_set_id=comparison.id,
+                    slide_id=moving.id,
+                    set_version=comparison.version,
+                    source_version=moving.sha256,
+                    anchor_slide_id=reference.id,
+                    algorithm_version=PREPARATION_VERSION,
+                    provenance="automatic",
+                    registration=payload,
+                )
+            )
+        key = hashlib.sha256(f"{job.id}:refinement".encode()).hexdigest()
+        if database.scalar(select(Job.id).where(Job.idempotency_key_hash == key)) is None:
+            database.add(
+                Job(
+                    slide_id=moving.id,
+                    kind="align",
+                    resource_class="isolated",
+                    idempotency_key_hash=key,
+                    checkpoint={
+                        **checkpoint,
+                        "phase": "refinement",
+                        "stage": "queued-refinement",
+                        "progress": 0,
+                        "preserveExisting": True,
+                    },
+                    resource_limits={
+                        "cpuThreads": 1,
+                        "memoryBytes": 2 * 1024**3,
+                        "timeoutSeconds": 600,
+                    },
+                )
+            )
+        comparison.status = "running"
+        job.status = "succeeded"
+        job.checkpoint = {
+            **checkpoint,
+            "stage": "preview-complete",
+            "progress": 100,
+            "resultStatus": payload.get("status"),
+            "runtimeSeconds": time.monotonic() - started,
+            "queueSeconds": queue_seconds,
+            "timings": metrics,
+        }
+    job.heartbeat_at = None
+    job.lease_expires_at = None
+    database.commit()
+
+
 def process_next(
     factory: sessionmaker[OrmSession],
     layout: StorageLayout,
     *,
     shutdown_requested: Callable[[], bool] = lambda: False,
     protection_enabled: bool = False,
+    include_kinds: frozenset[str] | None = None,
+    exclude_kinds: frozenset[str] | None = None,
+    exclusive_alignment: bool | None = None,
 ) -> bool:
     if shutdown_requested():
         return False
     with factory() as database:
         if shutdown_requested():
             return False
+        # ponytail: serialize admission only; shard if claim throughput becomes a measured limit.
+        dialect = database.get_bind().dialect.name
+        if dialect == "postgresql":
+            if not database.scalar(select(func.pg_try_advisory_xact_lock(0x504C41424A4F42))):
+                return False
+        elif dialect == "sqlite":
+            try:
+                database.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            except OperationalError as error:
+                if isinstance(error.orig, sqlite3.OperationalError) and (
+                    getattr(error.orig, "sqlite_errorcode", 0) & 0xFF
+                ) in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}:
+                    return False  # Retry admission on the next worker poll.
+                raise
         now = datetime.now(UTC)
         if protection_enabled:
             snapshot = protection_snapshot(database, now=now)
             if snapshot.blocks_background_work:
                 database.commit()
                 return False
+        alignment_kinds = {"align", "align_benchmark"}
+        active_statuses = {"leased", "running", "checkpointing"}
+        if exclusive_alignment is True:
+            # A queued alignment owns admission priority, but it starts only
+            # after ordinary heavy work has drained.
+            ordinary_active = database.scalar(
+                select(Job.id)
+                .where(Job.kind.not_in(alignment_kinds), Job.status.in_(active_statuses))
+                .limit(1)
+            )
+            if ordinary_active is not None:
+                return False
+        elif exclusive_alignment is False:
+            alignment_waiting_or_active = database.scalar(
+                select(Job.id)
+                .where(
+                    Job.kind.in_(alignment_kinds),
+                    or_(
+                        Job.status.in_(active_statuses),
+                        Job.status.in_({"queued", "retry_wait"})
+                        & (Job.checkpoint["phase"].as_string() == "preview")
+                        & or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
+                    ),
+                )
+                .limit(1)
+            )
+            if alignment_waiting_or_active is not None:
+                return False
         statement = _next_job_statement(
             now=now,
-            postgres=database.get_bind().dialect.name == "postgresql"
+            postgres=database.get_bind().dialect.name == "postgresql",
+            include_kinds=include_kinds,
+            exclude_kinds=exclude_kinds,
         )
         job = database.scalar(statement)
         if job is None:
+            return False
+        if (
+            exclusive_alignment is True
+            and (job.checkpoint or {}).get("phase") != "preview"
+            and database.scalar(
+                select(Job.id)
+                .where(
+                    Job.kind.not_in(alignment_kinds),
+                    Job.status.in_({"queued", "retry_wait"}),
+                    or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
+                )
+                .limit(1)
+            )
+            is not None
+        ):
             return False
         job.status = "running"
         job.attempts += 1
@@ -345,8 +1285,10 @@ def process_next(
         if job.kind == "delete":
             if slide is not None:
                 job_id = job.id
-                checkpoint = {
-                    "phase": "delete-files", "slideId": slide.id, "publicId": slide.public_id,
+                checkpoint: dict[str, Any] = {
+                    "phase": "delete-files",
+                    "slideId": slide.id,
+                    "publicId": slide.public_id,
                 }
                 # Retain this job across the slide's FK cascade so cleanup can resume.
                 job.slide = None
@@ -403,6 +1345,461 @@ def process_next(
             job.lease_expires_at = None
             database.commit()
             return True
+        database.commit()
+        if job.kind in {"align", "align_benchmark"}:
+            checkpoint = dict(job.checkpoint or {})
+            comparison = database.get(ComparisonSet, checkpoint.get("comparisonSetId"))
+            if comparison is None or slide.id != checkpoint.get("memberId"):
+                job.status = "failed_terminal"
+                job.failure_code = "ALIGNMENT_TARGET_MISSING"
+                job.error = "Comparison set or member is unavailable"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
+            applied_settings: dict[str, Any] = {}
+            expected_version = checkpoint.get("setVersion", comparison.version)
+            if comparison.version != expected_version or job.cancellation_requested_at is not None:
+                job.status = "cancelled"
+                job.failure_code = "ALIGNMENT_STALE"
+                job.error = "Comparison changed while registration was queued"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
+            primary_reference = database.get(Slide, comparison.reference_slide_id)
+            anchor_id = checkpoint.get("anchorSlideId") or comparison.reference_slide_id
+            reference = database.get(Slide, anchor_id)
+            source_current = (
+                reference is not None
+                and primary_reference is not None
+                and bool(reference.sha256)
+                and bool(primary_reference.sha256)
+                and bool(slide.sha256)
+                and comparison.source_versions.get(reference.id) == reference.sha256
+                and comparison.source_versions.get(primary_reference.id) == primary_reference.sha256
+                and comparison.source_versions.get(slide.id) == slide.sha256
+            )
+            if not source_current:
+                comparison.status = "failed"
+                job.status = "failed_terminal"
+                job.failure_code = "ALIGNMENT_SOURCE_CHANGED"
+                job.error = "A comparison source changed after the set was created"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
+            assert reference is not None
+            assert primary_reference is not None
+            assert reference.sha256 is not None and slide.sha256 is not None
+            if checkpoint.get("sourceVersion") not in {None, slide.sha256} or checkpoint.get(
+                "anchorVersion"
+            ) not in {None, reference.sha256}:
+                job.status = "cancelled"
+                job.failure_code = "ALIGNMENT_SOURCE_CHANGED"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
+            expected_sources = (reference.sha256, slide.sha256)
+            if checkpoint.get("phase") == "preview":
+                cv2.setNumThreads(1)
+                cv2.setRNGSeed(0)
+                _preview_alignment(database, layout, job, comparison, reference, slide)
+                return True
+            checkpoint.update({"progress": 10, "stage": "loading-overviews", "processedPatches": 0})
+            job.checkpoint = checkpoint
+            if job.kind != "align_benchmark":
+                comparison.status = "running"
+            database.commit()
+            try:
+                if case_ids_conflict(slide.case_id, reference.case_id):
+                    raise AlignmentRejected(
+                        "Needs refinement: slides have different case identifiers"
+                    )
+                reference_derivative = layout.for_slide(reference.id).private_derivative
+                moving_derivative = layout.for_slide(slide.id).private_derivative
+                checkpoint.update(
+                    {"progress": 30, "stage": "matching-structures", "totalPatches": 2}
+                )
+                job.checkpoint = checkpoint
+                job.heartbeat_at = datetime.now(UTC)
+                job.lease_expires_at = datetime.now(UTC) + timedelta(seconds=60)
+                database.commit()
+                reference_metadata = reference.slide_metadata or {}
+                moving_metadata = slide.slide_metadata or {}
+                try:
+                    reference_full_size = (
+                        int(reference_metadata["width"]),
+                        int(reference_metadata["height"]),
+                    )
+                    moving_full_size = (
+                        int(moving_metadata["width"]),
+                        int(moving_metadata["height"]),
+                    )
+                except (KeyError, TypeError, ValueError) as error:
+                    raise AlignmentRejected(
+                        "full slide dimensions unavailable for coordinate mapping"
+                    ) from error
+
+                def renew_alignment_lease() -> None:
+                    database.refresh(job)
+                    database.refresh(comparison)
+                    if job.cancellation_requested_at or comparison.version != expected_version:
+                        raise AlignmentRejected("registration cancelled or superseded")
+                    if database.scalar(
+                        select(Job.id)
+                        .where(
+                            Job.status.in_({"queued", "retry_wait"}),
+                            or_(
+                                Job.next_attempt_at.is_(None),
+                                Job.next_attempt_at <= datetime.now(UTC),
+                            ),
+                            or_(
+                                Job.kind.not_in(alignment_kinds),
+                                (Job.kind == "align")
+                                & (Job.checkpoint["phase"].as_string() == "preview"),
+                            ),
+                        )
+                        .limit(1)
+                    ):
+                        raise AlignmentPreempted()
+                    job.heartbeat_at = datetime.now(UTC)
+                    job.lease_expires_at = datetime.now(UTC) + timedelta(seconds=60)
+                    database.commit()
+
+                def record_alignment_progress(values: dict[str, Any]) -> None:
+                    renew_alignment_lease()
+                    checkpoint.update(values)
+                    job.checkpoint = dict(checkpoint)
+                    database.commit()
+
+                limits = job.resource_limits or {}
+                engine_name = str(checkpoint.get("engine") or ENGINE_NATIVE)
+                artifact_dir = (
+                    layout.root
+                    / "alignment-artifacts"
+                    / comparison.id
+                    / str(expected_version)
+                    / slide.id
+                    / engine_name
+                    / ENGINE_VERSIONS[engine_name]
+                    / settings_digest(engine_name)
+                    / f"{reference.sha256}-{slide.sha256}"
+                )
+                run_options: dict[str, Any] = {
+                    "engine_name": engine_name,
+                    "artifact_dir": artifact_dir,
+                    "timeout_seconds": min(2700, int(limits.get("timeoutSeconds", 2700))),
+                    "memory_bytes": min(7 * 1024**3, int(limits.get("memoryBytes", 7 * 1024**3))),
+                    "heartbeat": renew_alignment_lease,
+                    "progress": record_alignment_progress,
+                }
+                if engine_name == ENGINE_NATIVE:
+                    run_options["seed_registration"] = _best_compatible_registration(
+                        database, comparison=comparison, slide=slide, reference=reference
+                    )
+                try:
+                    result_json = _run_alignment_bounded(
+                        reference_derivative,
+                        moving_derivative,
+                        reference_full_size,
+                        moving_full_size,
+                        **run_options,
+                    )
+                except AlignmentRejected as error:
+                    if engine_name != ENGINE_VALIS or "memory ceiling" not in str(error):
+                        raise
+                    checkpoint.update(
+                        {
+                            "progress": 36,
+                            "stage": "valis-memory-fallback",
+                            "fallbackReason": str(error),
+                        }
+                    )
+                    job.checkpoint = dict(checkpoint)
+                    database.commit()
+                    applied_settings = {"maxImageDimension": 768}
+                    result_json = _run_alignment_bounded(
+                        reference_derivative,
+                        moving_derivative,
+                        reference_full_size,
+                        moving_full_size,
+                        engine_settings=applied_settings,
+                        **run_options,
+                    )
+                    result_json["evidence"] = {
+                        **(result_json.get("evidence") or {}),
+                        "adaptiveMemoryFallback": True,
+                        "fallbackReason": str(error),
+                    }
+                result_json["engineSettings"] = applied_settings
+                checkpoint.update(
+                    {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 0}
+                )
+                job.checkpoint = checkpoint
+                confidence = float(result_json["confidence"])
+                coordinate_reference_id = reference.id
+                # Preserve the direct stain-to-anchor map. Composing its vertices
+                # through different anchor cells changes interior geometry and
+                # also breaks consumers expecting anchor coordinates.
+                database.refresh(comparison)
+                database.refresh(job)
+                database.refresh(slide)
+                database.refresh(reference)
+                if (
+                    comparison.version != expected_version
+                    or job.cancellation_requested_at is not None
+                    or comparison.source_versions.get(slide.id) != slide.sha256
+                    or comparison.source_versions.get(reference.id) != reference.sha256
+                    or expected_sources != (reference.sha256, slide.sha256)
+                ):
+                    job.status = "cancelled"
+                    job.failure_code = "ALIGNMENT_STALE"
+                    job.error = "Stale registration output discarded"
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
+                if job.kind == "align_benchmark":
+                    artifact_path = result_json.pop("artifactPath", None)
+                    artifact_sha256 = result_json.pop("artifactSha256", None)
+                    runtime_seconds = result_json.pop("runtimeSeconds", None)
+                    peak_memory_bytes = result_json.pop("peakMemoryBytes", None)
+                    evidence = dict(result_json.get("evidence") or {})
+                    evidence.update(
+                        {
+                            "runtimeSeconds": runtime_seconds,
+                            "peakMemoryBytes": peak_memory_bytes,
+                            "engineBuildVersion": ENGINE_VERSIONS[engine_name],
+                        }
+                    )
+                    database.add(
+                        ComparisonRegistrationCandidate(
+                            comparison_set_id=comparison.id,
+                            slide_id=slide.id,
+                            set_version=comparison.version,
+                            anchor_slide_id=reference.id,
+                            source_version=slide.sha256,
+                            anchor_version=reference.sha256,
+                            engine=engine_name,
+                            engine_version=ENGINE_VERSIONS[engine_name],
+                            settings_digest=settings_digest(engine_name, applied_settings),
+                            status=str(result_json.get("status", "rejected")),
+                            validation_state=_candidate_validation_state(
+                                result_json, engine_name, slide.sha256, reference.sha256
+                            ),
+                            registration={
+                                **result_json,
+                                "provenance": "automatic-candidate",
+                                "anchorSlideId": reference.id,
+                                "coordinateReferenceId": reference.id,
+                            },
+                            evidence=evidence,
+                            artifact_path=artifact_path,
+                            artifact_sha256=artifact_sha256,
+                        )
+                    )
+                    job.checkpoint = {**checkpoint, "progress": 100, "stage": "complete"}
+                    job.output_manifest = {
+                        "comparisonSetId": comparison.id,
+                        "memberId": slide.id,
+                        "engine": engine_name,
+                        "candidate": True,
+                    }
+                    job.status = "succeeded"
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
+                registrations = dict(comparison.registrations)
+                replacement = {
+                    **result_json,
+                    "provenance": "automatic",
+                    "sourceVersion": slide.sha256,
+                    "referenceVersion": primary_reference.sha256,
+                    "anchorSlideId": reference.id,
+                    "anchorVersion": reference.sha256,
+                    "coordinateReferenceId": coordinate_reference_id,
+                    "engine": engine_name,
+                    "engineVersion": ENGINE_VERSIONS[engine_name],
+                    "engineSettings": applied_settings,
+                    "settingsDigest": settings_digest(engine_name, applied_settings),
+                    "evidence": {
+                        **result_json.get("evidence", {}),
+                        "validationPolicy": VALIDATION_POLICY,
+                    },
+                }
+                preserved = None
+                if checkpoint.get("preserveExisting"):
+                    existing = _best_compatible_registration(
+                        database,
+                        comparison=comparison,
+                        slide=slide,
+                        reference=reference,
+                    )
+                    if _registration_quality(existing) > _registration_quality(replacement):
+                        preserved = _with_overview_fallback(
+                            cast(dict[str, Any], existing), replacement
+                        )
+                    elif existing:
+                        replacement = _with_overview_fallback(replacement, existing)
+                registrations[slide.id] = preserved or replacement
+                comparison.registrations = registrations
+                if preserved is None or preserved != existing:
+                    database.add(
+                        ComparisonRegistrationRevision(
+                            comparison_set_id=comparison.id,
+                            slide_id=slide.id,
+                            set_version=comparison.version,
+                            source_version=slide.sha256,
+                            anchor_slide_id=reference.id,
+                            algorithm_version=ENGINE_VERSIONS[engine_name],
+                            provenance="automatic",
+                            registration=registrations[slide.id],
+                        )
+                    )
+                comparison.status = (
+                    "ready"
+                    if len(registrations) == len(comparison.member_slide_ids) - 1
+                    and all(value.get("status") == "ready" for value in registrations.values())
+                    else "running"
+                    if len(registrations) < len(comparison.member_slide_ids) - 1
+                    else "partial"
+                )
+                job.checkpoint = {**checkpoint, "progress": 100, "stage": "complete"}
+                job.output_manifest = {
+                    "comparisonSetId": comparison.id,
+                    "memberId": slide.id,
+                    "confidence": float(registrations[slide.id].get("confidence") or confidence),
+                    "inlierCount": int(
+                        registrations[slide.id].get("inlierCount") or result_json["inlierCount"]
+                    ),
+                    "preservedExisting": preserved is not None,
+                }
+                job.status = "succeeded"
+            except AlignmentPreempted:
+                job.status = "queued"
+                job.checkpoint = {
+                    **checkpoint,
+                    "stage": "waiting-for-foreground",
+                    "preemptions": int(checkpoint.get("preemptions", 0)) + 1,
+                }
+            except (AlignmentRejected, FileNotFoundError, OSError) as error:
+                database.refresh(comparison)
+                database.refresh(job)
+                if comparison.version != expected_version or job.cancellation_requested_at:
+                    job.status = "cancelled"
+                    job.failure_code = "ALIGNMENT_STALE"
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
+                if job.kind == "align_benchmark":
+                    engine_name = str(checkpoint.get("engine") or ENGINE_NATIVE)
+                    database.add(
+                        ComparisonRegistrationCandidate(
+                            comparison_set_id=comparison.id,
+                            slide_id=slide.id,
+                            set_version=comparison.version,
+                            anchor_slide_id=str(checkpoint.get("anchorSlideId")),
+                            source_version=slide.sha256,
+                            anchor_version=(reference.sha256 if reference else None),
+                            engine=engine_name,
+                            engine_version=ENGINE_VERSIONS[engine_name],
+                            settings_digest=settings_digest(engine_name, applied_settings),
+                            status="rejected",
+                            validation_state="rejected",
+                            registration={"engineSettings": applied_settings},
+                            evidence={},
+                            failure_reason=str(error),
+                        )
+                    )
+                    job.status = "failed_terminal"
+                    job.failure_code = "ALIGNMENT_ENGINE_REJECTED"
+                    job.error = str(error)
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
+                registrations = dict(comparison.registrations)
+                existing = _best_compatible_registration(
+                    database, comparison=comparison, slide=slide, reference=reference
+                )
+                if checkpoint.get("preserveExisting") and existing:
+                    registrations[slide.id] = existing
+                else:
+                    registrations[slide.id] = {
+                        "status": "rejected",
+                        "provenance": "automatic",
+                        "reason": str(error),
+                    }
+                comparison.registrations = registrations
+                comparison.status = (
+                    "ready"
+                    if len(registrations) == len(comparison.member_slide_ids) - 1
+                    and all(value.get("status") == "ready" for value in registrations.values())
+                    else "partial"
+                )
+                job.status = "failed_terminal"
+                job.failure_code = "ALIGNMENT_REJECTED"
+                job.error = str(error)
+            if job.kind == "align" and comparison.version == expected_version:
+                if (
+                    checkpoint.get("phase") == "refinement"
+                    and job.status in {"succeeded", "failed_terminal"}
+                    and comparison.registrations.get(slide.id, {}).get("status") != "ready"
+                    and Settings().alignment_valis_enabled
+                ):
+                    fallback_key = hashlib.sha256(f"{job.id}:valis".encode()).hexdigest()
+                    if not database.scalar(
+                        select(Job.id).where(Job.idempotency_key_hash == fallback_key)
+                    ):
+                        database.add(
+                            Job(
+                                slide_id=slide.id,
+                                kind="align",
+                                resource_class="isolated",
+                                idempotency_key_hash=fallback_key,
+                                checkpoint={
+                                    **checkpoint,
+                                    "phase": "fallback",
+                                    "engine": ENGINE_VALIS,
+                                    "stage": "queued-valis-refinement",
+                                    "progress": 0,
+                                    "preserveExisting": True,
+                                },
+                                resource_limits={
+                                    "cpuThreads": 1,
+                                    "memoryBytes": 7 * 1024**3,
+                                    "timeoutSeconds": 2700,
+                                },
+                            )
+                        )
+                        database.flush()
+                pending = database.scalar(
+                    select(Job.id)
+                    .where(
+                        Job.id != job.id,
+                        Job.kind == "align",
+                        Job.status.in_({"queued", "retry_wait", "leased", "running"}),
+                        Job.checkpoint["comparisonSetId"].as_string() == comparison.id,
+                        Job.checkpoint["setVersion"].as_integer() == comparison.version,
+                    )
+                    .limit(1)
+                )
+                if pending or job.status == "queued":
+                    comparison.status = "running"
+            job.heartbeat_at = None
+            job.lease_expires_at = None
+            database.commit()
+            return True
+        if job.kind == "delete":
+            remove_slide(layout, slide.id, slide.public_id)
+            remove_slide_from_stacks(database, slide.id)
+            database.delete(slide)
+            database.commit()
+            return True
         slide.state = SlideState.VALIDATING
         database.commit()
         paths = layout.for_slide(slide.id)
@@ -446,6 +1843,7 @@ def process_next(
             job.status = "succeeded"
             job.heartbeat_at = None
             job.lease_expires_at = None
+            activate_ready_slide_memberships(database, slide)
             database.commit()
         except Exception as error:
             slide.reserved_bytes = 0
@@ -482,14 +1880,17 @@ def run_worker_loop(scheduler: WorkerScheduler, shutdown: threading.Event) -> No
 
 
 def main() -> None:
+    global _worker_startup_seconds
     logging.basicConfig(level=logging.INFO)
     settings = Settings()
-    configure_libvips(
-        concurrency=settings.libvips_concurrency,
-        cache_max_mem_bytes=settings.libvips_cache_max_mem_bytes,
-        cache_max_files=settings.libvips_cache_max_files,
-        cache_max_operations=settings.libvips_cache_max_operations,
-    )
+    alignment_role = settings.service_role == "alignment"
+    if not alignment_role:
+        configure_libvips(
+            concurrency=settings.libvips_concurrency,
+            cache_max_mem_bytes=settings.libvips_cache_max_mem_bytes,
+            cache_max_files=settings.libvips_cache_max_files,
+            cache_max_operations=settings.libvips_cache_max_operations,
+        )
     factory = session_factory(settings)
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
     capacity_monitor = StorageCapacityMonitor(settings.data_root)
@@ -514,6 +1915,15 @@ def main() -> None:
             layout,
             shutdown_requested=shutdown.is_set,
             protection_enabled=settings.classroom_protection_enabled,
+            include_kinds=(frozenset({"align", "align_benchmark"}) if alignment_role else None),
+            exclude_kinds=(
+                None
+                if alignment_role or settings.service_role == "all"
+                else frozenset({"align", "align_benchmark"})
+            ),
+            exclusive_alignment=(
+                True if alignment_role else (None if settings.service_role == "all" else False)
+            ),
         ),
         cleanup_pairings=lambda: expire_desktop_pairings(factory),
         report_capacity=capacity_monitor.check,
@@ -527,6 +1937,15 @@ def main() -> None:
         interval_seconds=settings.worker_heartbeat_interval_seconds,
     )
     heartbeat.start()
+    # Linux production measurement includes interpreter and module imports.
+    # Unavailable on other hosts rather than reported as zero startup cost.
+    if not sys.platform.startswith("win"):
+        with suppress(OSError, ValueError, IndexError):
+            fields = Path("/proc/self/stat").read_text().rsplit(")", 1)[1].split()
+            start_seconds = int(fields[19]) / os.sysconf("SC_CLK_TCK")
+            _worker_startup_seconds = (
+                float(Path("/proc/uptime").read_text().split()[0]) - start_seconds
+            )
     try:
         run_worker_loop(scheduler, shutdown)
     finally:

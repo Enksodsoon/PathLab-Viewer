@@ -19,7 +19,9 @@ class Settings(BaseSettings):
     )
 
     environment: Literal["development", "test", "production"] = "development"
-    service_role: Literal["general", "classroom", "assessment", "worker", "tile", "all"] = "all"
+    service_role: Literal[
+        "general", "classroom", "assessment", "worker", "alignment", "tile", "all"
+    ] = "all"
     database_url: str = "sqlite:///./var/pathlab.sqlite3"
     database_password_file: Path | None = None
     data_root: Path = Path("./var/data")
@@ -39,6 +41,9 @@ class Settings(BaseSettings):
     internal_file_redirects: bool = False
     multi_share_enabled: bool = True
     annotations_enabled: bool = False
+    alignment_enabled: bool = False
+    alignment_hisalign_enabled: bool = False
+    alignment_valis_enabled: bool = False
     admin_annotation_canary_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import tifffile
+from numpy.typing import NDArray
 from ome_types import from_xml
 
 
@@ -25,10 +26,10 @@ class OmeMetadata:
     series_index: int
 
 
-def convert_uint16_to_uint8(source: np.ndarray) -> np.ndarray:
+def convert_uint16_to_uint8(source: NDArray[np.uint16]) -> NDArray[np.uint8]:
     if source.dtype != np.uint16:
         raise TypeError("Expected an unsigned 16-bit array")
-    return np.rint(source.astype(np.float64) / 257.0).astype(np.uint8)
+    return cast(NDArray[np.uint8], np.rint(source.astype(np.float64) / 257.0).astype(np.uint8))
 
 
 def _stable_error(error: Exception) -> OmeError:

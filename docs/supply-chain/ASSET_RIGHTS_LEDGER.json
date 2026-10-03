@@ -1,5 +1,5 @@
 {
-  "policySha256": "eceaa41f5dbab98fd84d5699f0b86e4c6d754cee302b24e5557faee167c75708",
+  "policySha256": "cba1d5a058a30060a0309335c6e10888f98a0c43d3e210ac834b2bdcded2ca1d",
   "records": [
     {
       "attribution": "Preserve repository LICENSE and NOTICE.",
@@ -66,6 +66,22 @@
       "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 2bd6c0e1948950c54da81ea2d2111675c73fc74a, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.",
       "releaseDisposition": "ADMITTED",
       "sizeBytes": 270
+    },
+    {
+      "attribution": "Preserve repository LICENSE and NOTICE.",
+      "blockers": [],
+      "contentSha256": "52ab4f279f4640622ba298097c4fc0fd919941039a34e75956b8ea9ffec2a3d4",
+      "creator": "PathLab source contributors; tool-assisted functional code",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "Apache-2.0 repository source; procedural mathematical filter",
+      "locator": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "permittedUse": "APPLICATION_IMAGE_DISPLAY_FILTER",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Functional gamma-transfer filter introduced in 199fa1f. Zero-size SVG contains only defs/filter/feComponentTransfer and RGB power functions; no artwork, imported media, patient pixels, or external source.",
+      "releaseDisposition": "ADMITTED",
+      "sizeBytes": 502
     },
     {
       "attribution": "Preserve repository LICENSE and NOTICE.",
@@ -241,7 +257,7 @@
     {
       "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
       "blockers": [],
-      "contentSha256": "cc36f33f585bb025e97fdf770a377916aa9d9ba67372c21160a50fe86283528d",
+      "contentSha256": "be92069fbdd8567c67ec11b9349bbd7a2f16cafb0d3985c72c8bfd8ee70ce144",
       "creator": "Phosphor Icons",
       "dependencyId": "npm:@phosphor-icons/react@2.1.10",
       "distributionScope": "SHIPPED_RUNTIME",
@@ -619,6 +635,10 @@
           "name": "LinkBreak"
         },
         {
+          "contentSha256": "2c5f9218d9c8dec2f452fd8e8c3a9b345b236796b4de3040f783be3127677b21",
+          "name": "LinkSimple"
+        },
+        {
           "contentSha256": "450db6d260cbc58a8937ad8198e232dc247abd75bb0a26391cb8d77389f4f9c6",
           "name": "List"
         },
@@ -763,6 +783,10 @@
           "name": "SquaresFour"
         },
         {
+          "contentSha256": "2cf6663628f086ddc1731c9722bee3c960b54acaaf1235829a032d703cab5031",
+          "name": "Stack"
+        },
+        {
           "contentSha256": "d039e9a0c3405f862ff3102c9b14115076ee7625a934502545f27577b18146d1",
           "name": "Stethoscope"
         },
@@ -859,7 +883,7 @@
       "privacyClass": "PUBLIC_NON_PERSONAL",
       "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
       "releaseDisposition": "ADMITTED",
-      "sizeBytes": 473638,
+      "sizeBytes": 480461,
       "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
       "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
       "sourceNoticeHashes": [
@@ -929,5 +953,5 @@
   "releaseAdmission": "ADMITTED",
   "releaseBlockers": [],
   "schemaVersion": 1,
-  "subjectCommit": "fa0d3283cf04f3396ac2a8146b683ac5232761e3"
+  "subjectCommit": "0fa5ad0c2108c789bb3e7620efce5fe066c7b3b6"
 }

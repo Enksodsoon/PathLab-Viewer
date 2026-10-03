@@ -28,12 +28,12 @@ export function ContextMenu({
 
   const close = () => {
     setOpen(false)
-    window.requestAnimationFrame(() => triggerRef.current?.focus())
+    window.requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }))
   }
 
   useLayoutEffect(() => {
-    if (!open || !triggerRef.current || !menuRef.current) return
-    const positionMenu = () => {
+    if (!open) return
+    const reposition = () => {
       if (!triggerRef.current || !menuRef.current) return
       const trigger = triggerRef.current.getBoundingClientRect()
       const menu = menuRef.current.getBoundingClientRect()
@@ -45,13 +45,16 @@ export function ContextMenu({
       const top = trigger.bottom + gap + menu.height <= window.innerHeight
         ? trigger.bottom + gap
         : Math.max(8, trigger.top - menu.height - gap)
-      setPosition((current) => current.left === left && current.top === top ? current : { left, top })
+      setPosition({ left, top })
     }
-    positionMenu()
-    menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true })
-    const onScroll = () => positionMenu()
-    window.addEventListener('scroll', onScroll, true)
-    return () => window.removeEventListener('scroll', onScroll, true)
+    reposition()
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true })
+    window.addEventListener('resize', reposition)
+    window.addEventListener('scroll', reposition, true)
+    return () => {
+      window.removeEventListener('resize', reposition)
+      window.removeEventListener('scroll', reposition, true)
+    }
   }, [open])
 
   useEffect(() => {
@@ -60,12 +63,9 @@ export function ContextMenu({
       const target = event.target as Node
       if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) close()
     }
-    const onResize = () => setOpen(false)
     document.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('resize', onResize)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('resize', onResize)
     }
   }, [open])
 
@@ -86,7 +86,8 @@ export function ContextMenu({
       return
     } else return
     event.preventDefault()
-    items[next]?.focus()
+    items[next]?.focus({ preventScroll: true })
+    items[next]?.scrollIntoView({ block: 'nearest' })
   }
 
   return (

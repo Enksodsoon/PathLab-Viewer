@@ -1,0 +1,64 @@
+{
+  "scope": "Exploratory single H&E/P40 development pair on Windows; two CPU cores and one numerical thread; no reviewed landmarks, replicas, production hardware or CPU quota qualification. 896 used adapter v8; 768 used v9 after mask-index and artifact serialization repairs. No default profile change.",
+  "runs": [
+    {
+      "scope": "one H&E/P40 development pair; no independently reviewed anatomical landmarks",
+      "engine": "valis-1.2.0",
+      "timeoutSeconds": 300,
+      "memoryCeilingBytes": 7516192768,
+      "cpuAffinityCount": 2,
+      "numericalThreads": 1,
+      "status": "ready",
+      "sampledPeakProcessTreeRssBytes": 4628516864,
+      "localCells": 145,
+      "evidence": {
+        "mode": "matched-regions",
+        "engine": "valis-1.2.0",
+        "triangleCount": 145,
+        "sampledControlCount": 117,
+        "roundTripP95Pixels": 0.068132,
+        "tissueDice": 0.487297,
+        "withheldCheck": "engine-cycle-tissue-support-and-overlap",
+        "adapterVersion": "pathlab-adapter-v8-adaptive-disk-lightglue",
+        "valisImageDimension": 896,
+        "valisFeatureMatches": 1426,
+        "valisFeatureSpatialSpread": 0.357372,
+        "valisFeatureResidualPixels": 11.36649,
+        "valisNonRigidRTRE": 0.00998148,
+        "valisLocalEvidenceQualified": true
+      },
+      "totalWallSeconds": 235.55679830000736,
+      "imageDimension": 896
+    },
+    {
+      "scope": "one H&E/P40 development pair; no independently reviewed anatomical landmarks",
+      "engine": "valis-1.2.0",
+      "imageDimension": 768,
+      "timeoutSeconds": 300,
+      "memoryCeilingBytes": 7516192768,
+      "cpuAffinityCount": 2,
+      "numericalThreads": 1,
+      "status": "ready",
+      "sampledPeakProcessTreeRssBytes": 4367089664,
+      "localCells": 143,
+      "evidence": {
+        "mode": "matched-regions",
+        "engine": "valis-1.2.0",
+        "triangleCount": 143,
+        "sampledControlCount": 118,
+        "roundTripP95Pixels": 0.213031,
+        "tissueDice": 0.485353,
+        "withheldCheck": "engine-cycle-tissue-support-and-overlap",
+        "adapterVersion": "pathlab-adapter-v9-qualified-artifact",
+        "valisImageDimension": 768,
+        "valisFeatureMatches": 1486,
+        "valisFeatureSpatialSpread": 0.365637,
+        "valisFeatureResidualPixels": 13.738618,
+        "valisNonRigidRTRE": 0.01408078,
+        "valisLocalEvidenceQualified": true
+      },
+      "totalWallSeconds": 172.80596139997942
+    }
+  ],
+  "currentArtifactMatchesReturnedQualification": true
+}
