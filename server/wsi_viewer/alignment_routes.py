@@ -19,10 +19,12 @@ from sqlalchemy.orm import sessionmaker
 
 from .alignment import _registration_triangles
 from .alignment_engines import (
+    ENGINE_ALIASES,
     ENGINE_DHR_CLASSICAL,
     ENGINE_DHR_LEARNED,
     ENGINE_HISALIGN,
     ENGINE_NATIVE,
+    ENGINE_NATIVE_OVERVIEW,
     ENGINE_VALIS,
     ENGINE_VERSIONS,
     ENGINE_WSIREG,
@@ -900,10 +902,12 @@ def register_alignment_routes(
             raise _error("COMPARISON_NOT_FOUND", 404)
         if item.version != payload.version:
             raise _error("COMPARISON_STALE_WRITE", 409)
-        requested = list(dict.fromkeys(payload.engines))
+        requested = list(
+            dict.fromkeys(ENGINE_ALIASES.get(engine, engine) for engine in payload.engines)
+        )
         if any(engine not in SUPPORTED_ENGINES for engine in requested):
             raise _error("ALIGNMENT_ENGINE_UNSUPPORTED")
-        enabled_engines = {ENGINE_NATIVE}
+        enabled_engines = {ENGINE_NATIVE, ENGINE_NATIVE_OVERVIEW}
         if hisalign_enabled:
             enabled_engines.add(ENGINE_HISALIGN)
         if valis_enabled:

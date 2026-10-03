@@ -60,6 +60,76 @@ def test_benchmark_api_uses_total_ten_minute_ceiling(tmp_path: Path):
             assert job.resource_limits["timeoutSeconds"] == 600
 
 
+def test_native_overview_available_and_aliases_queue_distinct_from_legacy(tmp_path: Path):
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack = _stack(client, headers)
+        url = f"/api/v1/admin/comparison-sets/{stack['id']}"
+        availability = client.get(url + "/candidates").json()["engineAvailability"]
+        assert availability.get("native-overview-v6", {}).get("available") is True
+        assert availability["native-v12"]["available"] is True
+        response = client.post(
+            url + "/benchmark",
+            headers=headers,
+            json={
+                "version": stack["version"],
+                "engines": ["native", "native-overview", "native-overview-v6", "native-v12"],
+            },
+        )
+        assert response.status_code == 202, response.json()
+        assert response.json()["engines"] == ["native-overview-v6", "native-v12"]
+        assert response.json()["queuedCandidates"] == 2
+        repeated = client.post(
+            url + "/benchmark",
+            headers=headers,
+            json={"version": stack["version"], "engines": ["native", "native-v12"]},
+        )
+        assert repeated.status_code == 202, repeated.json()
+        assert repeated.json()["queuedCandidates"] == 0
+        with session_factory(client.app.state.settings)() as database:
+            jobs = list(database.scalars(select(Job).where(Job.kind == "align_benchmark")))
+            assert {job.checkpoint["engine"] for job in jobs} == {
+                "native-overview-v6",
+                "native-v12",
+            }
+            assert len(jobs) == 2
+            assert all(job.resource_limits["timeoutSeconds"] == 600 for job in jobs)
+
+
+@pytest.mark.parametrize("engine", ["native-v12", "native-overview-v6"])
+@pytest.mark.parametrize("status", ["ready", "approximate"])
+def test_native_candidate_identity_preserves_promotion_status_boundary(
+    tmp_path: Path, engine, status
+):
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack = _stack(client, headers)
+        url = f"/api/v1/admin/comparison-sets/{stack['id']}"
+        with session_factory(client.app.state.settings)() as database:
+            candidate_id, saved = _hybrid_candidate(
+                database, stack, engine=engine, map_status=status
+            )
+            row = database.get(ComparisonRegistrationCandidate, candidate_id)
+            row.status = status
+            database.commit()
+        manifest = client.get(url + "/candidates").json()
+        assert manifest["candidates"][0]["currentSettings"] is True
+        response = client.post(
+            url + f"/candidates/{candidate_id}/promote",
+            headers=headers,
+            json={"version": stack["version"]},
+        )
+        assert response.status_code == (200 if status == "ready" else 409), response.json()
+        with session_factory(client.app.state.settings)() as database:
+            registration = database.get(ComparisonSet, stack["id"]).registrations["slide-2"]
+            if status == "ready":
+                assert registration["engine"] == engine
+                assert registration["settingsDigest"] == settings_digest(engine)
+                assert registration["triangles"][0]["reference"][0] == [10, 5]
+            else:
+                assert registration == saved
+
+
 def test_removed_engine_candidate_remains_reviewable_and_cannot_promote(tmp_path: Path):
     with _client(tmp_path, enabled=True) as client:
         headers = _headers(client)

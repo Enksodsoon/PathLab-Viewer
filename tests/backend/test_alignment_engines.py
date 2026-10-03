@@ -31,7 +31,7 @@ def _tissue() -> np.ndarray:
 def test_feature_tissue_coverage_ignores_glass_but_counts_unmatched_fragments(monkeypatch):
     mask = np.zeros((240, 320), dtype=np.uint8)
     mask[20:220, 30:40] = 255
-    monkeypatch.setattr(alignment_engines, "_structure", lambda _: (None, mask))
+    monkeypatch.setattr(alignment_engines, "_structure", lambda _, **kwargs: (None, mask))
     points = np.asarray([[29, 19], [40, 19], [40, 220], [29, 220]], dtype=float)
     rgb = np.zeros((240, 320, 3), dtype=np.uint8)
     assert alignment_engines._feature_tissue_coverage(points, rgb) == 1.0
@@ -114,6 +114,36 @@ def test_engine_map_rejects_inconsistent_inverse() -> None:
             map_reference_to_moving=lambda points: points + 10,
             provenance="broken-engine",
         )
+
+
+def test_declared_tissue_crop_uses_existing_support_guard_without_coordinate_padding():
+    from wsi_viewer.alignment_fast import PreparationCache
+
+    image = np.full((240, 320, 3), (175, 90, 130), dtype=np.uint8)
+    image[30:220:20, 20:300:20] = (30, 20, 70)
+    with pytest.raises(AlignmentRejected, match="insufficient tissue"):
+        _structure(image)
+    result = _sample_coordinate_map(
+        reference_rgb=image,
+        moving_rgb=image,
+        map_moving_to_reference=lambda points: points,
+        map_reference_to_moving=lambda points: points,
+        provenance="declared-crop",
+        reference_cropped=True,
+        moving_cropped=True,
+    )
+    assert result.evidence["tissueDice"] == pytest.approx(1)
+    assert np.asarray(result.moving_to_reference) == pytest.approx(
+        np.asarray([[1, 0, 0], [0, 1, 0]])
+    )
+    cache = PreparationCache()
+    prepared, hit = cache.prepare("crop", Image.fromarray(image), (3200, 2400), cropped=True)
+    assert not hit and prepared.full_size == (3200, 2400)
+    assert prepared.mask.shape == image.shape[:2]
+    _, hit = cache.prepare("crop", Image.fromarray(image), (3200, 2400), cropped=True)
+    assert hit
+    with pytest.raises(AlignmentRejected, match="insufficient tissue"):
+        cache.prepare("crop", Image.fromarray(image), (3200, 2400), cropped=False)
 
 
 def test_engine_map_handles_fractional_coordinates_at_image_boundary() -> None:

@@ -64,8 +64,9 @@ class PreparationCache:
         full_size: tuple[int, int],
         *,
         sampling_scale: int | None = None,
+        cropped: bool = False,
     ) -> tuple[PreparedSlide, bool]:
-        key = (source, full_size, sampling_scale, PREPARATION_VERSION, cv2.__version__)
+        key = (source, full_size, sampling_scale, cropped, PREPARATION_VERSION, cv2.__version__)
         if key in self.entries:
             self.entries.move_to_end(key)
             return self.entries[key], True
@@ -82,10 +83,10 @@ class PreparationCache:
         corrected = None
         thin_mask: np.ndarray[Any, Any] | None
         try:
-            structure, mask = _structure(rgb)
+            structure, mask = _structure(rgb, cropped=cropped)
         except AlignmentRejected:
             try:
-                structure, mask = _structure(rgb, preserve_thin_tissue=True)
+                structure, mask = _structure(rgb, preserve_thin_tissue=True, cropped=cropped)
             except AlignmentRejected:
                 # A tinted glass field can flood the fixed white-background mask.
                 # Estimate its color from a sparse sample only after both masks fail.
@@ -93,12 +94,12 @@ class PreparationCache:
                 corrected = np.clip(
                     rgb.astype(np.float32) * (255 / np.maximum(background, 1)), 0, 255
                 ).astype(np.uint8)
-                structure, mask = _structure(corrected, preserve_thin_tissue=True)
+                structure, mask = _structure(corrected, preserve_thin_tissue=True, cropped=cropped)
             thin_mask = mask
         else:
             # Cache the alternate support once; retain the original detector budget.
             try:
-                _, thin_mask = _structure(rgb, preserve_thin_tissue=True)
+                _, thin_mask = _structure(rgb, preserve_thin_tissue=True, cropped=cropped)
             except AlignmentRejected:
                 thin_mask = None
         keys, descriptors = _orb_features(structure, mask, 1536)
@@ -113,7 +114,7 @@ class PreparationCache:
             ).astype(np.uint8)
             try:
                 calibrated_structure, calibrated_mask = _structure(
-                    corrected, preserve_thin_tissue=True
+                    corrected, preserve_thin_tissue=True, cropped=cropped
                 )
                 calibrated_keys, calibrated_descriptors = _orb_features(
                     calibrated_structure, calibrated_mask, 1536

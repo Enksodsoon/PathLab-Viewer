@@ -1,3 +1,4 @@
+import { registrationEngineLabel } from '../registrationEngineLabel'
 import type { RegistrationBenchmarkMeasurements, RegistrationStageReceipt } from '../types'
 
 export function ComparisonCandidateReceipt({ recipeIdentity, stages = [], measurements }: { recipeIdentity?: string; stages?: RegistrationStageReceipt[]; measurements?: RegistrationBenchmarkMeasurements }) {
@@ -5,7 +6,7 @@ export function ComparisonCandidateReceipt({ recipeIdentity, stages = [], measur
   const measured = (value: number | null | undefined, unit: string) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? `${value.toFixed(2)} ${unit}` : 'Not measured'
   return <details className="comparison-candidate-receipt"><summary>Method and measurements</summary>
     {recipeIdentity ? <p>Recipe: {recipeIdentity}</p> : null}
-    {stages.length ? <ol>{stages.map((stage, index) => <li key={`${index}-${stage.engine}`}><strong>{stage.engine} · {stage.buildVersion}</strong><span>{stage.status} · {measured(stage.runtimeSeconds, 's')}</span><small>Original reference pixels · settings {stage.settingsDigest}</small></li>)}</ol> : null}
+    {stages.length ? <ol>{stages.map((stage, index) => <li key={`${index}-${stage.engine}`}><strong>{registrationEngineLabel(stage.engine)} · {stage.buildVersion}</strong><span>{stage.status} · {measured(stage.runtimeSeconds, 's')}</span><small>Original reference pixels · settings {stage.settingsDigest}</small></li>)}</ol> : null}
     {measurements ? <dl>
       <div><dt>Qualification</dt><dd>{measurements.qualified === true ? 'Qualified' : measurements.qualified === false ? 'Unqualified' : 'Not evaluated'}</dd></div>
       <div><dt>Median error</dt><dd>{measured(measurements.medianErrorUm, 'µm')}</dd></div>

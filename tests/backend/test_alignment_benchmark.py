@@ -170,8 +170,14 @@ def test_pair_settings_and_calibration_reach_child_and_invalidate_digest(tmp_pat
         "settings": {"native": {"iterations": 2}},
     }
     original = bench.pair_digest(pair, "native", {})
+    pair["moving"]["tissueCrop"] = True
+    crop_digest = bench.pair_digest(pair, "native", {})
+    assert crop_digest != original
+    original = crop_digest
     calls = []
-    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
     monkeypatch.setattr(
         bench,
         "_run_alignment_bounded",
@@ -186,6 +192,7 @@ def test_pair_settings_and_calibration_reach_child_and_invalidate_digest(tmp_pat
     assert calls[0]["globalOption"] is True
     assert calls[0]["referenceMicronsPerPixel"] == [0.25, 0.5]
     assert calls[0]["movingMicronsPerPixel"] == [0.5, 1]
+    assert calls[0]["movingCropped"] is True
     pair["moving"]["micronsPerPixel"] = [0.75, 1]
     assert bench.pair_digest(pair, "native", {}) != original
     changed = bench.pair_digest(pair, "native", {})
@@ -209,7 +216,9 @@ def test_rejection_diagnostic_is_private_and_report_remains_sanitized(tmp_path, 
         "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
         "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
     }
-    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
 
     def fail(*_a, **_kw):
         raise AlignmentRejected(f"upstream registration failed on {tmp_path}")
@@ -316,7 +325,9 @@ def test_cached_run_does_not_replace_cold_timing_and_report_omits_private_paths(
             }
         ],
     }
-    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
     monkeypatch.setattr(bench, "_run_alignment_bounded", lambda *_a, **_kw: {"status": "rejected"})
     manifest = {"pairs": [pair]}
     out = tmp_path / "out"
@@ -455,7 +466,9 @@ def test_registration_change_invalidates_negative_and_latency_reviews(tmp_path, 
         "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
         "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
     }
-    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
     monkeypatch.setattr(bench, "_run_alignment_bounded", lambda *_a, **_kw: {"status": "rejected"})
     manifest = {"pairs": [pair]}
     first = bench.run_benchmark(manifest, tmp_path / "out", ["native"])
@@ -475,4 +488,4 @@ def test_registration_change_invalidates_negative_and_latency_reviews(tmp_path, 
     changed = bench.run_benchmark(manifest, tmp_path / "out", ["native"])
     assert changed["rows"][0]["wrongStructure"] is None
     assert changed["rows"][0]["frontendLatencyReviewed"] is False
-    assert changed["recipes"]["native-v12"]["missingNegativeReviews"] == 1
+    assert changed["recipes"]["native-overview-v6"]["missingNegativeReviews"] == 1

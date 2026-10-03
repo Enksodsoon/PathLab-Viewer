@@ -811,3 +811,24 @@ it.each([false, true])('requeues obsolete maps on admin opening only (public: %s
   if (shared) expect(queued).toHaveLength(0)
   else await waitFor(() => expect(queued).toHaveLength(1))
 })
+
+it('keeps native overview preview-only and benchmarks its explicit availability identity alongside legacy native', async () => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => String(input).endsWith('/candidates')
+    ? new Response(JSON.stringify({ engineAvailability: { 'native-v12': { available: true }, 'native-overview-v6': { available: true } }, candidates: [
+      { id: 'legacy-native', slideId: 'slide-2', setVersion: 1, engine: 'native-v12', status: 'ready', currentSettings: true, validationState: 'engineering_passed', registration: { status: 'ready', provenance: 'automatic-candidate' } },
+      { id: 'bounded-overview', slideId: 'slide-2', setVersion: 1, engine: 'native-overview-v6', status: 'approximate', currentSettings: true, validationState: 'rejected', registration: { status: 'approximate', provenance: 'automatic-candidate' } },
+    ] }), { status: 200 }) : originalFetch(input, init))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  expect(screen.getByText(/Native canonical · native-v12/)).toBeInTheDocument()
+  expect(screen.getByText(/Native bounded overview · native-overview-v6/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Preview native-overview-v6 for Slide 2' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Promote native-overview-v6 for Slide 2' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Promote native-v12 for Slide 2' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Benchmark engines' }))
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith('/benchmark') && JSON.parse(String(init?.body)).engines.includes('native-overview-v6'))).toBe(true))
+})

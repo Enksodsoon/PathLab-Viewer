@@ -37,6 +37,7 @@ from .alignment import (
 )
 
 ENGINE_NATIVE = "native-v12"
+ENGINE_NATIVE_OVERVIEW = "native-overview-v6"
 ENGINE_HISALIGN = "hisalign-0.2.1"
 ENGINE_VALIS = "valis-1.2.0"
 ENGINE_WSIREG = "wsireg-0.3.10"
@@ -45,18 +46,20 @@ ENGINE_DHR_LEARNED = "deeperhistreg-learned"
 INITIALIZER_ARTIFACT_NAME = "initializer-coordinate-map.json"
 MAX_INITIALIZER_ARTIFACT_BYTES = 16 * 1024**2
 RECIPE_STAGES = {
-    "native-wsireg": (ENGINE_NATIVE, ENGINE_WSIREG),
+    "native-wsireg": (ENGINE_NATIVE_OVERVIEW, ENGINE_WSIREG),
     "valis-rigid-wsireg": (ENGINE_VALIS, ENGINE_WSIREG),
-    "native-valis": (ENGINE_NATIVE, ENGINE_VALIS),
+    "native-valis": (ENGINE_NATIVE_OVERVIEW, ENGINE_VALIS),
 }
 ENGINE_ALIASES = {
-    "native": ENGINE_NATIVE,
+    "native": ENGINE_NATIVE_OVERVIEW,
+    "native-overview": ENGINE_NATIVE_OVERVIEW,
     "hisalign": ENGINE_HISALIGN,
     "valis": ENGINE_VALIS,
     "wsireg": ENGINE_WSIREG,
 }
 ENGINE_VERSIONS = {
     ENGINE_NATIVE: "piecewise-affine-components-v27",
+    ENGINE_NATIVE_OVERVIEW: "overview-orb1536-v6-component-fallback",
     ENGINE_HISALIGN: "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
     ENGINE_VALIS: "325828c1dec444e6bb672a78e875537436dd3c20",
     ENGINE_WSIREG: "7bc3fb21c6a8f107f760799a5ac113896a710454-itk-elastix-0.25.4",
@@ -65,11 +68,12 @@ ENGINE_VERSIONS = {
 }
 ADAPTER_VERSIONS = {
     ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
-    ENGINE_HISALIGN: "pathlab-adapter-v4-overview-support",
-    ENGINE_VALIS: "pathlab-adapter-v15-rigid-only-upstream-cleanup",
-    ENGINE_WSIREG: "pathlab-adapter-v2-wsireg-single-elastix-chain-physical",
-    ENGINE_DHR_CLASSICAL: "pathlab-adapter-v1-dhr-normalized-pull-affine",
-    ENGINE_DHR_LEARNED: "pathlab-adapter-v1-dhr-normalized-pull-affine",
+    ENGINE_NATIVE_OVERVIEW: "pathlab-adapter-v1-native-prepared-overview",
+    ENGINE_HISALIGN: "pathlab-adapter-v5-declared-tissue-crop-support",
+    ENGINE_VALIS: "pathlab-adapter-v16-declared-tissue-crop-support",
+    ENGINE_WSIREG: "pathlab-adapter-v3-declared-tissue-crop-support",
+    ENGINE_DHR_CLASSICAL: "pathlab-adapter-v2-declared-tissue-crop-support",
+    ENGINE_DHR_LEARNED: "pathlab-adapter-v2-declared-tissue-crop-support",
 }
 for _recipe, _stages in RECIPE_STAGES.items():
     ENGINE_VERSIONS[_recipe] = "+".join(ENGINE_VERSIONS[stage] for stage in _stages)
@@ -170,6 +174,8 @@ def _scanner_frame_candidate(
     moving_rgb: np.ndarray[Any, Any],
     *,
     maximum: int = 1024,
+    reference_cropped: bool = False,
+    moving_cropped: bool = False,
 ) -> tuple[np.ndarray[Any, Any], float, float] | None:
     """Return a bounded, stain-independent scanner-frame proposal.
 
@@ -190,8 +196,8 @@ def _scanner_frame_candidate(
 
     reference_small = bounded(reference_rgb)
     moving_small = bounded(moving_rgb)
-    reference_structure, reference_mask = _structure(reference_small)
-    moving_structure, moving_mask = _structure(moving_small)
+    reference_structure, reference_mask = _structure(reference_small, cropped=reference_cropped)
+    moving_structure, moving_mask = _structure(moving_small, cropped=moving_cropped)
     forward = np.asarray(
         [
             [reference_mask.shape[1] / moving_mask.shape[1], 0.0, 0.0],
@@ -256,10 +262,12 @@ def _sample_coordinate_map(
     provenance: str,
     grid_size: int = 25,
     minimum_tissue_dice: float = 0.68,
+    reference_cropped: bool = False,
+    moving_cropped: bool = False,
 ) -> RegistrationResult:
     """Sample an upstream dense transform into invertible paired triangles."""
-    _, moving_mask = _structure(moving_rgb)
-    _, reference_mask = _structure(reference_rgb)
+    _, moving_mask = _structure(moving_rgb, cropped=moving_cropped)
+    _, reference_mask = _structure(reference_rgb, cropped=reference_cropped)
     height, width = moving_mask.shape
     nonzero = cv2.findNonZero(moving_mask)
     if nonzero is None:
@@ -436,6 +444,47 @@ class NativeEngine:
         return EngineRun(payload, None, None, time.monotonic() - started)
 
 
+class NativeOverviewEngine:
+    name = ENGINE_NATIVE_OVERVIEW
+
+    def available(self) -> tuple[bool, str | None]:
+        return True, None
+
+    def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
+        from .alignment_fast import PREPARATION_VERSION, PreparationCache, register_prepared
+
+        started = time.monotonic()
+        cache = PreparationCache()
+        progress({"stage": "native-overview-preparation", "progress": 15})
+        settings = inputs.settings or {}
+        reference, _ = cache.prepare(
+            "reference",
+            inputs.reference,
+            inputs.reference_full_size,
+            cropped=settings.get("referenceCropped") is True,
+        )
+        moving, _ = cache.prepare(
+            "moving",
+            inputs.moving,
+            inputs.moving_full_size,
+            cropped=settings.get("movingCropped") is True,
+        )
+        preparation_seconds = time.monotonic() - started
+        progress({"stage": "native-overview-components", "progress": 30})
+        payload = register_prepared(reference, moving).as_json()
+        payload.update(
+            engine=self.name, engineVersion=ENGINE_VERSIONS[self.name], engineSettings=settings
+        )
+        payload["evidence"] = {
+            **payload.get("evidence", {}),
+            "preparationVersion": PREPARATION_VERSION,
+            "preparationSeconds": preparation_seconds,
+            "maximumPreparationDimension": 1024,
+            "originalPixelsPreserved": True,
+        }
+        return EngineRun(payload, None, None, time.monotonic() - started)
+
+
 class HisAlignEngine:
     name = ENGINE_HISALIGN
 
@@ -500,8 +549,10 @@ class HisAlignEngine:
             moving_name="moving",
         )
         rigid.fit(feature_detector=detector, matcher=matcher, transform_type="similarity")
-        _, reference_mask = _structure(reference_rgb)
-        _, moving_mask = _structure(moving_rgb)
+        reference_cropped = (inputs.settings or {}).get("referenceCropped") is True
+        moving_cropped = (inputs.settings or {}).get("movingCropped") is True
+        _, reference_mask = _structure(reference_rgb, cropped=reference_cropped)
+        _, moving_mask = _structure(moving_rgb, cropped=moving_cropped)
 
         def padded_tissue_dice(matrix: np.ndarray[Any, Any]) -> float:
             reference_padded_mask: np.ndarray[Any, Any] = cv2.warpPerspective(
@@ -527,7 +578,12 @@ class HisAlignEngine:
         initializer = "hisalign-kaze"
         scanner_score = -1.0
         scanner_dice = -1.0
-        scanner = _scanner_frame_candidate(reference_rgb, moving_rgb)
+        scanner = _scanner_frame_candidate(
+            reference_rgb,
+            moving_rgb,
+            reference_cropped=reference_cropped,
+            moving_cropped=moving_cropped,
+        )
         if scanner is not None:
             scanner_transform, scanner_score, _ = scanner
             scanner_homogeneous = np.eye(3, dtype=np.float64)
@@ -604,6 +660,8 @@ class HisAlignEngine:
             map_moving_to_reference=forward,
             map_reference_to_moving=inverse,
             provenance=self.name,
+            reference_cropped=reference_cropped,
+            moving_cropped=moving_cropped,
         )
         result = rescale_registration(
             result,
@@ -649,11 +707,13 @@ class HisAlignEngine:
         return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)
 
 
-def _feature_tissue_coverage(points: np.ndarray[Any, Any], rgb: np.ndarray[Any, Any]) -> float:
+def _feature_tissue_coverage(
+    points: np.ndarray[Any, Any], rgb: np.ndarray[Any, Any], *, cropped: bool = False
+) -> float:
     """Measure distributed matches over tissue, without counting surrounding glass."""
     if len(points) < 3 or not np.isfinite(points).all():
         return 0.0
-    _, mask = _structure(rgb)
+    _, mask = _structure(rgb, cropped=cropped)
     height, width = mask.shape
     if np.any(points < 0) or np.any(points[:, 0] >= width) or np.any(points[:, 1] >= height):
         return 0.0
@@ -948,6 +1008,8 @@ class ValisEngine:
             provenance=self.name,
             # Keep curvature lost by the old 25-point grid out of viewer navigation.
             grid_size=49,
+            reference_cropped=(inputs.settings or {}).get("referenceCropped") is True,
+            moving_cropped=(inputs.settings or {}).get("movingCropped") is True,
             # Serial sections can have real missing edge tissue, so VALIS is
             # allowed to produce a preview map below the strict whole-outline
             # threshold. Distributed feature evidence below decides whether
@@ -987,9 +1049,15 @@ class ValisEngine:
             )
         match_residual = float("inf")
         tissue_match_coverage = min(
-            _feature_tissue_coverage(moving_matches, np.asarray(inputs.moving.convert("RGB"))),
             _feature_tissue_coverage(
-                reference_matches, np.asarray(inputs.reference.convert("RGB"))
+                moving_matches,
+                np.asarray(inputs.moving.convert("RGB")),
+                cropped=(inputs.settings or {}).get("movingCropped") is True,
+            ),
+            _feature_tissue_coverage(
+                reference_matches,
+                np.asarray(inputs.reference.convert("RGB")),
+                cropped=(inputs.settings or {}).get("referenceCropped") is True,
             ),
         )
         if match_count:
@@ -1110,6 +1178,8 @@ def get_engine(name: str) -> RegistrationEngine:
         return WsiregEngine() if name == ENGINE_WSIREG else DeeperHistRegEngine(name)
     if name == ENGINE_NATIVE:
         return NativeEngine()
+    if name == ENGINE_NATIVE_OVERVIEW:
+        return NativeOverviewEngine()
     if name == ENGINE_HISALIGN:
         return HisAlignEngine()
     if name == ENGINE_VALIS:

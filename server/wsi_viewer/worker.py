@@ -36,6 +36,7 @@ from .alignment import (
 )
 from .alignment_engines import (
     ENGINE_NATIVE,
+    ENGINE_NATIVE_OVERVIEW,
     ENGINE_VALIS,
     ENGINE_VERSIONS,
     merge_component_maps,
@@ -1129,9 +1130,9 @@ def _preview_alignment(
         anchorVersion=reference.sha256,
         anchorSlideId=reference.id,
         coordinateReferenceId=reference.id,
-        engine=ENGINE_NATIVE,
-        engineVersion=ENGINE_VERSIONS[ENGINE_NATIVE],
-        settingsDigest=settings_digest(ENGINE_NATIVE),
+        engine=ENGINE_NATIVE_OVERVIEW,
+        engineVersion=ENGINE_VERSIONS[ENGINE_NATIVE_OVERVIEW],
+        settingsDigest=settings_digest(ENGINE_NATIVE_OVERVIEW),
     )
     payload["evidence"] = {
         **payload.get("evidence", {}),

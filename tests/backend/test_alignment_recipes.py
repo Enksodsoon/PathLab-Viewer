@@ -14,6 +14,50 @@ def test_native_adapter_retains_accepted_map_compatibility_version():
     assert PREPARATION_VERSION == "overview-orb1536-v6-component-fallback"
 
 
+def test_native_recipe_uses_bounded_overview_without_changing_legacy_identity(
+    tmp_path, monkeypatch
+):
+    from unittest.mock import MagicMock
+
+    from wsi_viewer import alignment_fast
+
+    image = Image.new("RGB", (400, 300), "white")
+    prepared = object()
+    calls = []
+
+    def prepare(self, source, supplied, full_size, **kwargs):
+        calls.append((source, supplied, full_size))
+        return prepared, False
+
+    result = MagicMock()
+    result.as_json.return_value = {
+        "status": "approximate",
+        "evidence": {},
+        "triangles": [],
+        "overviewTriangles": [],
+    }
+    monkeypatch.setattr(alignment_fast.PreparationCache, "prepare", prepare)
+    monkeypatch.setattr(
+        alignment_fast,
+        "register_prepared",
+        lambda ref, mov: (
+            result if ref is prepared and mov is prepared else pytest.fail("wrong prepared inputs")
+        ),
+    )
+    monkeypatch.setattr(
+        engines, "register_pair", lambda *args, **kwargs: pytest.fail("legacy path used")
+    )
+    run = engines.get_engine("native").register(
+        engines.EngineInput(image, image, (4000, 3000), (8000, 6000), tmp_path), lambda _: None
+    )
+    assert run.registration["engine"] == "native-overview-v6"
+    assert run.registration["status"] == "approximate"
+    assert [call[2] for call in calls] == [(4000, 3000), (8000, 6000)]
+    assert engines.get_engine("native-v12").name == engines.ENGINE_NATIVE
+    assert engines.RECIPE_STAGES["native-wsireg"][0] == engines.ENGINE_NATIVE_OVERVIEW
+    assert engines.RECIPE_STAGES["native-valis"][0] == engines.ENGINE_NATIVE_OVERVIEW
+
+
 def test_recipe_registry_exposes_real_engines_and_hybrids():
     for recipe in (
         "native",
@@ -66,6 +110,8 @@ def test_hybrid_composes_residual_in_initial_warp_frame(tmp_path, monkeypatch):
             {
                 "referenceMicronsPerPixel": [0.25, 0.5],
                 "movingMicronsPerPixel": [0.5, 1],
+                "referenceCropped": True,
+                "movingCropped": False,
                 "stages": {engines.ENGINE_WSIREG: {"movingMicronsPerPixel": [3, 4]}},
             },
         ),
@@ -83,6 +129,9 @@ def test_hybrid_composes_residual_in_initial_warp_frame(tmp_path, monkeypatch):
     assert calls[0].settings["referenceMicronsPerPixel"] == [0.25, 0.5]
     assert calls[1].settings["movingMicronsPerPixel"] == [0.25, 0.5]
     assert calls[1].settings["referenceMicronsPerPixel"] == [0.25, 0.5]
+    assert calls[0].settings["movingCropped"] is False
+    assert calls[1].settings["referenceCropped"] is True
+    assert calls[1].settings["movingCropped"] is True
     assert run.registration["movingSupport"] == pytest.approx([0, 0, 100, 100])
     assert run.registration["referenceSupport"] == pytest.approx([15, 18, 215, 318])
 

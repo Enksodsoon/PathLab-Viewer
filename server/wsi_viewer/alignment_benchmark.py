@@ -123,6 +123,8 @@ def validate_manifest(manifest: dict[str, Any], *, screening: bool = False) -> N
         ordered = []
         for side in ("reference", "moving"):
             slide = pair[side]
+            if "tissueCrop" in slide and type(slide["tissueCrop"]) is not bool:
+                raise ValueError("tissue crop provenance must be boolean")
             path = Path(slide["path"]).resolve()
             size = np.asarray(slide["size"], dtype=float)
             if (
@@ -191,6 +193,10 @@ def _pair_settings(pair: dict[str, Any], recipe: str, settings: dict[str, Any]) 
         raise ValueError("pair recipe settings must be an object")
     result = {**settings, **selected}
     for side in ("reference", "moving"):
+        if "tissueCrop" in pair[side]:
+            if type(pair[side]["tissueCrop"]) is not bool:
+                raise ValueError("tissue crop provenance must be boolean")
+            result[f"{side}Cropped"] = pair[side]["tissueCrop"]
         key = f"{side}MicronsPerPixel"
         value = pair.get(key, pair[side].get("micronsPerPixel", result.get(key)))
         if value is not None:

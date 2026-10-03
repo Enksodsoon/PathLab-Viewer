@@ -68,6 +68,8 @@ def _finish(
         map_reference_to_moving=inverse,
         provenance=name,
         grid_size=49,
+        reference_cropped=(inputs.settings or {}).get("referenceCropped") is True,
+        moving_cropped=(inputs.settings or {}).get("movingCropped") is True,
     )
     result = rescale_registration(
         result,

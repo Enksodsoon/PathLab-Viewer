@@ -41,6 +41,9 @@ class RecipeEngine:
         stages = engines.RECIPE_STAGES[self.name]
         receipts: list[dict[str, Any]] = []
         stage_settings = settings.get("stages", {})
+        crop_provenance = {
+            key: settings[key] for key in ("referenceCropped", "movingCropped") if key in settings
+        }
         calibration: dict[str, list[float]] = {}
         for key in ("referenceMicronsPerPixel", "movingMicronsPerPixel"):
             if key in settings:
@@ -56,6 +59,7 @@ class RecipeEngine:
             values = {
                 **stage_settings.get(stage, {}),
                 **calibration,
+                **crop_provenance,
                 "timeoutSeconds": remaining,
                 "maximumDimension": 2048,
             }
@@ -64,6 +68,8 @@ class RecipeEngine:
                 # reference pixels. Caller moving calibration cannot survive it.
                 values["referenceMicronsPerPixel"] = calibration["referenceMicronsPerPixel"]
                 values["movingMicronsPerPixel"] = calibration["referenceMicronsPerPixel"]
+            if receipts and "referenceCropped" in crop_provenance:
+                values["movingCropped"] = crop_provenance["referenceCropped"]
             if stage == engines.ENGINE_VALIS and self.name == "valis-rigid-wsireg":
                 values["rigidOnly"] = True
             stage_directory = inputs.workspace / f"stage-{len(receipts)}"

@@ -3,7 +3,10 @@
 The registry accepts `native`, `valis`, `hisalign`, `wsireg`,
 `deeperhistreg-classical`, `deeperhistreg-learned`, `native-wsireg`,
 `valis-rigid-wsireg`, and `native-valis`. Existing versioned engine names remain
-valid. Optional absence is reported; another algorithm is never substituted.
+valid. `native` and `native-overview` resolve to `native-overview-v6`: bounded
+1024-pixel preparation, 1536 ORB features and conservative component matching.
+The legacy `native-v12` high-resolution engine keeps its prior version and
+settings identity. Optional absence is reported; another algorithm is never substituted.
 `ALIGNMENT_WSIREG_ENABLED` and `ALIGNMENT_DEEPERHISTREG_ENABLED` default false.
 
 wsireg uses its genuine upstream elastix helper and rigid/affine parameter maps,
@@ -39,7 +42,7 @@ actually applied affine projection. Residual-frame maps are never directly
 scored as original-frame maps.
 VALIS rigid initialization disables its nonrigid registrar. Pinned VALIS's
 rigid-only constructor omits `non_rigid_reg_kwargs`, although successful
-`register()` cleanup accesses it unconditionally. Adapter v15 initializes an
+`register()` cleanup accesses it unconditionally. The v15 compatibility shim, retained in crop-aware adapter v16, initializes an
 empty dict only for rigid-only registration when the attribute is absent,
 preserving existing options and measured error evidence. Every recipe shares
 one 600-second process-tree deadline, one CPU thread and the existing 7-GiB
@@ -95,6 +98,14 @@ fit-free independently reviewed pairs. Outside screening, `landmarks: []` is
 allowed for unscored development probes; no observations means no finalist or
 qualified winner. Inputs are hashed from actual derivative bytes and geometry.
 Cache keys include engine/adapter versions, settings and runtime packages.
+Known anatomical tissue crops declare `tissueCrop: true` on each relevant side.
+This provenance is validated, merged into per-side engine settings and included
+in the receipt digest. It selects the existing white-context crop mask and then
+removes that analysis padding, retaining original coordinates. Whole-slide flood
+and scanner-edge thresholds stay unchanged. Hybrid residual moving images inherit
+the reference crop frame. Crop provenance must come from the source image role,
+not landmarks or registration success.
+
 Each pair can override cohort options with `settings: {"wsireg": {...}}` (or its
 versioned engine name). Pair `referenceMicronsPerPixel` and
 `movingMicronsPerPixel`, or each slide's `micronsPerPixel`, accept two positive
