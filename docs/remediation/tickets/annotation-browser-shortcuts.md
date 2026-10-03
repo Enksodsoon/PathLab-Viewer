@@ -23,3 +23,9 @@ The complete affected workspace file passed 23 tests. Changed-file ESLint and th
 A native browser-control Refresh click timed out during live verification. The subsequent observation still showed the synthetic title and Ruler selected, without accessible text; a fresh reload is not established. This tool outcome is retained separately from the confirmed Ctrl+R handler defect.
 
 All four browser projects fail with the modifier guard demonstrably removed: Ctrl+R changes Pan to Ruler. The first browser probe accidentally retained the guard because of CRLF; its four passes are setup history, not red proof. The complete68-case browser matrix passed with the guard restored, across Chromium, Firefox, WebKit and mobile Chromium with zero retries. Native browser-control Refresh subsequently completed on released `daa101e`; the saved synthetic title and rectangle reloaded with NO CHANGES. The local shortcut repair remains undeployed.
+
+## Independent review follow-up
+
+Review found the overlay capture listener consumes modified drawing keys before the workspace sees them. Twelve independent attached-viewer cases reproduce this during polygon construction. Add the same modifier return to overlay keydown while keeping keyup cleanup able to release plain Space pan if a modifier is added before release. Both affected files now pass54tests. The complete frontend523tests and build passed before three added keyup controls; final full scope is pending. All72browser cases pass with zero retries across four projects, including real pointer construction and modified-key preservation. Renewed review and exact-head delivery are required.
+
+Final local qualification: all526frontend tests across81files passed in202.08seconds with four workers; all54affected tests passed. Changed-file lint and diff checks pass. Product build passed10.70seconds; later test-only keyup controls do not change the product artifact. All72browser cases passed with zero retries.

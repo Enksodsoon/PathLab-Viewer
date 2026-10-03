@@ -452,7 +452,7 @@ it('finishes a multi-click polygon with Enter', () => {
   cleanupOverlay()
 })
 
-it('temporarily pans while Space is held without changing the drawing tool', () => {
+it.each([{}, { ctrlKey: true }, { metaKey: true }, { altKey: true }])('releases temporary Space pan when keyup modifiers are %j', (modifiers) => {
   const store = createAnnotationStore({ slideId: 'slide-1' })
   store.load({ version: 0, layers: [layer], annotations: [] })
   const viewer = mockViewer()
@@ -482,6 +482,7 @@ it('temporarily pans while Space is held without changing the drawing tool', () 
     key: ' ',
     code: 'Space',
     bubbles: true,
+    ...modifiers,
   }))
   expect(store.getState().tool).toBe('rectangle')
   expect(viewer.setMouseNavEnabled).toHaveBeenLastCalledWith(false)
@@ -775,4 +776,72 @@ it('keeps 25,000-item animation rendering indexed, incremental, and DOM bounded'
   expect(load).toHaveBeenCalledOnce()
   expect(overlay.querySelectorAll('[data-annotation-id]')).toHaveLength(0)
   cleanupOverlay()
+})
+
+it.each((['ctrlKey', 'metaKey', 'altKey'] as const).flatMap((modifier) =>
+  ['Backspace', 'Enter', 'Escape', ' '].map((key) => ({ modifier, key })),
+))('preserves $modifier + $key and unfinished polygon points', ({ modifier, key }) => {
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 0, layers: [layer], annotations: [] })
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => polygonRecord().style,
+    metadata: () => polygonRecord().metadata,
+    text: () => 'Callout',
+  })
+  try {
+    const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+    store.setTool('polygon')
+    for (const [clientX, clientY] of [[20, 30], [80, 30], [60, 90]]) {
+      for (const type of ['pointerdown', 'pointerup']) {
+        overlay.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, clientY }))
+      }
+    }
+    const event = new KeyboardEvent('keydown', { key, code: key === ' ' ? 'Space' : key, [modifier]: true, bubbles: true, cancelable: true })
+    window.dispatchEvent(event)
+    expect(event.defaultPrevented, `${modifier}+${key}`).toBe(false)
+    expect(store.getState().annotations.size).toBe(0)
+    expect(viewer.setMouseNavEnabled).toHaveBeenLastCalledWith(false)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect([...store.getState().annotations.values()][0].geometry).toEqual({
+      type: 'polygon',
+      points: [{ x: 20, y: 30 }, { x: 80, y: 30 }, { x: 60, y: 90 }],
+    })
+  } finally {
+    cleanupOverlay()
+  }
+})
+
+it('still removes the last polygon point with plain Backspace before Enter completes it', () => {
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 0, layers: [layer], annotations: [] })
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => polygonRecord().style,
+    metadata: () => polygonRecord().metadata,
+    text: () => 'Callout',
+  })
+  try {
+    const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+    store.setTool('polygon')
+    for (const [clientX, clientY] of [[20, 30], [80, 30], [60, 90], [10, 80]]) {
+      for (const type of ['pointerdown', 'pointerup']) {
+        overlay.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, clientY }))
+      }
+    }
+    const backspace = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true })
+    window.dispatchEvent(backspace)
+    expect(backspace.defaultPrevented).toBe(true)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect([...store.getState().annotations.values()][0].geometry).toEqual({
+      type: 'polygon',
+      points: [{ x: 20, y: 30 }, { x: 80, y: 30 }, { x: 60, y: 90 }],
+    })
+  } finally {
+    cleanupOverlay()
+  }
 })
