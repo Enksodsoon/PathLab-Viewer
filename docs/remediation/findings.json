@@ -13016,6 +13016,29 @@
         "AssessmentBuilderPage initial/retry draft load"
       ],
       "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md"
+    },
+    {
+      "key": "campaign-assessment-equal-revision-local-recovery",
+      "status": "confirmed; local candidate qualified, complete delivery checks pending",
+      "evidence": "Failed PATCH caches edits at unchanged revision1; reload with serverrevision1 discards locally retained title. Independent component red reproduces.",
+      "repair": "Recover equal-revision divergent local documents; preserve older-cache rejection and optimistic server revision.",
+      "qualification": "Initial45affected tests and four real-IndexedDB browser cases pass. Later error-containment qualification is separately recorded; final exact-source checks and release remain pending. Final corrected affected suite45passed61.35seconds, eight zero-retry browser cases39.9seconds, build6.50seconds; renewed independent review has no actionable findings. Complete hosted gates and delivery remain required.",
+      "callers": [
+        "AssessmentBuilderPage initial/retry draft load"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-local-recovery.md"
+    },
+    {
+      "key": "campaign-assessment-local-recovery-write-denial",
+      "status": "confirmed; local candidate qualified, complete delivery checks pending",
+      "evidence": "Actual Chromium IndexedDB denial emits two unhandled page errors during one server-acknowledged draft edit; browser red reproduces.",
+      "repair": "Catch both local-cache write failures, scope notices to current load generation, and show local recovery unavailable separately from server save state.",
+      "qualification": "Eight zero-retry browser cases pass39.9seconds across four projects; build6.50seconds and lint pass. Three authoring fixture failures reveal undefined cache mock rather than Promise<void>; corrected stub and renewed targeted suite pending. Final corrected affected suite45passed61.35seconds, eight zero-retry browser cases39.9seconds, build6.50seconds; renewed independent review has no actionable findings. Complete hosted gates and delivery remain required.",
+      "callers": [
+        "AssessmentBuilderPage local edited-draft cache",
+        "AssessmentBuilderPage acknowledged-draft cache"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-local-recovery.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -13052,12 +13075,12 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "58d706607f31badcf4344446088dbbc64c9c2ba7",
-    "ciRun": 37132398920,
-    "securityRun": 37132398928,
-    "deploymentRun": 37133510913,
+    "sha": "a549b52058c70255c6dfc71e4ef7c5a85314a231",
+    "ciRun": 37136381960,
+    "securityRun": 37136381971,
+    "deploymentRun": 37137671921,
     "deploymentConclusion": "success",
-    "completedAt": "2026-10-03T15:45:38Z",
+    "completedAt": "2026-10-03T16:55:04Z",
     "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
     "restore": {
       "schemaRevision": "20260907_0037",
@@ -13073,11 +13096,10 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "Fresh public livez/readyz200 after terminal deployment success. Authenticated synthetic B viewer opened in a separate native Edge tab, rendered patterned tiles and persisted rectangle/title with NO CHANGES. Actual restoration verified69tables,106325files,3286131731bytes and schema20260907_0037 with database/files integrity restored. Native CtrlR released qualification is pending. Prior daa101e native assessment edit to1.251 was acknowledged200 and retained after browser-control Refresh; first generic save failure remains unclassified. Prepared one-response Practice publication is preserved in its separate tab and awaits specific user approval. No real learners used.",
+    "liveEvidence": "After terminal deployment success, fresh livez/readyz200. Signed-in native Edge assessment loaded one question and persisted1.251points with All changes saved. Learner preview Escape restored its opener, confirmed by Return reopening. Publish settings ShiftTab/Tab wrapped at both boundaries and Escape returned visible focus to Publish. Import Escape returned visible focus to persistent Templates & import. No publication/import actions submitted. Fresh CtrlR private viewer displayed Opening private preview, then patterned tiles, saved rectangle/title, Pan selected and NO CHANGES.",
     "remaining": [
-      "Released assessment-specific authenticated qualification",
+      "Assessment save/recovery candidates require complete exact-head checks and protected delivery; specific synthetic publication approval remains pending",
       "Native production folder drag and mobile Inspector dismissal qualification",
-      "Released browser-shortcut native qualification; assessment-dialog PR298 exact-head gates, deployment and authenticated checks",
       "Specific synthetic upload cancellation action-time confirmation",
       "External application-secret rotation and actual OneDrive sync/sharing facts",
       "Strict accountable software admission and two immutable notice gaps",
@@ -13145,6 +13167,40 @@
         "Released assessment-specific authenticated qualification",
         "Native production folder drag and mobile Inspector dismissal qualification",
         "Newly reproduced browser-shortcut repair delivery and released qualification",
+        "Specific synthetic upload cancellation action-time confirmation",
+        "External application-secret rotation and actual OneDrive sync/sharing facts",
+        "Strict accountable software admission and two immutable notice gaps",
+        "Requirement-by-requirement campaign closure; no physical-device or clinical qualification claim"
+      ],
+      "limitations": "Local20-session Library soak passed separately; it does not establish production capacity. No global zero-bug, physical-device or clinical-safety claim. Study gate retained."
+    },
+    {
+      "sha": "58d706607f31badcf4344446088dbbc64c9c2ba7",
+      "ciRun": 37132398920,
+      "securityRun": 37132398928,
+      "deploymentRun": 37133510913,
+      "deploymentConclusion": "success",
+      "completedAt": "2026-10-03T15:45:38Z",
+      "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+      "restore": {
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69,
+        "fileCount": 106325,
+        "fileBytes": 3286131731,
+        "databaseIntegrity": "restored",
+        "filesIntegrity": "restored"
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "liveEvidence": "Fresh public livez/readyz200 after terminal deployment success. Authenticated synthetic B viewer opened in a separate native Edge tab, rendered patterned tiles and persisted rectangle/title with NO CHANGES. Actual restoration verified69tables,106325files,3286131731bytes and schema20260907_0037 with database/files integrity restored. Native CtrlR released qualification is pending. Prior daa101e native assessment edit to1.251 was acknowledged200 and retained after browser-control Refresh; first generic save failure remains unclassified. Prepared one-response Practice publication is preserved in its separate tab and awaits specific user approval. No real learners used.",
+      "remaining": [
+        "Released assessment-specific authenticated qualification",
+        "Native production folder drag and mobile Inspector dismissal qualification",
+        "Released browser-shortcut native qualification; assessment-dialog PR298 exact-head gates, deployment and authenticated checks",
         "Specific synthetic upload cancellation action-time confirmation",
         "External application-secret rotation and actual OneDrive sync/sharing facts",
         "Strict accountable software admission and two immutable notice gaps",

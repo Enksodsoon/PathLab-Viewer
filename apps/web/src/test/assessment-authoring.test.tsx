@@ -35,7 +35,7 @@ vi.mock('../theme/ThemeControl', () => ({
   ThemeControl: () => <div aria-label="Theme preference" />,
 }))
 vi.mock('../assessment/draftCache', () => ({
-  cacheAssessmentDraft: vi.fn(),
+  cacheAssessmentDraft: vi.fn().mockResolvedValue(undefined),
   readCachedAssessmentDraft: vi.fn().mockResolvedValue(null),
 }))
 beforeEach(() => {

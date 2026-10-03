@@ -37,6 +37,7 @@ export function AssessmentBuilderPage() {
   const requestedTab = searchParams.get('tab')
   const tab: 'questions' | 'settings' | 'responses' = requestedTab === 'responses' || requestedTab === 'settings' ? requestedTab : 'questions'
   const [saveState, setSaveState] = useState('Loading…')
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(false)
   const [publishOpen, setPublishOpen] = useState(false)
   const [mode, setMode] = useState<'practice' | 'formative' | 'quiz'>('formative')
   const [cohortId, setCohortId] = useState(() => searchParams.get('classId') ?? '')
@@ -83,10 +84,15 @@ export function AssessmentBuilderPage() {
     let cancelled = false
     const generation = ++loadGenerationRef.current
     setSaveState('Loading…')
-    void Promise.all([getAssessmentDraft(draftId), readCachedAssessmentDraft(draftId).catch(() => null)])
+    setRecoveryUnavailable(false)
+    void Promise.all([getAssessmentDraft(draftId), readCachedAssessmentDraft(draftId).catch(() => {
+      if (!cancelled) setRecoveryUnavailable(true)
+      return null
+    })])
       .then(([server, cached]) => {
         if (cancelled) return
-        const recovered = cached && cached.revision > server.revision
+        const recovered = cached && (cached.revision > server.revision
+          || (cached.revision === server.revision && JSON.stringify(cached.document) !== JSON.stringify(server.document)))
         const selected = recovered ? cached : server
         revisionRef.current = server.revision
         acknowledgedDocumentRef.current = recovered ? null : server.document
@@ -119,7 +125,12 @@ export function AssessmentBuilderPage() {
       return
     }
     setSaveState('Saving…')
-    void cacheAssessmentDraft(draft)
+    const cacheLocalDraft = (value: AssessmentDraft) => {
+      void cacheAssessmentDraft(value).catch(() => {
+        if (generation === loadGenerationRef.current) setRecoveryUnavailable(true)
+      })
+    }
+    cacheLocalDraft(draft)
     const timer = window.setTimeout(() => {
       if (generation !== loadGenerationRef.current || savePendingRef.current === generation) return
       savePendingRef.current = generation
@@ -136,7 +147,7 @@ export function AssessmentBuilderPage() {
             acknowledgedDocumentRef.current = saved.document
             return saved
           })
-          void cacheAssessmentDraft(saved)
+          cacheLocalDraft(saved)
           setSaveState(latestDocumentRef.current === submittedDocument ? 'All changes saved' : 'Saving…')
         })
         .catch(() => {
@@ -325,6 +336,7 @@ export function AssessmentBuilderPage() {
   return <div className="assessment-builder">
     <AssessmentToolbar title={draft.document.title} />
     <h1 className="visually-hidden">{draft.document.title}</h1>
+    {recoveryUnavailable ? <p className="assessment-preview-notice" role="status">Local recovery unavailable. Keep this tab open until changes are saved.</p> : null}
     <section className="assessment-studio-header" aria-label="Assessment authoring commands">
       <div className="assessment-studio-identity">
         <label>
