@@ -11,6 +11,7 @@ from wsi_viewer.alignment import (
     compose_transforms,
     map_bounds,
     map_point,
+    map_registration_point,
     register_pair,
     rescale_registration,
 )
@@ -171,6 +172,28 @@ def test_registration_cells_do_not_bridge_blank_gaps_between_fragments() -> None
 
     assert len(triangles) == 1
     assert all(point[0] < 80 for point in triangles[0]["moving"])
+
+
+@pytest.mark.parametrize("sampling_ratio", [0.25, 4.0])
+def test_local_cells_use_slide_scale_when_pyramid_levels_differ(sampling_ratio):
+    source = [[20, 20], [400, 20], [20, 400]]
+    controls = [
+        {"moving": point, "reference": [x * sampling_ratio for x in point], "errorPixels": 0}
+        for point in source
+    ]
+    assert _registration_triangles(controls) == []
+    cells = _registration_triangles(controls, sampling_ratio=sampling_ratio)
+    assert len(cells) == 1
+    assert map_registration_point({"triangles": cells}, 100, 100) == pytest.approx(
+        (100 * sampling_ratio, 100 * sampling_ratio)
+    )
+    # A sampling frame must not make a folded or grossly stretched cell valid.
+    reversed_controls = [{**point} for point in controls]
+    reversed_controls[1]["reference"], reversed_controls[2]["reference"] = (
+        reversed_controls[2]["reference"], reversed_controls[1]["reference"]
+    )
+    assert _registration_triangles(reversed_controls, sampling_ratio=sampling_ratio) == []
+    assert _registration_triangles(controls, sampling_ratio=sampling_ratio / 4) == []
 
 
 def test_outline_only_fragments_are_explicitly_approximate() -> None:

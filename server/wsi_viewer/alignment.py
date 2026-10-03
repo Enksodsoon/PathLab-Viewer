@@ -402,8 +402,11 @@ def _registration_triangles(
     reference_mask: np.ndarray | None = None,
     moving_scale: float = 1.0,
     reference_scale: float = 1.0,
+    sampling_ratio: float = 1.0,
 ) -> list[dict[str, Any]]:
     """Triangulate trusted matches and reject folded or unstable cells."""
+    if not np.isfinite(sampling_ratio) or sampling_ratio <= 0:
+        raise ValueError("sampling_ratio must be finite and positive")
     if len(controls) < 3:
         return []
     moving = np.asarray([item["moving"] for item in controls], dtype=np.float64)
@@ -495,7 +498,7 @@ def _registration_triangles(
         target_area = _triangle_area(target)
         if abs(source_area) < 1.0 or abs(target_area) < 1.0 or source_area * target_area <= 0:
             continue
-        area_ratio = abs(target_area / source_area)
+        area_ratio = abs(target_area / source_area) / sampling_ratio**2
         if not 0.2 <= area_ratio <= 5.0:
             continue
         if not supported_cell(source, target):
@@ -986,6 +989,7 @@ def register_pair(
         reference_mask=reference_mask,
         moving_scale=moving_scale,
         reference_scale=reference_scale,
+        sampling_ratio=sampling_ratio if sampling_ratio is not None else 1.0,
     )
     if not triangles:
         return fallback()

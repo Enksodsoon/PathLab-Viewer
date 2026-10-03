@@ -1100,7 +1100,7 @@ def refine_supported_patches(
                         seed.get("anchorVersion"),
                         seed.get("anchorSlideId"),
                         cv2.__version__,
-                        "patch-v9-sampling-aware-orb",
+                        "patch-v10-sampling-aware-cells",
                     )
                 ).encode()
             ).hexdigest()
@@ -1531,7 +1531,7 @@ def register_components(
                             reference.size,
                             moving.size,
                             cv2.__version__,
-                            "native-sampling-aware-scale-v1",
+                            "native-sampling-aware-scale-v2",
                         )
                     ).encode()
                 ).hexdigest()
