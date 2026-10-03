@@ -54,6 +54,35 @@ it('saves the next draft while a previous draft save remains pending', async () 
 })
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.resetAllMocks(); vi.unstubAllGlobals() })
 
+it('recognizes a committed save whose response was lost before saving newer edits', async () => {
+  const actual = await vi.importActual<typeof import('../assessment/api')>('../assessment/api')
+  let server = initial
+  let loseResponse!: () => void
+  mocks.get.mockImplementation(async () => server)
+  vi.stubGlobal('fetch', vi.fn(async (_input, init?: RequestInit) => {
+    if (init?.method === 'PATCH') {
+      const revision = Number((init.headers as Record<string, string>)['If-Match'])
+      if (revision !== server.revision) return new Response('{}', { status: 409 })
+      server = { ...server, revision: revision + 1, document: JSON.parse(String(init.body)).document }
+      if (revision === 1) {
+        await new Promise<void>(resolve => { loseResponse = resolve })
+        throw new TypeError('Synthetic response connection lost after commit')
+      }
+    }
+    return new Response(JSON.stringify(server))
+  }))
+  mocks.save.mockImplementation(actual.saveAssessmentDraft)
+  view(); await screen.findByText('All changes saved'); vi.useFakeTimers()
+  edit('Committed first edit'); await advance()
+  edit('Newer retained edit'); await advance()
+  await act(async () => { loseResponse() })
+  await advance()
+  expect(screen.getByRole('textbox', { name: 'Assessment name' })).toHaveValue('Newer retained edit')
+  expect(screen.getByText('All changes saved')).toBeVisible()
+  expect(server.revision).toBe(3)
+  expect(server.document.title).toBe('Newer retained edit')
+})
+
 it('serializes edits behind the pending server revision acknowledgment', async () => {
   let acknowledge!: (draft: AssessmentDraft) => void
   mocks.save.mockImplementationOnce(() => new Promise<AssessmentDraft>(resolve => { acknowledge = resolve }))
