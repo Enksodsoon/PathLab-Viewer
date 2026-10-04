@@ -71,7 +71,9 @@ export function FolderTree({
   const [draggedId, setDraggedId] = useState<string | null>(null)
 
   function dropFolder(event: React.DragEvent, parentId: string | null) {
-    const source = folders.get(event.dataTransfer.getData(FOLDER_DRAG_TYPE))
+    // Some native engines discard custom drag data. Only an active drag started
+    // by this tree can supply the fallback; arbitrary external text cannot.
+    const source = folders.get(event.dataTransfer.getData(FOLDER_DRAG_TYPE) || draggedId || '')
     if (!source) return false
     event.preventDefault()
     event.stopPropagation()
@@ -89,7 +91,7 @@ export function FolderTree({
 
   return (
     <div className="folder-tree" role="tree" aria-label="Folders">
-      {onDropFolder && draggedId ? <div role="presentation" className="folder-tree-row" onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={(event) => dropFolder(event, null)}>Move to top level</div> : null}
+      {onDropFolder && draggedId ? <div role="presentation" className="folder-tree-row folder-tree-root-drop" onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={(event) => dropFolder(event, null)}>Move to top level</div> : null}
       {flattened.map(({ folder, level }, index) => {
         const isExpanded = expanded.has(folder.id)
         const isSelected = selectedId === folder.id
@@ -122,7 +124,7 @@ export function FolderTree({
             onClick={() => onSelect(folder)}
             onFocus={() => setFocusedId(folder.id)}
             onDragOver={(event) => {
-              if (event.dataTransfer.types.includes('application/x-pathlab-slide-ids') || (onDropFolder && event.dataTransfer.types.includes(FOLDER_DRAG_TYPE))) {
+              if (event.dataTransfer.types.includes('application/x-pathlab-slide-ids') || (onDropFolder && (draggedId || event.dataTransfer.types.includes(FOLDER_DRAG_TYPE)))) {
                 event.preventDefault()
                 event.dataTransfer.dropEffect = 'move'
               }

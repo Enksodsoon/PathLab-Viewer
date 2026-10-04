@@ -2180,6 +2180,13 @@ main.assessment-main > label select {
 .assessment-folder-dialog > footer .assessment-primary { border-color: var(--primary); color: var(--on-primary); background: var(--primary); }
 
 .assessment-preview-backdrop {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
   position: fixed;
   z-index: 79;
   inset: 0;
@@ -3874,3 +3881,5 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .assessment-studio-settings .assessment-settings-grid--two { grid-template-columns: 1fr; }
   .assessment-studio-settings .assessment-mode-grid label { min-height: 92px; }
 }
+
+.assessment-preview-backdrop::backdrop { background: transparent; }

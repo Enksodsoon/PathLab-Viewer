@@ -1,0 +1,29 @@
+# Hosted coverage for unavailable shared links
+
+Labels: wayfinder:ticket
+
+PR310 reviewed head5b4db461 passed all nine campaign gates and merged at48434dd. Its complete local qualification includes32 unavailable-return cases across four engines and four viewports. Hosted browser CI37172958003 passed253 existing cases, but the workflow uses an explicit file list that omitted the new shared-unavailable-return.spec.ts. This is a verification integration gap introduced with the new fixture, not another application defect. At that integration checkpoint, the repaired control had not been deployed.
+
+Add the new file to that existing explicit matrix. Retain two workers, zero-retry behavior and the16-minute step budget. The previous matrix took13.5minutes; the isolated32-case local matrix took1.6minutes. Actual hosted runtime and the resulting case count must be verified before release. Do not infer this coverage from green checks that omit the fixture.
+
+Application sources and dependencies remain unchanged from PR310. Since the provenance boundary includes ci.yml, refresh the immutable browser receipt and deterministic inventories without narrowing that boundary or changing any rights/admissions. Retain original954 findings/29 aggregate claims and45 application campaign findings. Require all nine fresh reviewed-head/main gates, then protected production delivery and native return-control verification.
+
+## Local completion checkpoint
+
+The actual workflow selector resolves288 tests, including32 unavailable-return cases. Isolated compilation atc8fb6781 captures four graphs/125assets in6.06seconds; existing standard output matches every asset and all three legal files. Receipt67f3e25e and software subjecte1695fe8 preserve all582dependency records,612source/574build components, complete notice bytes and176accountable admission blockers. Deterministic inventory validation, both SPDX validators, privacy/current history and independent semantic review pass. Application files are identical to the PR310 source qualified by573frontend/32newbrowser cases; no additional local application rerun is claimed. At that local checkpoint, fresh hosted285-case completion and all nine reviewed-head/main gates remained pending. [Structured checkpoint](../evidence/shared-return-ci-matrix.json) separates selector resolution from execution.
+
+
+## Production5069c80 release checkpoint
+
+PR310 repaired unavailable folder/collection return; PR311 added its omitted fixture to hosted CI. Both reviewed heads passed all nine gates before normal protected merges. Fresh main CI37175468040 attempt2 and Security37175468076 passed all nine latest exact-SHA checks. Browser285passed/3skipped includes all32 new cases; matrix855seconds stayed within960seconds. Retain attempt1's existing mobile annotation readiness failure before drawing assertions, unchanged20 focused replays and the one same-SHA failed-job retry. Assertions and timeouts were unchanged. Full-stack executed on attempt1 and GitHub carried its successful result forward:30expected/1skipped/0unexpected/0flaky,929.105seconds,productionTouched=false.
+
+[Protected deployment37177663993](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37177663993) succeeded at exact5069c80e6d5ecff079ab806fd7fb084f1d3119a2. Its actual restore reported69tables/106325files/3286131731bytes/schema20260907_0037 and restored database/file integrity. Fresh04:55:45UTC livez/readyz200 and anonymous assessment drafts401 passed. Classroom=true, general annotations=false and admin annotation canary=true inputs were preserved; Study retains its existing disabled gate. [Release receipt](../evidence/production-5069c80-release.json) and [exact-main gates](../evidence/main-5069c80-required-checks.json) record scope.
+
+Fresh released native verification remains pending. The private assessment tab showed Administrator sign in; Windows input stopped because the helper could not confidently identify the current browser URL. Earlier c37cf81 native persistence checks remain separate. No new publication, learner submission, Cancel or access change was automated. Original954source entries/29aggregate subclaims/45campaign findings and all versioned aliases remain unchanged. Specific native action confirmations, human production drag observation, external secret provenance/rotation and OneDrive facts,176accountable software admissions/two exact unshipped source notice gaps and distinct-identity production admission qualification keep the full campaign open.
+
+
+## Retry fixture synchronization repair
+
+PR312 baseline head2ec03ca0 browser CI37178827946 failed one of288 cases (284passed/3skipped/1failed,12.0minutes). The official trace and controlled local transition expose a fixture race: request count precedes fulfillment, so an immediate visibility check can accept the previous unavailable view before Retry detaches its link. This does not prove a broken product link. Backend, web, PostgreSQL, fullstack, containers and the three security checks succeeded; preserve that baseline without treating it as qualification.
+
+Hold the Retry404 response, observe loading and link absence, release in finally, then await the fresh unavailable state. Preserve nonnull geometry,44px height, viewport containment, keyboard focus/Enter, authentication and reload checks; timeouts, retries and workers are unchanged. Controlled stale-handle measurement is RED and fresh-barrier measurement GREEN; the repaired32-case four-project matrix passes and independent fixture review is clear. This is a mechanism reproduction, not deterministic failure of the complete old matrix. [Repair receipt](../evidence/shared-return-retry-fixture.json) records scope. Immutable compiler/inventory receipts and fresh exact-head hosted gates are required before merging this verification batch. Deployed5069c80 and pending native verification remain unchanged.

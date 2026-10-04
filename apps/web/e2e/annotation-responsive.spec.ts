@@ -173,6 +173,55 @@ test.beforeEach(async ({ page }) => {
   await mockSlides(page)
 })
 
+test('keeps the mobile inspector dismissed while a selected annotation saves', async ({ page }) => {
+  let releaseBatch!: () => void
+  const gate = new Promise<void>((resolve) => { releaseBatch = resolve })
+  await page.route('**/api/v2/admin/annotations/slides/private-1/batch', async (route) => {
+    const request = route.request().postDataJSON() as {
+      mutationId: string
+      baseVersion: number
+      operations: Array<{ type: string; id: string }>
+    }
+    await gate
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        mutationId: request.mutationId,
+        version: request.baseVersion + 1,
+        results: request.operations.map((operation) => ({
+          id: operation.id, operation: operation.type,
+          version: request.baseVersion + 1, deleted: false,
+        })),
+        purged: 0,
+      }),
+    })
+  })
+  try {
+    await page.setViewportSize({ width: 320, height: 568 })
+    await page.goto('/admin/preview/private-1')
+    await page.getByRole('button', { name: 'Open annotations' }).click()
+    await page.locator('[data-annotation-row]').filter({ hasText: 'Touch polygon' }).click()
+    const inspector = page.getByRole('dialog', { name: 'Annotation inspector' })
+    await expect(inspector).toBeVisible()
+    const saving = page.waitForRequest((request) => (
+      request.method() === 'POST' && request.url().endsWith('/private-1/batch')
+    ))
+    await inspector.getByRole('textbox', { name: 'Title' }).fill('Saved mobile polygon')
+    await inspector.getByRole('button', { name: 'Close annotation inspector' }).click()
+    await page.getByRole('button', { name: 'Save annotations' }).click()
+    await saving
+    await expect(inspector).toHaveCount(0)
+    releaseBatch()
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+    await expect(inspector).toHaveCount(0)
+    await expect(page.locator('[data-annotation-row]').filter({
+      hasText: 'Saved mobile polygon',
+    })).toHaveClass(/is-selected/)
+  } finally {
+    releaseBatch()
+  }
+})
+
 test('draws immediately on a virtual Layer 1 and saves layer plus annotation together', async ({
   page,
 }) => {
@@ -840,4 +889,98 @@ test('residual revision history clears on selection and ignores a delayed respon
   await expect(page.getByRole('combobox',{name:'Annotation revisions'})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'Restore selected revision'})).toHaveCount(0)
   expect(restores).toBe(0)
+})
+
+
+test('keeps every annotation command reachable at narrow widths and after closing inspector', async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 568 }, { width: 390, height: 844 },
+    { width: 760, height: 650 }, { width: 844, height: 390 },
+    { width: 1584, height: 992 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/admin/preview/private-1')
+    await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+    const commandbar = page.getByLabel('Annotation commands', { exact: true })
+    const measure = () => commandbar.evaluate((bar) => [...bar.querySelectorAll('button,output')].map((control) => {
+      const rect = control.getBoundingClientRect()
+      const button = control instanceof HTMLButtonElement
+      return {
+        name: control.getAttribute('aria-label') || control.textContent?.trim(),
+        inside: rect.x >= 0 && rect.right <= innerWidth && rect.y >= 0 && rect.bottom <= innerHeight,
+        touchSize: !button || (rect.width >= 44 && rect.height >= 44),
+        reachable: !button || control.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)),
+      }
+    }))
+    await expect.poll(measure, { message: `Commands fit and can be hit at ${viewport.width}x${viewport.height}` })
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'Undo', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Redo', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Save annotations', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Open annotations', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Open annotation inspector', inside: true, touchSize: true, reachable: true }),
+      ]))
+    await expect.poll(async () => (await measure()).every((control) => control.inside && control.touchSize && control.reachable))
+      .toBe(true)
+    const inspectorToggle = page.getByRole('button', { name: 'Open annotation inspector', exact: true })
+    await inspectorToggle.click()
+    await expect(page.getByLabel('Annotation inspector', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Close annotation inspector', exact: true }).last().click()
+    await expect(inspectorToggle).toBeFocused()
+    await expect.poll(measure).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Open annotation inspector', inside: true, reachable: true }),
+    ]))
+    await page.getByRole('button', { name: 'Open annotations', exact: true }).click()
+    const list = page.getByLabel('Annotation list', { exact: true })
+    await expect(list).toBeVisible()
+    const separated = await list.evaluate((panel) => {
+      const commands = document.querySelector('.annotation-commandbar')!.getBoundingClientRect()
+      const bounds = panel.getBoundingClientRect()
+      return commands.right <= bounds.x || bounds.right <= commands.x
+        || commands.bottom <= bounds.y || bounds.bottom <= commands.y
+    })
+    expect(separated, `List does not cover commands at ${viewport.width}x${viewport.height}`).toBe(true)
+    await page.getByRole('button', { name: 'Close annotations', exact: true }).click()
+  }
+})
+
+
+test('keeps browser refresh chords out of annotation tool selection', async ({ page }) => {
+  await page.goto('/admin/preview/private-1')
+  const pan = page.getByRole('button', { name: 'Pan', exact: true })
+  const ruler = page.getByRole('button', { name: 'Ruler', exact: true })
+  await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+  await expect(pan).toHaveAttribute('aria-pressed', 'true')
+  for (const chord of ['Control+r', 'Meta+r']) {
+    await page.keyboard.press(chord)
+    await expect(pan).toHaveAttribute('aria-pressed', 'true')
+    await expect(ruler).toHaveAttribute('aria-pressed', 'false')
+  }
+  await page.keyboard.press('r')
+  await expect(ruler).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('preserves modified drawing chords while a polygon is unfinished', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 800 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Polygon', exact: true }).click()
+  const overlay = page.locator('.annotation-svg-overlay')
+  const bounds = await overlay.boundingBox()
+  expect(bounds).not.toBeNull()
+  for (const [x, y] of [[0.4, 0.45], [0.6, 0.45], [0.5, 0.65]]) {
+    await page.mouse.click(bounds!.x + bounds!.width * x, bounds!.y + bounds!.height * y)
+  }
+  const draft = page.locator('.annotation-draft-shape')
+  await expect(draft).toBeVisible()
+  const points = await draft.getAttribute('points')
+  expect(points).toBeTruthy()
+  for (const chord of ['Control+Backspace', 'Alt+Enter', 'Meta+Escape', 'Control+Space']) {
+    await page.keyboard.press(chord)
+    await expect(draft).toHaveAttribute('points', points!)
+    await expect(overlay.locator('[data-annotation-id]')).toHaveCount(1)
+  }
+  await page.keyboard.press('Enter')
+  await expect(draft).toHaveCount(0)
+  await expect(overlay.locator('[data-annotation-id]')).toHaveCount(2)
 })

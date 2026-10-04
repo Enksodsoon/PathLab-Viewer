@@ -1,0 +1,84 @@
+{
+  "sha": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
+  "checkedAt": "2026-10-04T00:31:26.839824+00:00",
+  "deploymentRun": 37164136683,
+  "deploymentConclusion": "success",
+  "ciRun": 37162376381,
+  "securityRun": 37162376369,
+  "requiredChecksReceipt": "var/main-c37cf81-required-checks.json",
+  "restore": {
+    "archiveRoots": [
+      "delivery",
+      "originals",
+      "private",
+      "public"
+    ],
+    "fileBytes": 3286131731,
+    "fileCount": 106325,
+    "filesIntegrity": "restored",
+    "databaseIntegrity": "restored",
+    "schemaRevision": "20260907_0037",
+    "tableCount": 69
+  },
+  "health": {
+    "checkedAt": "2026-10-04T00:29:04.645933+00:00",
+    "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+    "results": [
+      {
+        "path": "/livez",
+        "status": 200,
+        "expected": 200,
+        "elapsedSeconds": 0.172
+      },
+      {
+        "path": "/readyz",
+        "status": 200,
+        "expected": 200,
+        "elapsedSeconds": 0.125
+      },
+      {
+        "path": "/api/v2/admin/assessment/drafts",
+        "status": 401,
+        "expected": 401,
+        "elapsedSeconds": 0.109
+      }
+    ],
+    "passed": true
+  },
+  "featureSettings": {
+    "classroom": true,
+    "annotations": false,
+    "adminAnnotationCanary": true,
+    "study": "existing disabled gate retained"
+  },
+  "nativeViewer": {
+    "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
+    "observations": [
+      "Explicit browser Refresh after terminal deployment success",
+      "Patterned 3072 x 3072 tiles, two saved rectangles and NO CHANGES rendered"
+    ]
+  },
+  "nativeAssessment": {
+    "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+    "observations": [
+      "Explicit browser Refresh after terminal deployment success",
+      "Existing c570116 acknowledgment marker retained",
+      "Two questions, 2.502 points and All changes saved retained"
+    ]
+  },
+  "limitations": "Positive native released persistence and viewer checks only; shared canvas held-key failure proved in the local four-engine regression, not injected through native production controls. No new publication, permissions, learner submission or Cancel actions.",
+  "remaining": [
+    "Human native folder drag observation",
+    "Pending specific synthetic action confirmations",
+    "External secret provenance/rotation and OneDrive sharing facts",
+    "Accountable software admissions and two exact source notice gaps",
+    "Browser artifact distribution qualification integration",
+    "Requirement-level campaign closure"
+  ],
+  "nativeLibrary": {
+    "observations": [
+      "Explicit Library return from authenticated viewer reached /admin",
+      "Library loaded synthetic B thumbnail and Open viewer / Quick look controls"
+    ]
+  }
+}

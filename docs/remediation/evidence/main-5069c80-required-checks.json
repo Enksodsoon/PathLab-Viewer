@@ -1,0 +1,61 @@
+{
+  "checkedAt": "2026-10-04T04:40:16.808346+00:00",
+  "head": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+  "campaignChecks": {
+    "backend": {
+      "id": 111361249364,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468040/job/111361249364"
+    },
+    "web": {
+      "id": 111361265350,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468040/job/111361265350"
+    },
+    "containers": {
+      "id": 111361268276,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468040/job/111361268276"
+    },
+    "browser": {
+      "id": 111361248681,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468040/job/111361248681"
+    },
+    "fullstack": {
+      "id": 111361249812,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468040/job/111361249812"
+    },
+    "postgres": {
+      "id": 111361249661,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468040/job/111361249661"
+    },
+    "repository-and-dependencies": {
+      "id": 111357056008,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468076/job/111357056008"
+    },
+    "CodeQL (python)": {
+      "id": 111357056128,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468076/job/111357056128"
+    },
+    "CodeQL (javascript-typescript)": {
+      "id": 111357056124,
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37175468076/job/111357056124"
+    }
+  },
+  "allNinePassed": true
+}

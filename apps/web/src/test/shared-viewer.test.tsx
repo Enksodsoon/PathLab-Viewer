@@ -71,6 +71,7 @@ function renderShare(targetType: 'folder' | 'collection' = 'folder') {
     <ThemeProvider>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
+          <Route path="/admin" element={<h1>Returned library</h1>} />
           <Route
             path={route}
             element={<SharedViewerPage targetType={targetType} />}
@@ -225,4 +226,17 @@ describe('shared library viewer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Next slide' }))
     expect(sessionStorage.getItem('pathlab-share-position:collection:share-public')).toBe('1')
   })
+})
+
+it.each(['folder', 'collection'] as const)('returns from an unavailable %s share using the keyboard', async (targetType) => {
+  vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 404 }))
+  renderShare(targetType)
+  expect(await screen.findByText('This shared library is unavailable')).toBeVisible()
+  const user = userEvent.setup()
+  await user.tab()
+  expect(screen.getByRole('button', { name: 'Try again' })).toHaveFocus()
+  await user.tab()
+  expect(screen.getByRole('link', { name: 'Go to library' })).toHaveFocus()
+  await user.keyboard('{Enter}')
+  expect(screen.getByRole('heading', { name: 'Returned library' })).toBeVisible()
 })

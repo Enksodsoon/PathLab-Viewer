@@ -437,3 +437,48 @@ it.each([false, true])('clears revision history on selection change and ignores 
   expect(screen.queryByRole('button', { name: 'Restore selected revision' })).not.toBeInTheDocument()
   expect(restoreRevision).not.toHaveBeenCalled()
 })
+
+
+it.each([
+  { label: 'Ctrl+R', key: 'r', ctrlKey: true },
+  { label: 'Cmd+R', key: 'r', metaKey: true },
+  { label: 'Ctrl+B', key: 'b', ctrlKey: true },
+  { label: 'Alt+G', key: 'g', altKey: true },
+  { label: 'Alt+Left', key: 'ArrowLeft', altKey: true },
+  { label: 'Ctrl+Backspace', key: 'Backspace', ctrlKey: true },
+])('leaves browser chord $label unhandled by annotation tools', async (chord) => {
+  render(<AnnotationWorkspace slideId="slide-1" slideName="Private slide" services={services()} onAttachmentChange={vi.fn()} />)
+  const pan = screen.getByRole('button', { name: /^Pan$/ })
+  await waitFor(() => expect(pan).toBeEnabled())
+  const event = new KeyboardEvent('keydown', { ...chord, bubbles: true, cancelable: true })
+  fireEvent(window, event)
+  expect(event.defaultPrevented).toBe(false)
+  expect(pan).toHaveAttribute('aria-pressed', 'true')
+})
+
+it.each(['r', 'R'])('still selects the Ruler with unmodified %s', async (key) => {
+  render(<AnnotationWorkspace slideId="slide-1" slideName="Private slide" services={services()} onAttachmentChange={vi.fn()} />)
+  const ruler = screen.getByRole('button', { name: /^Ruler$/ })
+  await waitFor(() => expect(ruler).toBeEnabled())
+  const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+  fireEvent(window, event)
+  expect(event.defaultPrevented).toBe(true)
+  expect(ruler).toHaveAttribute('aria-pressed', 'true')
+})
+
+it.each([
+  { label: 'Ctrl+S', key: 's', ctrlKey: true },
+  { label: 'Cmd+S', key: 's', metaKey: true },
+  { label: 'Ctrl+Z', key: 'z', ctrlKey: true },
+  { label: 'Cmd+Shift+Z', key: 'z', metaKey: true, shiftKey: true },
+  { label: 'Ctrl+C', key: 'c', ctrlKey: true },
+  { label: 'Ctrl+V', key: 'v', ctrlKey: true },
+])('retains the explicit annotation command $label', async (chord) => {
+  render(<AnnotationWorkspace slideId="slide-1" slideName="Private slide" services={services()} onAttachmentChange={vi.fn()} />)
+  const pan = screen.getByRole('button', { name: /^Pan$/ })
+  await waitFor(() => expect(pan).toBeEnabled())
+  const event = new KeyboardEvent('keydown', { ...chord, bubbles: true, cancelable: true })
+  fireEvent(window, event)
+  expect(event.defaultPrevented).toBe(true)
+  expect(pan).toHaveAttribute('aria-pressed', 'true')
+})

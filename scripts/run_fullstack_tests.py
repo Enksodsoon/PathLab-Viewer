@@ -681,7 +681,9 @@ def main() -> int:
                     *(["--grep", args.grep] if args.grep else []),
                     *(["--reporter=json"] if args.report_dir else []),
                 ],
-                timeout=4200 if args.stress else 900,
+                # The scale scenario alone allows 900s; leave bounded room for
+                # the other journeys within CI's unchanged 25-minute job cap.
+                timeout=4200 if args.stress else 1200,
             )
             if any(process.poll() is not None for process in services):
                 raise RuntimeError("An isolated service stopped during the browser journey")

@@ -671,6 +671,40 @@ def register_assessment_routes(
             )
         return draft
 
+    def commit_draft_document(
+        database: OrmSession,
+        draft: AssessmentDraft,
+        document: dict[str, Any],
+        expected_revision: int,
+        title: str,
+    ) -> AssessmentDraft:
+        draft_id, org_id = draft.id, draft.organization_id
+        admitted = database.scalar(
+            update(AssessmentDraft)
+            .where(
+                AssessmentDraft.id == draft.id,
+                AssessmentDraft.organization_id == draft.organization_id,
+                AssessmentDraft.revision == expected_revision,
+                AssessmentDraft.status == "draft",
+            )
+            .values(
+                document=document,
+                title=title,
+                revision=expected_revision + 1,
+                updated_at=utc_now(),
+            )
+            .returning(AssessmentDraft.id)
+        )
+        if admitted is None:
+            database.rollback()
+            current = editable_draft(database, draft_id, org_id)
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "ASSESSMENT_DRAFT_CONFLICT", "revision": current.revision},
+            )
+        database.commit()
+        return draft
+
     @app.get("/api/v2/assessment/administrations/{public_id}")
     def administration_metadata(
         public_id: str, response: Response, _: Database
@@ -1653,12 +1687,20 @@ def register_assessment_routes(
                 status_code=409,
                 detail={"code": "ASSESSMENT_DRAFT_CONFLICT", "revision": draft.revision},
             )
-        draft.document = payload.document
-        draft.title = str(payload.document.get("title", draft.title))[:200]
-        draft.revision += 1
-        draft.updated_at = utc_now()
-        database.commit()
+        draft = commit_draft_document(
+            database,
+            draft,
+            payload.document,
+            draft.revision,
+            str(payload.document.get("title", draft.title))[:200],
+        )
         return _draft_json(draft, database)
+
+    def schema_or_422(document: dict[str, Any]) -> str:
+        try:
+            return document_schema(document)
+        except AssessmentContractError as error:
+            raise HTTPException(status_code=422, detail={"code": str(error)}) from error
 
     def fresh_item(source: dict[str, Any]) -> dict[str, Any]:
         item: dict[str, Any] = json.loads(json.dumps(source))
@@ -1689,7 +1731,7 @@ def register_assessment_routes(
         org_id = organization_id(authenticated, database, requested_org)
         source = editable_draft(database, draft_id, org_id)
         document = json.loads(json.dumps(source.document))
-        if document_schema(document) == V2_SCHEMA:
+        if schema_or_422(document) == V2_SCHEMA:
             document["sections"] = clone_complete_sections(document.get("sections", []))
         else:
             document["items"] = [fresh_item(item) for item in document.get("items", [])]
@@ -1733,10 +1775,9 @@ def register_assessment_routes(
             ) from error
         if len(import_document_items(destination.document)) + len(selected) > 100:
             raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ITEM_LIMIT"})
-        destination.document = document
-        destination.revision += 1
-        destination.updated_at = utc_now()
-        database.commit()
+        destination = commit_draft_document(
+            database, destination, document, payload.expected_revision, destination.title
+        )
         return _draft_json(destination, database)
 
     @app.post(
@@ -1757,7 +1798,7 @@ def register_assessment_routes(
                 status_code=409,
                 detail={"code": "ASSESSMENT_DRAFT_CONFLICT", "revision": source.revision},
             )
-        if document_schema(source.document) == V2_SCHEMA:
+        if schema_or_422(source.document) == V2_SCHEMA:
             raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_ALREADY_V2"})
         document = migrate_v1_document(source.document, source.id)
         migrated = AssessmentDraft(
@@ -1829,9 +1870,9 @@ def register_assessment_routes(
             draft_id,
             organization_id(authenticated, database, requested_org),
         )
-        if document_schema(draft.document) == V2_SCHEMA:
-            return preflight_v2(draft.document)
         try:
+            if document_schema(draft.document) == V2_SCHEMA:
+                return preflight_v2(draft.document)
             compiled = compile_assessment(draft.document)
         except AssessmentContractError as error:
             return {

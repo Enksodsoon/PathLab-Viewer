@@ -1,0 +1,80 @@
+{
+  "schema": "pathlab.shared-unavailable-return/1",
+  "baselineCommit": "c56945302d20fc3aa88a11e3637e40f9c442287c",
+  "productionTouched": false,
+  "originalSourceUnitFailures": 2,
+  "finalAffectedUnitPassed": 11,
+  "finalBrowserPassed": 32,
+  "browserProjects": [
+    "chromium",
+    "firefox",
+    "webkit",
+    "mobile-chromium"
+  ],
+  "viewportSizes": [
+    [
+      320,
+      740
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      900,
+      420
+    ],
+    [
+      1584,
+      992
+    ]
+  ],
+  "checks": [
+    "retry adds one request",
+    "Tab focus and Enter",
+    "44px target",
+    "viewport containment",
+    "anonymous authentication boundary",
+    "reload persistence",
+    "light/dark",
+    "reduced motion"
+  ],
+  "independentReview": "CLEAR",
+  "fullFrontend": {
+    "passed": 573,
+    "files": 85,
+    "seconds": 175.46
+  },
+  "frontendLint": "PASS",
+  "productionBuildSeconds": 9.75,
+  "hostedRelease": "PENDING",
+  "verifiedProduction": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
+  "implementationCommit": "51f32a7b6c0e8efef4af08ad175ffe935cbcd93a",
+  "browserReceiptCommit": "8e2cc297ba872977d4dab19699a70cf94f670c32",
+  "softwareSubject": "54943c9aeb704f4c4c4456c5e175572f4302bbcb",
+  "inventoryVerification": {
+    "actual125AssetsAndLegalFiles": "PASS",
+    "qualificationBuildSeconds": 6.76,
+    "standardBuildSeconds": 6.53,
+    "softwareValidation": "PASS",
+    "SPDXSource": "PASS",
+    "SPDXBuild": "PASS",
+    "Ruff": "PASS",
+    "privacyCurrentAndHistory": "PASS",
+    "independentSemanticReview": "CLEAR",
+    "dependencyRecordsUnchanged": 582,
+    "sourceComponents": 612,
+    "buildComponents": 574,
+    "noticeBytes": 1449829,
+    "noticeSHA256": "9f7c52bca7c8453a6e9211a9d5f4edcf3ea59031f241b4b68738985a209a98b3",
+    "unreviewedShippedInputs": 176,
+    "strictAdmission": "EXPECTED_BLOCKED_EXIT1",
+    "inventoryRegressionSuite": {
+      "passed": 45,
+      "skipped": 1,
+      "exitCode": 0,
+      "skipReason": "Windows host lacks symbolic-link creation permission; Linux CI exercises the case"
+    }
+  },
+  "pullRequest": 310
+}
