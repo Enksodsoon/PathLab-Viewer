@@ -85,3 +85,7 @@ Production9ea88b9 is verified through protected release37150191318, actual resto
 ## Current verified production c37cf81
 
 PR307 merged c37cf81 after all nine reviewed-head gates. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts; the unchanged Library-sort observation, focused45-case suite and20replays are retained separately from the successful same-SHA failed-job rerun. Protected deployment37164136683 succeeded with actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh health200/200 and anonymous drafts401 passed. Native explicit Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved; Library return loaded authenticated content. [Release receipt](evidence/production-c37cf81-release.json) records scope and limitations. Original findings and external closure requirements remain visible.
+
+## Fresh-main verification repair
+
+[Classroom polling verification](tickets/classroom-polling-verification.md) records reproduced readiness and fake-timer fixture defects from main ed1aa6a CI37167261430. Product source is unchanged. Preserve the failed baseline, repair verification, refresh immutable browser input receipts and require fresh reviewed-head/main checks.
