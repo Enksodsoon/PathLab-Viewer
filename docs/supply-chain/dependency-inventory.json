@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T01:57:11.238261Z",
+  "generatedAt": "2026-10-04T00:37:05.882287Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -6242,7 +6242,8 @@
       ],
       "checksum": "sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==",
       "checksumVerified": true,
-      "distribution": "bundled",
+      "distribution": "not-bundled-in-current-browser-build",
+      "distributionEvidence": "docs/supply-chain/browser-distribution-receipt.json",
       "ecosystem": "npm",
       "id": "npm:eastasianwidth@0.2.0",
       "license": "MIT",
@@ -7532,7 +7533,8 @@
       ],
       "checksum": "sha512-Y8T4vYhEfwJOTbouREvG+3XDsjr8E3kIr7uf+JZ0BYloFsttiHU0WfvANVsR7TxNUJa/WpCnw/Ino/p+DeBhBQ==",
       "checksumVerified": true,
-      "distribution": "bundled",
+      "distribution": "not-bundled-in-current-browser-build",
+      "distributionEvidence": "docs/supply-chain/browser-distribution-receipt.json",
       "ecosystem": "npm",
       "id": "npm:guid-typescript@1.0.9",
       "license": "ISC",
@@ -16283,7 +16285,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "bcb5f777ca2aa3dbcc328ecf98b132a1c064cc79d605505ff1ab810ac8db5fe8",
+      "metadataSha256": "123991aec4e326543ef649c4568a7013a6ace573172013b5e977a38b32d87bc8",
       "name": "sqlalchemy",
       "noticeFiles": [
         {
@@ -16478,7 +16480,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "adde6199c173bb0732a7fac0ca6377a9377efd1f1d69b288e9b312fbf6e8b74e",
+      "metadataSha256": "b8f42880d2cf78c536e066955964b94ce4d7d4c1b3ddfcfd190e8466ccafcedc",
       "name": "tzdata",
       "noticeFiles": [
         {
@@ -16982,7 +16984,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "c18857b689bf20a6619bb31145636c860a4c1f4ceded4b6315dd14e97475695a",
+      "metadataSha256": "3c16e9e20457f40258fea6c470378e16ca31502f416fa4f481f1d3def5bd3073",
       "name": "websockets",
       "noticeFiles": [
         {
@@ -17986,6 +17988,11 @@
       "sha256": "8d7903f892ff0ae818f7db8c6179f2777745f797a604722c62eb5bac137ba0bb"
     },
     {
+      "gitBlob": "704bb94d29ae6909fdb5128d6cbdf04db171a7c0",
+      "path": "docs/supply-chain/browser-distribution-receipt.json",
+      "sha256": "b7cccdad57f1539ba192e1462ad67bab4a582f04eb6127a6355d86d8fdca4dec"
+    },
+    {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
       "path": "docs/supply-chain/notice-material/.gitattributes",
       "sha256": "9d56e8be817e701443642941fd2daf8519828b3c49f9b06148ffe4a4809de960"
@@ -18851,6 +18858,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "3598ea7359bdbe57c57c9e59f945d233aa12145a",
-  "subjectTree": "becf24b03c1013a71a3873b983c552c9c87e9f8f"
+  "subjectCommit": "ba5cba7d9ebed2da7fdbcf87738b1c10e5ef3f2a",
+  "subjectTree": "8f87933b990866b244101e565312b613652cff5c"
 }
