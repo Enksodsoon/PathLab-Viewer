@@ -542,3 +542,22 @@ def test_preserved_wsireg_upstream_failure_is_unknown_negative_safety(campaign_r
     category = campaign_report.classify(tmp_path, digest, "rejected")
     assert category == "upstream-or-runtime-failure"
     assert campaign_report.negative_review_value(category) is None
+
+
+def test_cache_preparation_public_projection_keeps_only_measured_safe_fields(campaign_report):
+    value = {
+        "policy": "private/path",
+        "performed": True,
+        "wallSeconds": 1.25,
+        "removedFileCount": 2,
+        "removedBytes": 12,
+        "sourceKindCounts": {"openslide-original": 1, "/private/source": 99},
+        "privatePath": "/secret",
+        "coordinates": [1, 2],
+    }
+    public = campaign_report.public_cache_preparation(value)
+    assert public["wallSeconds"] == 1.25 and public["removedBytes"] == 12
+    assert public["sourceKindCounts"] == {"openslide-original": 1}
+    assert "private" not in json.dumps(public) and "coordinates" not in public
+    value["wallSeconds"] = float("nan")
+    assert campaign_report.public_cache_preparation(value)["wallSeconds"] is None

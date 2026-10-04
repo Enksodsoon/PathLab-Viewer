@@ -17,6 +17,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from .alignment import AlignmentRejected
+from .alignment_cache import reset_generated_regional_cache
 from .alignment_engines import (
     ENGINE_ALIASES,
     ENGINE_VERSIONS,
@@ -290,6 +291,7 @@ def pair_digest(
     *,
     input_digests: list[str] | None = None,
     settings_are_effective: bool = False,
+    execution_protocol: dict[str, Any] | None = None,
 ) -> str:
     value = {
         "benchmark": BENCHMARK_VERSION,
@@ -300,6 +302,8 @@ def pair_digest(
         "runtime": _runtime_versions(),
         "inputs": input_digests or [_input_digest(pair[s]) for s in ("reference", "moving")],
     }
+    if execution_protocol is not None:
+        value["executionProtocol"] = execution_protocol
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
@@ -413,6 +417,27 @@ def aggregate_results(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "elapsedSecondsP95": float(np.percentile(effort_seconds, 95)) if efforts else None,
             },
         )
+        cache_rows = [row for row in automatic if isinstance(row.get("cachePreparation"), dict)]
+        if cache_rows:
+            core = [
+                row["runtimeCoreSeconds"]
+                for row in cache_rows
+                if row.get("runtimeCoreSeconds") is not None
+            ]
+            preparation = [row["cachePreparation"]["wallSeconds"] for row in cache_rows]
+            report.update(
+                timingScope="process-cold-generated-regional-cache-empty-excludes-queue-browser-host-cache-unmeasured",
+                runtimeCoreMedianSeconds=float(np.median(core)) if core else None,
+                runtimeCoreP95Seconds=float(np.percentile(core, 95)) if core else None,
+                cachePreparationMedianSeconds=float(np.median(preparation)),
+                cachePreparationP95Seconds=float(np.percentile(preparation, 95)),
+                cacheRemovedFileCount=sum(
+                    row["cachePreparation"]["removedFileCount"] for row in cache_rows
+                ),
+                cacheRemovedBytes=sum(
+                    row["cachePreparation"]["removedBytes"] for row in cache_rows
+                ),
+            )
         reports[recipe] = report
     qualified = [(name, report) for name, report in reports.items() if report["qualified"]]
     accurate = sorted(
@@ -478,10 +503,24 @@ def run_benchmark(
     timeout_seconds: int = 600,
     memory_bytes: int = 7 * 1024**3,
     repeat_runs: int = 0,
+    reset_immutable_regional_cache: bool = False,
+    immutable_input_root: Path | None = None,
 ) -> dict[str, Any]:
     validate_manifest(manifest, screening=screening)
     if not 0 <= repeat_runs <= 5:
         raise ValueError("repeat runs must be between zero and five")
+    execution_protocol = None
+    if reset_immutable_regional_cache:
+        if immutable_input_root is None or repeat_runs != 0 or memory_bytes != 7 * 1024**3:
+            raise ValueError(
+                "immutable cold-cache protocol requires input workspace, repeat0 and7GiB"
+            )
+        execution_protocol = {
+            "policy": "process-cold-generated-regional-cache-empty/1",
+            "memoryBytes": memory_bytes,
+            "repeatRuns": 0,
+            "hostFilesystemCacheState": "unmeasured",
+        }
     output = output.resolve()
     _private_output(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -504,7 +543,12 @@ def run_benchmark(
             }
             resources_available, resource_reason = engine_resource_availability(recipe, settings)
             key = pair_digest(
-                pair, recipe, settings, input_digests=inputs, settings_are_effective=True
+                pair,
+                recipe,
+                settings,
+                input_digests=inputs,
+                settings_are_effective=True,
+                execution_protocol=execution_protocol,
             )
             cache = cache_dir / f"{key}.json"
             cached = resume and cache.is_file()
@@ -513,6 +557,26 @@ def run_benchmark(
                 if receipt.get("digest") != key:
                     raise ValueError("cache digest does not match request")
             else:
+                cache_preparation = None
+                if execution_protocol is not None:
+                    cache_preparation = {
+                        "policy": execution_protocol["policy"],
+                        "performed": False,
+                        "wallSeconds": 0.0,
+                        "removedFileCount": 0,
+                        "removedBytes": 0,
+                        "sourceKindCounts": {},
+                        "reason": "runtime-unavailable",
+                        "hostFilesystemCacheState": "unmeasured",
+                    }
+                    if availability.get(recipe, {}).get("available") and resources_available:
+                        assert immutable_input_root is not None
+                        # Previous _run_alignment_bounded returned only after containment cleanup;
+                        # containment loss is fatal SystemExit and cannot reach another attempt.
+                        cache_preparation = reset_generated_regional_cache(
+                            [Path(pair[side]["path"]) for side in ("reference", "moving")],
+                            immutable_input_root,
+                        )
                 started = time.monotonic()
                 registration: dict[str, Any] = {}
                 stage_events: list[dict[str, Any]] = []
@@ -595,6 +659,20 @@ def run_benchmark(
                     "runtimeVersions": _runtime_versions(),
                 }
                 temporary = cache.with_suffix(".tmp")
+                if cache_preparation is not None:
+                    core_seconds = receipt["coldRuntimeSeconds"]
+                    total_seconds = (
+                        core_seconds + cache_preparation["wallSeconds"]
+                        if core_seconds is not None
+                        else None
+                    )
+                    receipt.update(
+                        executionProtocol=execution_protocol,
+                        cachePreparation=cache_preparation,
+                        runtimeCoreSeconds=core_seconds,
+                        endToEndPreparationAndRuntimeSeconds=total_seconds,
+                        coldRuntimeSeconds=total_seconds,
+                    )
                 temporary.write_text(json.dumps(receipt, sort_keys=True), encoding="utf-8")
                 temporary.replace(cache)
             repeats = list(receipt.get("repeatComputeReceipts", []))

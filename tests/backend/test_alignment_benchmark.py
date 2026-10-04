@@ -613,3 +613,215 @@ def test_runtime_identity_binds_loaded_opencv_and_contrib_distribution(monkeypat
     assert first["loaded-cv2"] == "4.9.0"
     monkeypatch.setattr(cv2, "__version__", "4.11.0")
     assert benchmark._runtime_versions() != first
+
+
+def test_generated_cache_reset_preserves_bound_inputs_and_copied_pyramids(tmp_path):
+    from wsi_viewer.alignment_cache import reset_generated_regional_cache
+
+    from tests.backend.test_alignment_immutable_inputs import snapshot
+
+    root = tmp_path / "sources" / "a"
+    root.parent.mkdir()
+    value = snapshot(root)
+    candidate = root / "original.tif"
+    candidate.write_bytes(b"original")
+    dzi = root / "slide.dzi"
+    dzi.write_bytes(b"descriptor")
+
+    def sha(p):
+        return __import__("hashlib").sha256(p.read_bytes()).hexdigest()
+
+    (root / ".openslide-source.json").write_text(
+        json.dumps({"source": str(candidate.resolve()), "tileSize": 512, "quality": 92})
+    )
+    value["regionSource"] = {
+        "available": True,
+        "kind": "openslide-original",
+        "file": "original.tif",
+        "sha256": sha(candidate),
+        "descriptorSha256": sha(dzi),
+        "rendering": {"tileSize": 512, "quality": 92},
+        "tileCacheLimitBytes": 999999,
+    }
+    (root / "immutable-overview.json").write_text(json.dumps(value))
+    tile = root / "slide_files" / "2" / "0_0.jpg"
+    tile.parent.mkdir(parents=True)
+    tile.write_bytes(b"generated")
+    bound_before = {p.name: p.read_bytes() for p in root.iterdir() if p.is_file()}
+    result = reset_generated_regional_cache([root, root], tmp_path)
+    assert result["removedFileCount"] == 1 and result["removedBytes"] == 9
+    assert result["sourceKindCounts"] == {"openslide-original": 1}
+    assert not tile.exists()
+    assert bound_before == {p.name: p.read_bytes() for p in root.iterdir() if p.is_file()}
+    tile.write_bytes(b"copied")
+    value["regionSource"] = {
+        "available": True,
+        "kind": "copied-dzi",
+        "files": [{"name": "slide_files/2/0_0.jpg", "sha256": sha(tile)}],
+    }
+    (root / "immutable-overview.json").write_text(json.dumps(value))
+    assert reset_generated_regional_cache([root], tmp_path)["removedFileCount"] == 0
+    assert tile.read_bytes() == b"copied"
+
+
+def test_generated_cache_reset_rejects_outside_workspace_and_reparse_parent(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_cache
+
+    from tests.backend.test_alignment_immutable_inputs import snapshot
+
+    root = tmp_path / "a"
+    snapshot(root)
+    with pytest.raises(ValueError, match="workspace"):
+        alignment_cache.reset_generated_regional_cache([root], tmp_path / "other")
+    monkeypatch.setattr(alignment_cache, "_is_reparse", lambda path: path == tmp_path)
+    with pytest.raises(ValueError, match="reparse"):
+        alignment_cache.reset_generated_regional_cache([root], tmp_path)
+
+
+def test_cold_cache_protocol_invalidates_old_receipt_and_resume_does_not_reset(
+    tmp_path, monkeypatch
+):
+    from wsi_viewer import alignment_benchmark as bench
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        **{s: {"path": str(tmp_path / s), "size": [10, 10]} for s in ("reference", "moving")},
+    }
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
+    calls, resets = [], []
+    monkeypatch.setattr(
+        bench, "_run_alignment_bounded", lambda *a, **kw: calls.append(kw) or {"status": "rejected"}
+    )
+
+    def reset(roots, workspace):
+        resets.append((roots, workspace))
+        return {
+            "policy": "process-cold-generated-regional-cache-empty/1",
+            "performed": True,
+            "wallSeconds": 7.0,
+            "removedFileCount": 2,
+            "removedBytes": 123,
+            "sourceKindCounts": {"openslide-original": 1, "verified-openslide-candidate": 1},
+            "hostFilesystemCacheState": "unmeasured",
+        }
+
+    monkeypatch.setattr(bench, "reset_generated_regional_cache", reset)
+    manifest, out = {"pairs": [pair]}, tmp_path / "out"
+    old = bench.run_benchmark(manifest, out, ["native"])
+    report = bench.run_benchmark(
+        manifest,
+        out,
+        ["native"],
+        reset_immutable_regional_cache=True,
+        immutable_input_root=tmp_path,
+    )
+    row = report["rows"][0]
+    assert row["digest"] != old["rows"][0]["digest"]
+    assert row["cachePreparation"]["removedBytes"] == 123
+    assert row["coldRuntimeSeconds"] == row["runtimeCoreSeconds"] + 7
+    assert row["endToEndPreparationAndRuntimeSeconds"] == row["coldRuntimeSeconds"]
+    assert len(resets) == 1 and len(calls) == 2
+    resumed = bench.run_benchmark(
+        manifest,
+        out,
+        ["native"],
+        reset_immutable_regional_cache=True,
+        immutable_input_root=tmp_path,
+    )
+    assert resumed["rows"][0]["cached"] is True
+    assert len(resets) == 1 and len(calls) == 2
+    with pytest.raises(ValueError, match="protocol"):
+        bench.run_benchmark(
+            manifest,
+            out,
+            ["native"],
+            reset_immutable_regional_cache=True,
+            immutable_input_root=tmp_path,
+            repeat_runs=1,
+        )
+
+
+def test_generated_cache_reparse_entry_prevents_any_file_deletion(tmp_path, monkeypatch):
+    import hashlib
+
+    from wsi_viewer import alignment_cache
+
+    from tests.backend.test_alignment_immutable_inputs import snapshot
+
+    root = tmp_path / "a"
+    value = snapshot(root)
+    (root / "original.tif").write_bytes(b"original")
+    (root / "slide.dzi").write_bytes(b"descriptor")
+
+    def sha(p):
+        return hashlib.sha256(p.read_bytes()).hexdigest()
+
+    (root / ".openslide-source.json").write_text(
+        json.dumps(
+            {"source": str((root / "original.tif").resolve()), "tileSize": 512, "quality": 92}
+        )
+    )
+    value["regionSource"] = {
+        "available": True,
+        "kind": "openslide-original",
+        "file": "original.tif",
+        "sha256": sha(root / "original.tif"),
+        "descriptorSha256": sha(root / "slide.dzi"),
+        "rendering": {"tileSize": 512, "quality": 92},
+    }
+    (root / "immutable-overview.json").write_text(json.dumps(value))
+    cache = root / "slide_files"
+    cache.mkdir()
+    regular, linked = cache / "0_0.jpg", cache / "1_0.jpg"
+    regular.write_bytes(b"first generated tile")
+    linked.write_bytes(b"simulated reparse entry")
+    original_check = alignment_cache._is_reparse
+    monkeypatch.setattr(
+        alignment_cache, "_is_reparse", lambda path: path == linked or original_check(path)
+    )
+    with pytest.raises(ValueError, match="reparse"):
+        alignment_cache.reset_generated_regional_cache([root], tmp_path)
+    assert regular.read_bytes() == b"first generated tile"
+    assert linked.exists()
+
+
+def test_cold_cache_protocol_fatal_containment_loss_cannot_start_next_recipe(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_benchmark as bench
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        **{s: {"path": str(tmp_path / s), "size": [10, 10]} for s in ("reference", "moving")},
+    }
+    monkeypatch.setattr(
+        bench,
+        "engine_availability",
+        lambda: {r: {"available": True} for r in ("native-overview-v6", "hisalign-0.2.1")},
+    )
+    resets = []
+    monkeypatch.setattr(
+        bench, "reset_generated_regional_cache", lambda *a: resets.append(a) or {"wallSeconds": 0.0}
+    )
+
+    def lost(*a, **kw):
+        raise SystemExit("containment lost")
+
+    monkeypatch.setattr(bench, "_run_alignment_bounded", lost)
+    with pytest.raises(SystemExit, match="containment lost"):
+        bench.run_benchmark(
+            {"pairs": [pair]},
+            tmp_path / "out",
+            ["native", "hisalign"],
+            reset_immutable_regional_cache=True,
+            immutable_input_root=tmp_path,
+        )
+    assert len(resets) == 1

@@ -513,6 +513,7 @@ def prepare(
                 or tree.attrib.get("Overlap") != "1"
                 or tree.attrib.get("Format") != "jpg"
                 or [int(dzi_size.attrib[axis]) for axis in ("Width", "Height")] != list(size)
+                or any(item["name"].startswith("slide_files/") for item in copied)
             ):
                 raise ValueError("candidate admission differs from copied source/DZI frame")
             reader = _verify_candidate_reader(root / name, size)

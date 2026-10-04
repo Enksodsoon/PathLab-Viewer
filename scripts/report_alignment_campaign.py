@@ -27,6 +27,46 @@ from wsi_viewer.alignment_engines import (
 from wsi_viewer.alignment_evaluation import evaluate_landmarks
 
 
+def public_cache_preparation(value):
+    if not isinstance(value, dict):
+        return None
+    result = {
+        "policy": "process-cold-generated-regional-cache-empty/1",
+        "performed": value.get("performed") is True,
+        "hostFilesystemCacheState": "unmeasured",
+        "sourceKindCounts": {},
+    }
+    for key in ("wallSeconds", "removedFileCount", "removedBytes"):
+        measured = value.get(key)
+        result[key] = (
+            measured
+            if isinstance(measured, (int, float))
+            and not isinstance(measured, bool)
+            and math.isfinite(measured)
+            and measured >= 0
+            else None
+        )
+    counts = value.get("sourceKindCounts", {})
+    if isinstance(counts, dict):
+        result["sourceKindCounts"] = {
+            key: count
+            for key, count in counts.items()
+            if key
+            in {
+                "openslide-original",
+                "verified-openslide-candidate",
+                "copied-dzi",
+                "copied-dzi-incomplete",
+                "unavailable",
+            }
+            and type(count) is int
+            and count >= 0
+        }
+    return result
+
+
+
+
 def classify(root, digest, outcome, attempt="cold"):
     if outcome == "ok":
         return "accepted-map"
@@ -343,6 +383,23 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
                         "manualCorrectionEffort",
                     ]
                 },
+                **(
+                    {
+                        "cachePreparation": public_cache_preparation(
+                            receipt.get("cachePreparation")
+                        ),
+                        "runtimeCoreSeconds": receipt.get("runtimeCoreSeconds"),
+                        "endToEndPreparationAndRuntimeSeconds": receipt.get(
+                            "endToEndPreparationAndRuntimeSeconds"
+                        ),
+                        "coldTimingScope": (
+                            "process-cold-generated-regional-cache-empty-"
+                            "host-filesystem-cache-unmeasured"
+                        ),
+                    }
+                    if "cachePreparation" in receipt
+                    else {}
+                ),
                 "landmarkMetrics": {
                     k: row.get("landmarkMetrics", {}).get(k)
                     for k in METRICS
@@ -393,7 +450,9 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
                 "failureCategory": classify(root, row["digest"], row["outcome"]),
                 "adapterRuntimeSeconds": registration.get("runtimeSeconds"),
                 "supervisorOutsideAdapterSeconds": max(
-                    0.0, row["coldRuntimeSeconds"] - registration["runtimeSeconds"]
+                    0.0,
+                    row.get("runtimeCoreSeconds", row["coldRuntimeSeconds"])
+                    - registration["runtimeSeconds"],
                 )
                 if row.get("coldRuntimeSeconds") is not None
                 and registration.get("runtimeSeconds") is not None
@@ -460,6 +519,29 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
             "browserLatencySeconds": None,
             "warmWorkerRuntimeSeconds": None,
         }
+        if any("cachePreparation" in row for row in rows):
+            core = [
+                row["runtimeCoreSeconds"]
+                for row in rows
+                if row.get("runtimeCoreSeconds") is not None
+            ]
+            prep = [
+                row["cachePreparation"]["wallSeconds"]
+                for row in rows
+                if row.get("cachePreparation", {}).get("wallSeconds") is not None
+            ]
+            recipes[recipe].update(
+                runtimeCoreMedianSeconds=percentile(core, 50),
+                runtimeCoreP95Seconds=percentile(core, 95),
+                cachePreparationMedianSeconds=percentile(prep, 50),
+                cachePreparationP95Seconds=percentile(prep, 95),
+                cacheRemovedFileCount=sum(
+                    row.get("cachePreparation", {}).get("removedFileCount") or 0 for row in rows
+                ),
+                cacheRemovedBytes=sum(
+                    row.get("cachePreparation", {}).get("removedBytes") or 0 for row in rows
+                ),
+            )
     finalists, decisions = select(report, public_rows)
     winners = {
         role: winner

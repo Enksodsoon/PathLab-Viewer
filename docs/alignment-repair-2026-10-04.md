@@ -172,3 +172,25 @@ with identical overview pixels remain separate cases; byte-identical candidates
 with identical frame, calibration, mask and regional semantics can deduplicate.
 Private paths and database slide identities do not enter this content identity.
 This binding does not establish the candidate's original acquisition stage.
+
+## Development cold-cache protocol
+
+The optional benchmark `--reset-immutable-regional-cache` protocol requires an
+explicit `--immutable-input-root`, zero repeat runs, and the 7 GiB heavy boundary.
+Before each uncached serial attempt it validates immutable descriptors, then
+removes only unbound generated regional cache files within verified workspace
+sources. It refuses symlinks or reparse points in any ancestor or entry. Original
+and candidate bytes, overview PNGs, DZI descriptors, admission receipts and bound
+copied DZI inventories are preserved. Complete inventory validation precedes any
+unlink, and descriptors are verified again afterward. Candidate pointer admission
+also requires no preexisting copied tile inventory, preventing derived tiles from
+being mistaken for that candidate's generated cache.
+
+Each new receipt records reset wall time, removed file count/bytes and source-kind
+counts. Core supervised runtime is separate; reported cold runtime includes reset
+plus core runtime. The execution protocol enters the resumable digest, so earlier
+receipts without reset cannot masquerade as these cold attempts. Cached receipt
+reuse does not reset inputs. The default option remains off for frozen public
+compatibility. The precise scope is process-cold with empty generated regional
+cache; host filesystem caching is unmeasured and warm-model timing remains null.
+Fatal containment loss stops the campaign before another reset or recipe.

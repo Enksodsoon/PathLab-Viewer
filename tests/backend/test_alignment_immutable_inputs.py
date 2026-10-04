@@ -560,6 +560,15 @@ def test_admitted_storage_candidate_keeps_thumbnail_and_bound_private_reader(
     assert pointer["source"] == str((root / "stored-candidate.ome.tif").resolve())
     assert pointer["tileSize"] == 512
     assert worker._load_alignment_overview(root).size == (50, 49)
+    from wsi_viewer.alignment_cache import reset_generated_regional_cache
+
+    tile = root / "slide_files" / "1" / "0_0.jpg"
+    tile.parent.mkdir(parents=True)
+    tile.write_bytes(b"generated candidate tile")
+    reset = reset_generated_regional_cache([root], output)
+    assert reset["sourceKindCounts"] == {"verified-openslide-candidate": 1}
+    assert reset["removedFileCount"] == 1 and not tile.exists()
+    assert (root / "stored-candidate.ome.tif").read_bytes() == b"candidate"
     require_snapshot_region_limit(root, 2048)
     with pytest.raises(AlignmentRejected, match="analysis bound"):
         require_snapshot_region_limit(root, 4096)

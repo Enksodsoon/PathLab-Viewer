@@ -27,6 +27,8 @@ def main() -> int:
     )
     parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--memory-gib", type=float, default=7)
+    parser.add_argument("--reset-immutable-regional-cache", action="store_true")
+    parser.add_argument("--immutable-input-root", type=Path)
     args = parser.parse_args()
     report = run_benchmark(
         json.loads(args.manifest.read_text(encoding="utf-8")),
@@ -37,6 +39,8 @@ def main() -> int:
         timeout_seconds=args.timeout_seconds,
         memory_bytes=int(args.memory_gib * 1024**3),
         repeat_runs=args.repeat_runs,
+        reset_immutable_regional_cache=args.reset_immutable_regional_cache,
+        immutable_input_root=args.immutable_input_root,
     )
     print(json.dumps({"winners": report["winners"], "finalists": report["finalists"]}))
     return 0
