@@ -5,6 +5,7 @@ import json
 import math
 import os
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +14,7 @@ from sqlalchemy import select
 from wsi_viewer.config import Settings
 from wsi_viewer.database import session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import Slide
+from wsi_viewer.models import ComparisonRegistrationCandidate, ComparisonSet, Slide
 from wsi_viewer.storage import StorageLayout
 
 
@@ -102,8 +103,95 @@ def seed_alignment(settings: Settings, *, large_odd: bool = False) -> None:
     print(json.dumps({"slideIds": ids, "syntheticPixels": True, "sourceSize": [width, height]}))
 
 
+def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
+    """Synthetic partial support over a real worker map; never an engine result."""
+    from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS, settings_digest
+
+    with session_factory(settings)() as database:
+        stack = database.get(ComparisonSet, set_id)
+        if stack is None or stack.name != "Candidate support QA":
+            raise ValueError("Only an explicitly named disposable QA comparison is allowed")
+        source_id = "alignment-qa-01"
+        anchor_id = "alignment-qa-00"
+        if stack.reference_slide_id != anchor_id:
+            raise ValueError("Unexpected QA reference")
+        native = deepcopy((stack.registrations or {}).get(source_id))
+        if not native or native.get("engine") != "native-overview-v6":
+            raise ValueError("An actual Native foreground map must exist first")
+        cells = native.get("overviewTriangles") or []
+        if not cells:
+            raise ValueError("No actual supported Native cells; cannot invent a fallback")
+        cell = cells[0]
+        moving = np.asarray(cell["moving"], dtype=float)
+        reference = np.asarray(cell["reference"], dtype=float)
+        # Strictly interior local support, distinct from the existing Native support.
+        center = moving.mean(axis=0)
+        small = center + (moving - center) * 0.15
+        affine = np.linalg.solve(np.column_stack((moving, np.ones(3))), reference).T
+        targets = np.column_stack((small, np.ones(3))) @ affine.T
+        targets[:, 0] += 2
+        affine[0, 2] += 2
+        source, anchor = database.get(Slide, source_id), database.get(Slide, anchor_id)
+        if source is None or anchor is None or any(
+            np.any(points < 0)
+            or np.any(points[:, 0] > slide.slide_metadata["width"])
+            or np.any(points[:, 1] > slide.slide_metadata["height"])
+            for points, slide in ((small, source), (targets, anchor))
+        ):
+            raise ValueError("Synthetic candidate must remain inside original source bounds")
+        digest = settings_digest(ENGINE_NATIVE, native.get("engineSettings") or {})
+        registration = {
+            **native,
+            "engine": ENGINE_NATIVE,
+            "engineVersion": ENGINE_VERSIONS[ENGINE_NATIVE],
+            "settingsDigest": digest,
+            "status": "ready",
+            "provenance": "automatic-candidate",
+            "movingToReference": affine.tolist(),
+            "triangles": [{"moving": small.tolist(), "reference": targets.tolist()}],
+            "overviewTriangles": [],
+            "controlPoints": [],
+            "evidence": {"syntheticUIFixture": True, "benchmarkMeasurements": {"qualified": False}},
+            "reason": "Synthetic UI support fixture; not a computed engine or anatomical result",
+        }
+        registration.pop("overviewFallback", None)
+        row = ComparisonRegistrationCandidate(
+            comparison_set_id=set_id,
+            slide_id=source_id,
+            anchor_slide_id=anchor_id,
+            set_version=stack.version,
+            source_version=source.sha256,
+            anchor_version=anchor.sha256,
+            engine=ENGINE_NATIVE,
+            engine_version=ENGINE_VERSIONS[ENGINE_NATIVE],
+            settings_digest=digest,
+            status="ready",
+            validation_state="preview_only",
+            registration=registration,
+            evidence={"syntheticUIFixture": True, "benchmarkMeasurements": {"qualified": False}},
+        )
+        database.add(row)
+        # Exercise the real polling path without starting a registration benchmark.
+        stack.status = "running"
+        database.commit()
+        print(json.dumps({
+            "candidateId": row.id,
+            "sourceId": source_id,
+            "anchorId": anchor_id,
+            "localPoint": center.tolist(),
+            "nativeOnlyPoint": (np.array([0.65, 0.2, 0.15]) @ moving).tolist(),
+            "syntheticUIFixture": True,
+            "computedEngineResult": False,
+        }))
+
+
 def main() -> None:
     settings = qa_settings()
+    if sys.argv[1] == "alignment-candidate":
+        if len(sys.argv) != 3:
+            raise ValueError("A disposable comparison ID is required")
+        seed_alignment_candidate(settings, sys.argv[2])
+        return
     if sys.argv[1] == "alignment":
         if len(sys.argv) > 3 or (len(sys.argv) == 3 and sys.argv[2] != "large-odd"):
             raise ValueError("Unsupported alignment QA fixture mode")
