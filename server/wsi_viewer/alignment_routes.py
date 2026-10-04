@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .alignment import AlignmentRejected, _registration_triangles
-from .alignment_calibration import metadata_frame_digest
+from .alignment_calibration import metadata_frame_digest, public_geometry_metadata
 from .alignment_engines import (
     ENGINE_ALIASES,
     ENGINE_DHR_CLASSICAL,
@@ -335,7 +335,8 @@ def _json(
                 "slideId": slide.id,
                 "displayName": slide.display_name,
                 "stain": slide.stain,
-                "metadata": slide.slide_metadata,
+                "metadata": public_geometry_metadata(slide.slide_metadata)
+                if shared is not None else slide.slide_metadata,
                 "tileSource": tile_source,
                 "thumbnailUrl": tile_source.replace("slide.dzi", "thumbnail.jpg")
                 if tile_source

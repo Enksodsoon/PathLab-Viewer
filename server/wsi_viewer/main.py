@@ -22,6 +22,7 @@ from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
 from .admission import SharedAdmission, lock_admission
+from .alignment_calibration import public_geometry_metadata
 from .alignment_routes import register_alignment_routes
 from .annotation_routes import register_annotation_routes
 from .assessment_admission import AssessmentAdmissionMiddleware
@@ -186,10 +187,7 @@ def _token_hash(token: str) -> str:
 
 
 def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not metadata:
-        return None
-    allowed = ("width", "height", "physicalSizeX")
-    return {key: metadata[key] for key in allowed if metadata.get(key) is not None}
+    return public_geometry_metadata(metadata)
 
 
 def _slide_json(

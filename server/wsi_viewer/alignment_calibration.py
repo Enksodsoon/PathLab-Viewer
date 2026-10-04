@@ -65,3 +65,19 @@ def metadata_frame_digest(metadata: dict[str, Any]) -> str:
     }
     encoded = json.dumps(frame, sort_keys=True, separators=(",", ":"), default=str).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def public_geometry_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Public navigation needs declared geometry/calibration, never arbitrary metadata."""
+    if not metadata:
+        return None
+    fields = (
+        "width",
+        "height",
+        "physicalSizeX",
+        "physicalSizeY",
+        "physicalSizeUnit",
+        "physicalSizeXUnit",
+        "physicalSizeYUnit",
+    )
+    return {key: metadata[key] for key in fields if metadata.get(key) is not None}
