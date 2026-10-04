@@ -81,9 +81,9 @@
           "value": "[\"IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED\"]"
         }
       ],
-      "purl": "pkg:oci/node@26.8.1-alpine3.23",
+      "purl": "pkg:oci/node@26.10.0-alpine3.23",
       "type": "container",
-      "version": "26.8.1-alpine3.23"
+      "version": "26.10.0-alpine3.23"
     },
     {
       "bom-ref": "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
@@ -27687,7 +27687,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:092d399bcbc1c06ae52b76481542e59aefb44297"
+      "ref": "pathlab:source:bf7b8d09f6abe483ff956698ae37c2b2af5fb629"
     },
     {
       "dependsOn": [],
@@ -30136,15 +30136,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:092d399bcbc1c06ae52b76481542e59aefb44297",
+      "bom-ref": "pathlab:source:bf7b8d09f6abe483ff956698ae37c2b2af5fb629",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/092d399bcbc1c06ae52b76481542e59aefb44297"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/bf7b8d09f6abe483ff956698ae37c2b2af5fb629"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/092d399bcbc1c06ae52b76481542e59aefb44297"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/bf7b8d09f6abe483ff956698ae37c2b2af5fb629"
         }
       ],
       "licenses": [
@@ -30175,13 +30175,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@092d399bcbc1c06ae52b76481542e59aefb44297",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@bf7b8d09f6abe483ff956698ae37c2b2af5fb629",
       "type": "application",
-      "version": "092d399bcbc1c06ae52b76481542e59aefb44297"
+      "version": "bf7b8d09f6abe483ff956698ae37c2b2af5fb629"
     },
-    "timestamp": "2026-10-04T07:23:07Z"
+    "timestamp": "2026-10-04T07:28:59Z"
   },
-  "serialNumber": "urn:uuid:092d399b-cbc1-406a-a52b-76481542e59a",
+  "serialNumber": "urn:uuid:bf7b8d09-f6ab-4483-af95-6698ae37c2b2",
   "specVersion": "1.6",
   "version": 1
 }
