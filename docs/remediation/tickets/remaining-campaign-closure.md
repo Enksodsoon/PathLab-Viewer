@@ -46,3 +46,42 @@ Production `ae9b1ac624c44388866e36e7be4759609f3dcb9b` is verified at successful 
 Signed-in Edge verified that accessible Move placed the empty `Codex QA drag ae9b1ac` folder under `Codex QA 2026-09-27`; its hierarchy survived reload. The parent destination omitted its descendant. Escape closed the New folder and Move dialogs while retaining the Library navigator. No parent move or deletion was submitted. A single native drag attempt did not change hierarchy and has no retained dragstart/network evidence: production drag remains unverified, without a new product root-cause claim. Ignored receipt: var/remediation-evidence/production-ae9b1ac-folder-native.json.
 
 The Inspector selection-stability repair remains a PR295 candidate. Its previous head passed all nine delivery gates, all64 annotation browser matrix cases and5 real-backend annotation scenarios. Initial4pass/1fail long-path fixture evidence is retained separately from the unchanged-source short-path5pass result. Review's selected-record Undo/Redo gap is covered at320/1200, and all496 frontend tests pass. Follow-up test/docs changes require fresh exact-head gates and released authenticated qualification. Strict software admission, external security facts, specific Cancel approval, physical devices and sustained soak remain open.
+
+
+## Verified release gates and stress - 2026-10-03
+
+PR #295 (Inspector) and PR #296 (assessment v2 storage and validation) are merged in `daa101e7d1e14cb49849a9ba973816810bcf96ac`. All nine exact-main delivery checks passed in [CI 37125275731](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37125275731) and [Security 37125275710](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37125275710). Backend: 1,432 passed, 87 skipped. PostgreSQL: 148 passed, 1 skipped. Browser: 241 passed. Frontend: 496 passed. Real full-stack: 28 passed, 1 skipped, zero unexpected or flaky results. Skipped cases and historical failures remain scoped evidence; these results do not establish zero bugs.
+
+[Protected deployment 37126402648](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37126402648) was dispatched and normally approved with Classroom=true, general annotations=false and admin canary=true. It is running. Terminal delivery, actual restore evidence and authenticated qualification remain open.
+
+A new disposable Library campaign completed five-minute stages at 1, 5, 10 and 20 sessions, then a 30-minute soak at 20 sessions. The soak completed 12,080 search/filter actions with zero errors, p95 1,123 ms and p99 1,254 ms. Recovery returned healthy with 1,000 metadata fixtures. Across all stages peak host CPU was 24.13% and minimum free RAM was 7,232,630,784 bytes, within existing safety gates. The launcher exited successfully with productionTouched=false. This supersedes the earlier missing soak evidence for this local Library workload only; the previous CPU-stopped campaign remains historical. Source `4615c0b` predates the schema-route followup, which leaves these Library callers unchanged. Receipt: `var/qa296stress/qualification-summary.json`.
+
+Deterministic inventory validation was refreshed: 582 dependency records with 119 fail-closed, and 612 source components. Strict release admission still exits 1: two exact-artifact notice gaps and accountable reviews remain unresolved. Secret rotation/provenance, actual OneDrive sync/sharing and specific native Cancel approval are also unanswered. The campaign remains open.
+
+
+## Production daa101e verified - 2026-10-03
+
+[Deployment37126402648](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37126402648) completed successfully at13:46:19Z with exact `daa101e7d1e14cb49849a9ba973816810bcf96ac`. Actual restoration verified schema20260907_0037,69tables,106325files and3286131731bytes, with database/files integrity restored. Classroom=true, general annotations=false and admin canary=true were preserved. The earlier in-progress statements above are historical.
+
+During deployment, public health requests timed out while the existing workflow stopped ingress for backup/restore checks. After terminal success, fresh readyz/livez returned200. Anonymous actual admin routes returned401: `/api/v1/admin/slides` and `/api/v2/admin/assessment/drafts`. The guessed `/api/v2/admin/slides` collection route returned404; it is retained as a wrong-route control, not an authorization claim.
+
+Signed-in Edge loaded the Library and synthetic B patterned tiles and saved rectangle. A synthetic title edit was acknowledged SAVED. Desktop Inspector closure followed by Return reopened its trigger; another closure followed by Undo/save and Redo/save retained the selected record while leaving Inspector dismissed. Functional keyboard return is proved; no DOM activeElement assertion is made. Full post-edit reload was interrupted by Computer Use URL-confidence protection. A fresh Ctrl+R then selected Ruler instead of refreshing, revealing a separate confirmed shortcut defect tracked in [browser shortcuts](annotation-browser-shortcuts.md). Do not claim that this Ctrl+R performed a reload.
+
+Assessment-specific released qualification, native folder drag, mobile Inspector dismissal, specific Cancel approval and external security/licensing facts remain open. The campaign is not complete.
+
+The shortcut candidate now passes full frontend510tests and all68annotation browser checks with zero retries; lint/build pass. Fresh browser-control Refresh on released `daa101e` retained the synthetic title and rectangle with NO CHANGES. Shortcut delivery and remaining live workflows remain open.
+
+
+Assessment native refresh verified acknowledged200 save and persisted1.251points in the synthetic draft. First generic save failure remains unclassified. Native preview Escape and subsequent browser focus-boundary defects are tracked in [assessment dialog keyboard](assessment-dialog-keyboard.md). PR297 merged58d7066 after all nine head checks and renewed independent review; merged-main qualification/deployment remain pending. Synthetic Practice publication requires the pending specific approval; no real learner records are used.
+
+
+## Production58d7066 and dialog delivery
+
+Shortcut PR297 deployed through protected run37133510913 after all nine exact merged-main gates passed. Terminal success restored69tables,106325files and3286131731bytes at schema20260907_0037 with database/files integrity restored. Existing feature settings are preserved. Fresh livez/readyz200; a new signed-in native Edge tab rendered synthetic B tiles and its saved rectangle/title with NO CHANGES. Native CtrlR retest remains pending. The prepared unpublished Practice assessment stays in its original tab, awaiting specific approval.
+
+Dialog PR298 has60passing scoped browser cases and36affected component tests, build/lint success and clear independent source review. First backend failure required refreshing asset-ledger subject; the second required its dependent software inventories. All16asset records, rights fields and admission/blockers are identical; software coverage612and strict BLOCKED admission are identical. Validations pass. New exact-head CI is required; no stale or failed head qualifies delivery. Original954report findings and29aggregate subclaims remain unchanged. The full campaign remains open.
+
+
+## Verified production delivery at c570116
+
+PR305 merged6331154 and final reviewed PR304 mergedc570116 through normal protections. All nine fresh c570116 main checks passed in CI37157146069/Security37157146107. Protected deployment37158209056 succeeded at exact c570116 with actual database/files restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual assessment drafts401 passed. Native signed-in synthetic assessment description edit showed All changes saved and persisted after explicit browser Refresh with both questions/2.502points. Refreshed Library opened synthetic B patterned tiles and two saved rectangles with NO CHANGES. No production concurrency/response-loss injection, publication, learner attempt or Cancel/delete was performed. [Release evidence](../evidence/production-c570116-release.json) retains remaining external/approval/admission requirements. The campaign remains open.

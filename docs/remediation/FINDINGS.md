@@ -1,5 +1,9 @@
 # Findings register
 
+Additional source audit: [eight preserved handoff/design/testing reports](ADDITIONAL_HANDOFF_RECONCILIATION.md) have hashes and dispositions separate from the original counts. Their eleven BUG aliases expose one additional reproduced canvas keyboard mechanism, locally repaired and awaiting protected delivery. The campaign now records 44 findings; the 954 original entries and 29 aggregate subclaims remain intact.
+
+Current checkpoint: production c570116 is verified. Atomic revision admission PR305 and acknowledgment recovery PR304 are delivered together after all nine fresh main gates, protected restore and native save/reload/viewer checks. All 44 campaign findings, 954 original source entries and 29 aggregate subclaims are retained, with eleven additional handoff aliases recorded separately. The canvas keyboard repair awaits release. Specific remaining production observations/confirmations, external security facts and strict accountable software admission keep the campaign open. See [requirement-level completion audit](CAMPAIGN_COMPLETION_AUDIT.md); earlier release statements below are historical.
+
 954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. Reviewed PRs 267–270 and 272 are deployed at `3cb26bc`; remaining production checks and two external security facts keep the campaign open. The 29 separate security subclaims retain their individual dispositions.
 
 [findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks repair coverage. [Remaining closure](tickets/remaining-campaign-closure.md) tracks release evidence and open qualification. The latest release passed signed-in synthetic Library, upload, annotation persistence, Classroom presenter mark and learner question checks; public Study remains gated. Concurrent learner behavior remains open.

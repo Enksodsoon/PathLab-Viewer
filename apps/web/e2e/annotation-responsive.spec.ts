@@ -943,3 +943,44 @@ test('keeps every annotation command reachable at narrow widths and after closin
     await page.getByRole('button', { name: 'Close annotations', exact: true }).click()
   }
 })
+
+
+test('keeps browser refresh chords out of annotation tool selection', async ({ page }) => {
+  await page.goto('/admin/preview/private-1')
+  const pan = page.getByRole('button', { name: 'Pan', exact: true })
+  const ruler = page.getByRole('button', { name: 'Ruler', exact: true })
+  await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+  await expect(pan).toHaveAttribute('aria-pressed', 'true')
+  for (const chord of ['Control+r', 'Meta+r']) {
+    await page.keyboard.press(chord)
+    await expect(pan).toHaveAttribute('aria-pressed', 'true')
+    await expect(ruler).toHaveAttribute('aria-pressed', 'false')
+  }
+  await page.keyboard.press('r')
+  await expect(ruler).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('preserves modified drawing chords while a polygon is unfinished', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 800 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Polygon', exact: true }).click()
+  const overlay = page.locator('.annotation-svg-overlay')
+  const bounds = await overlay.boundingBox()
+  expect(bounds).not.toBeNull()
+  for (const [x, y] of [[0.4, 0.45], [0.6, 0.45], [0.5, 0.65]]) {
+    await page.mouse.click(bounds!.x + bounds!.width * x, bounds!.y + bounds!.height * y)
+  }
+  const draft = page.locator('.annotation-draft-shape')
+  await expect(draft).toBeVisible()
+  const points = await draft.getAttribute('points')
+  expect(points).toBeTruthy()
+  for (const chord of ['Control+Backspace', 'Alt+Enter', 'Meta+Escape', 'Control+Space']) {
+    await page.keyboard.press(chord)
+    await expect(draft).toHaveAttribute('points', points!)
+    await expect(overlay.locator('[data-annotation-id]')).toHaveCount(1)
+  }
+  await page.keyboard.press('Enter')
+  await expect(draft).toHaveCount(0)
+  await expect(overlay.locator('[data-annotation-id]')).toHaveCount(2)
+})

@@ -168,6 +168,10 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
   useLayoutEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented || ignoresShortcut(event.target) || event.altKey || event.ctrlKey || event.metaKey) return
+      // OpenSeadragon does not prevent repeated keydowns for an already-held pan.
+      // Keep canvas arrows with the image rather than changing the shared slide.
+      if ((event.key === 'ArrowRight' || event.key === 'ArrowLeft')
+        && event.target instanceof Element && event.target.closest('.openseadragon-canvas')) return
       if (event.key === 'ArrowRight') select(position + 1)
       else if (event.key === 'ArrowLeft') select(position - 1)
       else if (event.key === '+' || event.key === '=') controls.current?.zoomIn()

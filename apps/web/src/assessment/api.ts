@@ -1,4 +1,4 @@
-import { csrfFetch as baseCsrfFetch } from '../api'
+import { ApiError, csrfFetch as baseCsrfFetch, isCsrfRefreshFailure } from '../api'
 import type {
   AssessmentDocument,
   AssessmentDraft,
@@ -64,11 +64,32 @@ export async function saveAssessmentDraft(
   revision: number,
   document: AssessmentDocument,
 ): Promise<AssessmentDraft> {
-  return body(await csrfFetch(`/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'If-Match': String(revision) },
-    body: JSON.stringify({ document }),
-  }))
+  try {
+    return await body(await csrfFetch(`/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': String(revision) },
+      body: JSON.stringify({ document }),
+    }))
+  } catch (error) {
+    if (isCsrfRefreshFailure(error)) throw error
+    const status = error instanceof AssessmentHttpError || error instanceof ApiError ? error.status : undefined
+    if (status !== undefined && status < 500) throw error
+    try {
+      const saved = await getAssessmentDraft(id)
+      if (saved.id === id && saved.revision === revision + 1
+        && documentFingerprint(saved.document) === documentFingerprint(document)) return saved
+    } catch {
+      // An unavailable read cannot prove that the uncertain mutation committed.
+    }
+    throw error
+  }
+}
+
+function documentFingerprint(document: AssessmentDocument): string {
+  return JSON.stringify(document, (_key, value: unknown) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+    return Object.fromEntries(Object.entries(value).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0))
+  })
 }
 
 export async function migrateAssessmentDraftV2(id: string, expectedRevision: number) {

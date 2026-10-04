@@ -300,11 +300,11 @@ export function AssessmentQuestionCanvas({ document, draftId = '', mediaScopeLab
     <header className="assessment-authoring-toolbar">
       <div className="assessment-authoring-heading"><h2>Questions</h2><p>Build the learner sequence and reorder it at any time.</p></div>
       <div className="assessment-authoring-actions">
-        <button type="button" onClick={onPreview}><Eye aria-hidden="true" /> Assignment preview</button>
+        <button type="button" onClick={(event) => { event.currentTarget.focus(); onPreview() }}><Eye aria-hidden="true" /> Assignment preview</button>
         <button className="assessment-icon-action" type="button" aria-label="Expand all questions" title="Expand all questions" onClick={() => setExpandedIds(new Set(items.map((item) => item.id)))}><ArrowsOutLineVertical aria-hidden="true" /></button>
         <button className="assessment-icon-action" type="button" aria-label="Collapse all questions" title="Collapse all questions" onClick={() => setExpandedIds(new Set())}><ArrowsInLineVertical aria-hidden="true" /></button>
         <span className="assessment-authoring-divider" aria-hidden="true" />
-        <button type="button" onClick={onImport}><Copy aria-hidden="true" /> Import questions</button>
+        <button type="button" onClick={(event) => { event.currentTarget.focus(); onImport() }}><Copy aria-hidden="true" /> Import questions</button>
         <button className="assessment-primary assessment-toolbar-add" type="button" onClick={() => setInsertAt(items.length)}><Plus aria-hidden="true" /> Add question</button>
       </div>
     </header>

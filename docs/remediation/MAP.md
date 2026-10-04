@@ -12,6 +12,20 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Shared viewer canvas keyboard ownership](tickets/shared-viewer-canvas-keyboard.md): repeated canvas arrows stay with image panning; navigation elsewhere remains available. [Additional handoff source coverage](ADDITIONAL_HANDOFF_RECONCILIATION.md) records eight additional source hashes and eleven aliases without altering the original register.
+
+- [Assessment save failure feedback](tickets/assessment-save-failure-feedback.md): distinguish failed save boundaries and retry temporary failures while retaining edits.
+
+- [Assessment cache transaction abort](tickets/assessment-cache-transaction-abort.md): settle rolled-back recovery operations and report local recovery failures.
+
+- [Assessment import save boundary](tickets/assessment-import-save-boundary.md): prevent importing persisted questions from replacing edits that have not been acknowledged.
+
+- [Assessment local recovery after failed saves](tickets/assessment-local-recovery.md): restore divergent equal-revision edits after reload; contain reproduced local write failures and preserve newer server revisions.
+
+- [Assessment save acknowledgments and optional recovery storage](tickets/assessment-save-acknowledgments.md): reproduce competing revision saves and storage-denied loading; qualify serialization across draft changes.
+
+- [Preserve browser shortcuts](tickets/annotation-browser-shortcuts.md): native Ctrl+R wrongly selects Ruler; guard unhandled modifiers after explicit annotation commands.
+
 - [Annotation Inspector selection stability](tickets/annotation-inspector-selection-stability.md): preserve dismissal across save snapshots; open automatically only when the selected IDs change.
 
 - [Assessment v2 score storage bounds](tickets/assessment-v2-score-storage-bounds.md): enforce existing persisted score limits and keep malformed draft preflight from reparsing invalid metrics.
@@ -40,6 +54,12 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 - [Annotation command reachability](tickets/annotation-mobile-commands.md): verified320px clipping and desktop Inspector focus repair; four-engine UI and real-backend save/reload evidence.
 
+- [Assessment dialog keyboard](tickets/assessment-dialog-keyboard.md): Escape dismissal, native modal focus and Tab containment across preview, publish and import.
+
+## Live tickets
+
+- [Assessment revision admission](tickets/assessment-revision-admission.md): current-code interleavings prove competing saves/imports and a late save after archive; atomically admit one writer before lost acknowledgment recovery delivery.
+
 ## Not yet specified
 
 Evidence-backed remaining repairs; interface changes only after reproductions require them. Operational release blockers must be recorded independently of implementation progress.
@@ -47,3 +67,14 @@ Evidence-backed remaining repairs; interface changes only after reproductions re
 ## Out of scope
 
 Clinical qualification, inferred scanner color profiles, speculative performance rewrites, guessed invitation formats, and activating unqualified feature gates.
+
+## Acknowledgment recovery followup at9ea88b9
+
+Production9ea88b9 is verified through protected release37150191318, actual restore, fresh health and native signed-in save/reload. Cache transaction abort and save-feedback repairs are delivered. Native private import/reload, different-record Inspector/reload and accessible folder Move/reload are proved; native HTML5 drag and external closure facts remain separate.
+
+[Lost server acknowledgment](tickets/assessment-lost-acknowledgment.md) is the next confirmed dependency-boundary repair. It recognizes only a same-id/exactly-next-revision/exact-document authoritative read after uncertain mutation; known denied CSRF/session-refresh failures and changed server documents stay fail-closed.571frontend,24browser and one real-backend commit/drop/reload check passed; renewed product and added-test reviews are clear. Fresh exact-head/main checks and protected delivery are pending. Original954sourcealiases/29aggregateclaims retained;43separatecampaignfindings now tracked.
+
+
+## Current released checkpoint
+
+[Atomic assessment revision admission](tickets/assessment-revision-admission.md) and [lost acknowledgment recovery](tickets/assessment-lost-acknowledgment.md) are delivered together at verified production c570116. [Remaining campaign closure](tickets/remaining-campaign-closure.md) retains direct production drag observation, specific synthetic action confirmations, external security facts and strict accountable software admission. Earlier pending-delivery entries above describe historical checkpoints. The approved full destination remains unchanged.

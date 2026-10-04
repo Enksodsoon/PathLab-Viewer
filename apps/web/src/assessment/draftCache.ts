@@ -14,22 +14,33 @@ function openDatabase(): Promise<IDBDatabase> {
 
 export async function cacheAssessmentDraft(draft: AssessmentDraft): Promise<void> {
   const database = await openDatabase()
-  await new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(STORE, 'readwrite')
-    transaction.objectStore(STORE).put(draft)
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error)
-  })
-  database.close()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(STORE, 'readwrite')
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error ?? new DOMException('Local recovery transaction aborted', 'AbortError'))
+      transaction.objectStore(STORE).put(draft)
+    })
+  } finally {
+    database.close()
+  }
 }
 
 export async function readCachedAssessmentDraft(id: string): Promise<AssessmentDraft | null> {
   const database = await openDatabase()
-  const value = await new Promise<AssessmentDraft | undefined>((resolve, reject) => {
-    const request = database.transaction(STORE).objectStore(STORE).get(id)
-    request.onsuccess = () => resolve(request.result as AssessmentDraft | undefined)
-    request.onerror = () => reject(request.error)
-  })
-  database.close()
-  return value ?? null
+  try {
+    const value = await new Promise<AssessmentDraft | undefined>((resolve, reject) => {
+      const transaction = database.transaction(STORE)
+      let result: AssessmentDraft | undefined
+      transaction.oncomplete = () => resolve(result)
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error ?? new DOMException('Local recovery transaction aborted', 'AbortError'))
+      const request = transaction.objectStore(STORE).get(id)
+      request.onsuccess = () => { result = request.result as AssessmentDraft | undefined }
+    })
+    return value ?? null
+  } finally {
+    database.close()
+  }
 }

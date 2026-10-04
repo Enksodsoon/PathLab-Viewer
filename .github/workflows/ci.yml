@@ -162,6 +162,7 @@ jobs:
           tests/backend/test_postgres_sharing_lifecycle.py
           tests/backend/test_postgres_storage.py
           tests/backend/test_postgres_assessment_scores.py
+          tests/backend/test_assessment_draft_concurrency.py
           tests/backend/test_study_aggregate_concurrency.py
           tests/backend/test_study_submission_concurrency.py
           tests/backend/test_security_admission.py
