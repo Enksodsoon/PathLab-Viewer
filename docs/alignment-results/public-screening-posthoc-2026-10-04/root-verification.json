@@ -1,0 +1,14 @@
+{
+  "schema": "pathlab-root-posthoc-verification/1",
+  "analysisSha256": "0b061f47c011593f40799a886926706b5343933b90ec33c5d824a1bc1c46c055",
+  "originalReportSha256": "06dc0ce316767f1cdb03187443b60f78b9d322ce48bf6e16743c384626b8b4fb",
+  "boundReceiptCount": 144,
+  "orderedPairCount": 16,
+  "landmarksPerRecipe": 947,
+  "effectiveSourceBindingsVerified": true,
+  "receiptAndCoordinateMapBindingsVerified": true,
+  "finiteJsonAndPrivatePathExclusionVerified": true,
+  "mapStatusesUnchanged": true,
+  "qualificationEvidence": false,
+  "scope": "independent byte and denominator audit; no anatomy or landmark rescoring"
+}

@@ -439,6 +439,44 @@ finite nonnegative elapsed time. Missing measurements remain null; an automatic
 cohort has zero measured/zero missing assisted pairs. Automated browser timing
 does not measure human effort.
 
+### Separate pointwise rescoring of preserved screening maps
+
+The [posthoc analysis](alignment-results/public-screening-posthoc-2026-10-04/analysis.json)
+repairs an evaluator mismatch: a landmark outside a local cell can use the map's
+own supported overview, then its explicitly bound supported fallback. Evaluation
+still excludes affine extrapolation and viewport gap snapping. No registration
+was rerun, no landmark was fitted and no map status was promoted. Original
+screening scores and receipts remain intact. The [independent audit](alignment-results/public-screening-posthoc-2026-10-04/root-verification.json)
+verifies all 144 receipt/map bindings, unchanged effective source bytes and the
+947-landmark denominator for every recipe.
+
+| Recipe | Supported / 947 | Relative p95 error |
+|---|---:|---:|
+| Native overview | 360 | 0.03444 |
+| Native → VALIS | 262 | 0.01377 |
+| Native → wsireg | 181 | 0.08900 |
+| wsireg | 165 | 0.04022 |
+| VALIS | 130 | 0.01391 |
+| HISAlign | 114 | 0.02640 |
+| VALIS rigid → wsireg | 106 | 0.01570 |
+| DeeperHistReg learned | 35 | 0.00890 |
+| DeeperHistReg classical | 34 | 0.09247 |
+
+Relative error is normalized by the reference image diagonal; percentiles use
+each recipe's supported subset and are not a common-subset accuracy ranking.
+Native → VALIS increases from 175 to 262 supported landmarks (107 local,
+155 own-overview); VALIS increases from 84 to 130 (84 local, 46 overview).
+The cohort has no physical calibration and is development screening, not
+disjoint final evaluation. Map-specific wrong-structure review is unavailable
+for this rescoring and remains null. Low learned-method coverage and earlier
+negative/resource failures prevent interpreting its small supported-subset error
+as a winner. Fast and Accurate remain unqualified.
+
+Analysis payload SHA-256:
+`0b061f47c011593f40799a886926706b5343933b90ec33c5d824a1bc1c46c055`.
+The recorded startup HEAD predates committed scorer changes and was dirty;
+actual module hashes bind the analysis and match committed `4d5d74a0`.
+
 The available campaign platform is Windows x64. Docker's Linux engine is
 unavailable on this host, and ARM runtime checks are pending. No cross-platform
 registration performance claim follows from Windows receipts.

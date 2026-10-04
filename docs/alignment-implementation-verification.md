@@ -1,6 +1,6 @@
 # Alignment repair and workflow verification
 
-Reconciled application checkpoint: `296af2b4`, on `codex/alignment-usability`,
+Reconciled frontend checkpoint: `9ad5d73c`, on `codex/alignment-usability`,
 reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
 merge `2e2f99d` in an isolated checkout. The public screening remains bound to
 its earlier frozen source `b35d3be3b2ef8933eed969dbf123746042c57640`.
@@ -53,12 +53,58 @@ coordinates, then passed after the repair.
 The visible workflow is **Slides → Sync → Adjust region**. Slides default to two
 panes and support four. A compact status strip expands progress on demand;
 Advanced contains engine comparison, legacy three-point correction and the
-active-pane display/quality inspector. Reset and maximize remain accessible.
+active-pane display/quality inspector. Each pane now exposes a direct 44-pixel
+Reset control beside maximize, without opening Advanced.
 Correction guides pair selection, corresponding points, preview and save/cancel.
 Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
 
+Candidate previews now require affirmative current pair/source/frame proof.
+A separately verified Native foreground overview remains available outside a
+candidate's supported cells, with an **Approximate overview** label. Strict mode
+excludes that fallback; unsupported fields remain unavailable. Polling uses the
+fresh sanitized candidate projection, so a removed stale embedded fallback
+cannot remain active. The candidate inspection remains unsaved.
+
 ## Verification receipts
 
+- Frontend `9ad5d73c`: 723 tests across 93 files passed in 147.12 seconds,
+  with no failures or skips. Full ESLint, TypeScript, production/legal build and
+  both bundle budgets passed. Annotation initial gzip delta is 3,064 bytes
+  (limit 5,120); lazy code is 303,776 bytes (limit 307,200). Assessment learner
+  delta is 1,869 bytes (limit 15,360), with teacher isolation passing. All 339
+  tracked web files were identical at startup and terminal; dependency manifests
+  and lock were byte-identical to the reconciled main baseline. Private receipt
+  SHA256: `59d48c290ef5973109e08fb4185bd1c014700dca920c1f17d2342e120389a48e`.
+  A preceding focused 99-test batch reproduced and repaired direct Reset,
+  candidate fallback, stale/missing pair proof, reflected cells, polling and
+  restoration failures. Fresh browser acceptance for these additions is pending;
+  earlier browser receipts below retain their original scope.
+- Backend preview contract `2c0c5e84`: 169 focused integration tests passed,
+  including strict current-pair/source/frame admission and verified Native
+  foreground fallback. Actual endpoint failures reproduced stale source/anchor
+  bindings and stale nested fallback leakage. The response omits unusable child
+  fallbacks without altering immutable receipts. Canonical legacy serving,
+  promotion and regional contracts remain unchanged. Further fetch-race and
+  bounded warm-protocol checks are tracked separately before final integration.
+- Eligibility-token repair `35c5decb`: 106 focused backend tests passed after
+  reproducing a mixed-fetch race through the real metadata endpoint. Candidate
+  tokens now bind normalized case, readiness and trash state alongside source
+  content/frame identity. Thus an old manifest cannot match a newly ineligible
+  member even when comparison version and slide SHA stay unchanged. Equivalent
+  case normalization and cosmetic edits remain compatible. Regional revision
+  tokens and canonical storage retain their contracts. Two frontend tests at
+  `c4632c30` independently verify mixed-fetch rejection; these are separate from
+  the 723-test frontend run above.
+- Evaluator and warm-process harness `4d5d74a0`: 122 focused tests passed, plus
+  12 independently reviewed warm containment tests. Five actual failures were
+  reproduced and repaired before benchmark admission: elapsed settings identity,
+  parent admission consuming the budget, spawn excluded from the deadline,
+  unbounded input verification, and missing second-invocation start evidence.
+  The warm protocol executes twice in one contained child with a shared
+  600-second deadline and 7-GiB committed-memory ceiling. First-call receipts
+  survive second-call timeout. This verifies the harness, not actual engine
+  warm performance. Fresh strict mypy passes all 84 backend source files;
+  Ruff passes server, tests and the changed benchmark/seeder scripts.
 - Fresh frontend source `296af2b4`: 704 tests across 93 files passed in
   151.00 seconds. Full ESLint, TypeScript, production/legal build and both bundle
   budgets passed. Annotation initial gzip delta is 3,064 bytes (limit 5,120);
