@@ -46,6 +46,12 @@ def test_dzi_optional_recipe_uses_exact_pyramid_frame_before_thumbnailing(
     mov = tmp_path / "moving"
     dzi(ref, (21912, 19876))
     dzi(mov, (11003, 9013))
+    # A real sparse pyramid must contain at least one selected-level tile.
+    # Absence of every tile is unavailable input, not invented white pixels.
+    for root in (ref, mov):
+        tiles = root / "slide_files" / "12"
+        tiles.mkdir(parents=True)
+        Image.new("RGB", (256, 256), "white").save(tiles / "0_0.jpg")
     captured = []
 
     def register(name, **kwargs):

@@ -530,8 +530,7 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
     """Assemble one bounded pyramid level without opening the full-resolution WSI."""
     descriptor = derivative / "slide.dzi"
     root = ET.parse(descriptor).getroot()
-    namespace = root.tag.partition("}")[0].lstrip("{")
-    size = root.find(f"{{{namespace}}}Size")
+    size = next((node for node in root if node.tag.rsplit("}", 1)[-1] == "Size"), None)
     if size is None:
         raise OSError("DZI dimensions are unavailable")
     full_width, full_height = int(size.attrib["Width"]), int(size.attrib["Height"])
@@ -545,6 +544,7 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
     overview = Image.new("RGB", (width, height), "white")
     tile_root = derivative / "slide_files" / str(level)
     columns, rows = math.ceil(width / tile_size), math.ceil(height / tile_size)
+    loaded_tiles = 0
     for row in range(rows):
         for column in range(columns):
             path = tile_root / f"{column}_{row}.{image_format}"
@@ -563,6 +563,7 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
                 continue
             with Image.open(path) as opened:
                 tile = opened.convert("RGB")
+            loaded_tiles += 1
             left = overlap if column else 0
             top = overlap if row else 0
             wanted_width = min(tile_size, width - column * tile_size)
@@ -571,21 +572,40 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
                 tile.crop((left, top, left + wanted_width, top + wanted_height)),
                 (column * tile_size, row * tile_size),
             )
+    if not loaded_tiles:
+        raise FileNotFoundError("No overview tiles exist at the selected DZI level")
     overview.info["alignmentGeometry"] = geometry
     return overview
 
 
-def _load_alignment_overview(derivative: Path) -> Image.Image:
+def _load_alignment_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
     """Prefer a bounded pyramid level for every registration engine."""
     from .alignment_inputs import DESCRIPTOR_NAME, load_immutable_overview
 
     if (derivative / DESCRIPTOR_NAME).exists():
         return load_immutable_overview(derivative)
     try:
-        return _load_dzi_overview(derivative)
+        return _load_dzi_overview(derivative, maximum=maximum)
     except (FileNotFoundError, OSError, ET.ParseError):
+        descriptor = derivative / "slide.dzi"
         with Image.open(derivative / "thumbnail.jpg") as opened:
-            return opened.convert("RGB")
+            if descriptor.is_file() and max(opened.size) > 4096:
+                raise AlignmentRejected(
+                    "alignment thumbnail exceeds the bounded overview size"
+                ) from None
+            image = opened.convert("RGB")
+        if descriptor.is_file():
+            root = ET.parse(descriptor).getroot()
+            size = next((node for node in root if node.tag.rsplit("}", 1)[-1] == "Size"), None)
+            if size is None:
+                raise AlignmentRejected("sampling DZI dimensions are unavailable") from None
+            geometry = derivative_sampling_geometry(
+                derivative,
+                (int(size.attrib["Width"]), int(size.attrib["Height"])),
+                kind="thumbnail-fallback",
+            )
+            image.info["alignmentGeometry"] = geometry
+        return image
 
 
 def _alignment_child(
@@ -1265,32 +1285,38 @@ def _preview_alignment(
             size = (int(metadata["width"]), int(metadata["height"]))
             derivative = layout.for_slide(slide.id).private_derivative
             side = "reference" if slide.id == reference.id else "moving"
-            if (derivative / "slide.dzi").is_file():
-                effective_settings[f"{side}Geometry"] = derivative_sampling_geometry(
-                    derivative, size, maximum=1024, kind="dzi-pyramid"
-                )
             calibration = normalized_microns_per_pixel(metadata)
             if calibration is not None:
                 effective_settings[f"{side}MicronsPerPixel"] = list(calibration)
 
-            def load(path: Path = derivative, dimensions: tuple[int, int] = size) -> Image.Image:
-                if (path / "slide.dzi").is_file():
-                    return read_region(path, (0, 0, *dimensions), maximum=1024)[0]
-                with Image.open(path / "thumbnail.jpg") as image:
-                    return image.convert("RGB")
+            def load(path: Path = derivative) -> Image.Image:
+                return _load_alignment_overview(path, maximum=1024)
 
             # Source digest plus derivative geometry prevents cross-resolution reuse.
             dzi = derivative / "slide.dzi"
-            geometry = (
+            geometry_key = (
                 hashlib.sha256(dzi.read_bytes()).hexdigest() if dzi.is_file() else "thumbnail"
             )
-            key = f"{layout.root.resolve()}:{slide.sha256}:{geometry}"
-            sampling_scale = 1 if dzi.is_file() else None
-            if sampling_scale:
-                while max(size) / sampling_scale > 1024:
-                    sampling_scale *= 2
             tick = time.monotonic()
-            value, hit = _preparation_cache.prepare(key, load, size, sampling_scale=sampling_scale)
+            coordinate_size = size
+            overview = None
+            if dzi.is_file() or (derivative / "immutable-overview.json").is_file():
+                # The actual loader chooses DZI, immutable PNG, or thumbnail.
+                # Its frame must be known before choosing the preparation key.
+                overview = load()
+                geometry = validate_sampling_geometry(
+                    overview.info["alignmentGeometry"],
+                    source_size=size,
+                    analysis_size=overview.size,
+                )
+                effective_settings[f"{side}Geometry"] = geometry
+                coordinate_size = tuple(geometry["coordinateFrameSize"])
+                geometry_key += ":" + hashlib.sha256(
+                    json.dumps(geometry, sort_keys=True, separators=(",", ":")).encode()
+                    + overview.tobytes()
+                ).hexdigest()
+            key = f"{layout.root.resolve()}:{slide.sha256}:{geometry_key}"
+            value, hit = _preparation_cache.prepare(key, overview or load, coordinate_size)
             preparation_seconds += time.monotonic() - tick
             prepared.append(value)
             versions.append((key, size))

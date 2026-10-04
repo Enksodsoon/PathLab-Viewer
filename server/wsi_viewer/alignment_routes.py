@@ -288,6 +288,8 @@ def _live_input_frame_current(
             expected = derivative_sampling_geometry(
                 storage.for_slide(slide.id).private_derivative,
                 (int(metadata["width"]), int(metadata["height"])),
+                maximum=max(geometry["analysisSize"])
+                if geometry["kind"] == "dzi-pyramid" else 4096,
                 kind=geometry["kind"],
             )
             if expected is None or any(geometry.get(key) != item for key, item in expected.items()):

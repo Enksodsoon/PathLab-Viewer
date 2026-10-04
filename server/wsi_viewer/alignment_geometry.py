@@ -36,8 +36,17 @@ def derivative_sampling_geometry(
     if kind == "thumbnail-fallback":
         from PIL import Image
 
+        root = ET.parse(descriptor).getroot()
+        size = next((node for node in root if node.tag.rsplit("}", 1)[-1] == "Size"), None)
+        if size is None or (
+            int(size.attrib["Width"]), int(size.attrib["Height"])
+        ) != source_size:
+            raise AlignmentRejected("thumbnail sampling DZI source size differs from live source")
         with Image.open(derivative / "thumbnail.jpg") as image:
             analysis = list(image.size)
+            if max(analysis) > 4096:
+                raise AlignmentRejected("alignment thumbnail exceeds the bounded overview size")
+            pixel_digest = hashlib.sha256(image.convert("RGB").tobytes()).hexdigest()
         return validate_sampling_geometry(
             {
                 "schema": "pathlab-sampling-frame/1",
@@ -47,6 +56,7 @@ def derivative_sampling_geometry(
                 "coordinateFrameSize": list(source_size),
                 "samplingScale": [source_size[0] / analysis[0], source_size[1] / analysis[1]],
                 "cropOrigin": [0, 0],
+                "snapshotPixelSha256": pixel_digest,
             },
             source_size=source_size,
         )
