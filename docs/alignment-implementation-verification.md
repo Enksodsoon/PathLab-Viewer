@@ -67,7 +67,7 @@ coordinates, then passed after the repair.
 
 ## Workflow
 
-The visible workflow is **Slides Ã¢â€ â€™ Sync Ã¢â€ â€™ Adjust region**. Slides default to two
+The visible workflow is **Slides → Sync → Adjust region**. Slides default to two
 panes and support four. A compact status strip expands progress on demand;
 Advanced contains engine comparison, legacy three-point correction and the
 active-pane display/quality inspector. Each pane now exposes a direct 44-pixel
@@ -294,9 +294,9 @@ cannot remain active. The candidate inspection remains unsaved.
   records 12/12 journeys across Chromium, Firefox,
   WebKit and mobile Chromium, zero retries, flaky tests or skips. Each layout
   verifies guided correction with the actual preview `basisVersion` in the save
-  request, eight growing/repeated real-worker stacks and a 5,003 Ãƒâ€” 4,009 DZI
-  fixture. Actual foreground frames are 626 Ãƒâ€” 502 analysis pixels, padded
-  5,008 Ãƒâ€” 4,016 coordinates, divisor eight and level ten. Forward/reverse
+  request, eight growing/repeated real-worker stacks and a 5,003 × 4,009 DZI
+  fixture. Actual foreground frames are 626 × 502 analysis pixels, padded
+  5,008 × 4,016 coordinates, divisor eight and level ten. Forward/reverse
   coordinates, loaded tile responses and two nonuniform main canvases pass.
   Measured initial application is 2,644.653 ms / 3,683.943 ms / 3,273.910 ms /
   3,056.263 ms respectively. This engineering measurement includes worker queue,
@@ -378,7 +378,6 @@ independent landmarks. Neither substitutes for calibrated, held-out accuracy
 evaluation. Supply-chain inventories retain pre-existing release blockers; a
 generated inventory does not authorize production activation.
 
-
 ## Post-integration verification updates
 
 The Linux worker now rejects unreadable RSS for a still-live owned process, instead of counting it as zero. Exit and process-identity checks distinguish an exited member from a live accounting failure. Independent Windows-focused verification records 58 passes and five Linux-only skips; an actual Linux x64 stdlib fixture records seven passing containment/accounting cases. These checks are separate from the earlier full backend run, and full installed Linux-worker verification remains pending the bounded container checks.
@@ -386,3 +385,6 @@ The Linux worker now rejects unreadable RSS for a still-live owned process, inst
 The Advanced drawer browser scenario now verifies keyboard Enter to open, Space to close, retained focus, and visible candidate controls. Only its E2E source changed; prior production/unit source bytes remain unchanged. A fresh compiled-distribution receipt and the unchanged 586 dependency records are bound to `7e9f9daf49dea3b0c6e7ed930253336876431736`; ten inventory checks pass. The fresh sixteen browser journeys remain pending.
 
 A capacity-contract rerun recorded 490 passes, twelve skips and two failures. Reproduction proved the Windows fixture deadline prevented its verifier from running. Test-only `2314d42d` adds entry markers, a distinct exhausted-budget case, and sufficient fixture reserve; fifteen focused cases pass and five skip. Production restoration code is unchanged. The complete capacity rerun passes: 493 passed, twelve skipped, zero failures or errors across 505 cases in 169.707 seconds. Receipts `var/alignment-maintained-capacity-repaired.log` and `.xml` bind the repaired test bytes. The failed receipts remain retained.
+
+
+The first integrated sixteen-journey gate at `2c2032ef` passed all four Chromium cases and three Firefox cases, then stopped on a candidate disclosure assertion. An actual event replay proved the fixture ended its simulated drag outside the browser window: Firefox never received pointer-up, and stale canvas capture intercepted the next summary click. Production drawer and viewer code are unchanged. Test/measurement-only `0fadc482` uses bounded visible-canvas strokes, actual coordinate convergence and in-window release/capture assertions. The focused Firefox journey passes with thirty ordinary keyboard/open/click/close cycles and six released strokes; twelve Node and fifteen independent Python operational checks pass. Failed traces and diagnostics remain retained. A fresh compiled receipt at `a988f5b5` changes exactly three test/measurement source inputs; four graphs, 129 emitted assets and three prebuilt inputs remain identical. The complete refreshed sixteen-journey gate remains pending its inventory/legal bindings.
