@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "d1200070d1ef01527d672fcedc6075f223ea7447",
-  "subjectTree": "33e8fc360a599bb37f7cf26b300ddc856200e304",
+  "subjectCommit": "fc16fc7e5dac8f7d6e6db10b4df8cf7af29802c7",
+  "subjectTree": "dc5f4c90b0a02cf9b4ed3983e306548b58f6d773",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -1025,7 +1025,7 @@
     },
     {
       "path": "apps/web/src/test/classroom-invite-polling.test.tsx",
-      "gitBlob": "9a0cfacf553b1d3dc156e492c3807906867a8a63"
+      "gitBlob": "4646e30bb12022f021e5b6d5d6f16d3caed2a572"
     },
     {
       "path": "apps/web/src/test/classroom-latest-sender.test.ts",
@@ -1308,7 +1308,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "9d995c4f0b4b7844b944ef2a004f809cd5d59550534dfbb69e5e32248b31f627",
+  "sourceInputSetSha256": "f1f08ab2e5a551bc7e85092516c156a1b34fa0fac053b1705125be627c1d30c7",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
