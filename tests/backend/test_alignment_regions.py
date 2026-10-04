@@ -5,11 +5,11 @@ from PIL import Image, ImageDraw
 from sqlalchemy import text
 from test_alignment_api import _client, _correction_tiles, _headers
 from wsi_viewer.alignment import AlignmentRejected, map_registration_point
+from wsi_viewer.alignment_regions import content_geometry_version
 from wsi_viewer.database import session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import ComparisonRegionCorrection, ComparisonSet, Slide, User
 from wsi_viewer.security import hash_password
-from wsi_viewer.alignment_regions import content_geometry_version
 
 
 def _stack(client, headers):
@@ -28,6 +28,10 @@ def _stack(client, headers):
 
 
 def _request(version, **overrides):
+    frame_metadata = {
+        "width": 1000, "height": 800, "physicalSizeX": 0.25,
+        "physicalSizeY": 0.25, "physicalSizeUnit": "um",
+    }
     return {
         "version": version,
         "operation": "preview",
@@ -37,8 +41,10 @@ def _request(version, **overrides):
         "movingPoints": [[150, 150]],
         "referencePoints": [[170, 180]],
         **(
-            {"sourceVersion": content_geometry_version("sha-2", {"width":1000, "height":800, "physicalSizeX":.25, "physicalSizeY":.25, "physicalSizeUnit":"um"}),
-             "targetVersion": content_geometry_version("sha-1", {"width":1000, "height":800, "physicalSizeX":.25, "physicalSizeY":.25, "physicalSizeUnit":"um"})}
+            {
+                "sourceVersion": content_geometry_version("sha-2", frame_metadata),
+                "targetVersion": content_geometry_version("sha-1", frame_metadata),
+            }
             if overrides.get("operation") == "save"
             else {}
         ),
@@ -354,7 +360,8 @@ def test_region_same_sha_geometry_change_hides_revision_and_rejects_old_preview(
         saved = client.post(url + "/region-corrections", headers=headers,
                             json=_request(stack["version"], operation="save",
                                           sourceVersion=preview["sourceVersion"],
-                                          targetVersion=preview["targetVersion"], regionId=preview["regionId"]))
+                                          targetVersion=preview["targetVersion"],
+                                          regionId=preview["regionId"]))
         assert saved.status_code == 200
         with session_factory(client.app.state.settings)() as database:
             source = database.get(Slide, "slide-2")
@@ -365,7 +372,8 @@ def test_region_same_sha_geometry_change_hides_revision_and_rejects_old_preview(
         response = client.post(url + "/region-corrections", headers=headers,
                                json=_request(saved.json()["version"], operation="save",
                                              sourceVersion=preview["sourceVersion"],
-                                             targetVersion=preview["targetVersion"], regionId=preview["regionId"]))
+                                             targetVersion=preview["targetVersion"],
+                                             regionId=preview["regionId"]))
         assert response.status_code == 409
         with session_factory(client.app.state.settings)() as database:
             assert database.query(ComparisonRegionCorrection).count() == 1
