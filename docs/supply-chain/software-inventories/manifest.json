@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "c9a97e316c7198c14c3fc4dca57034ec679e0edc19175db7860e36daea19bfee",
+      "sha256": "c9ff9d70018fed469191e98bf3b5ced1e3da5f96f68f17295f5f2012fcf923aa",
       "sizeBytes": 730611
     },
     {
       "path": "build.spdx.json",
-      "sha256": "a587b5b1da661c7cbe05a541f589975a9b56e3eb4ff73bbbf308d74de7e7c1cb",
+      "sha256": "1c7e8982bf9e5de05fa04a9790acc339b4c4d8d125813b94c75e6129f7722845",
       "sizeBytes": 590197
     },
     {
       "path": "source.cdx.json",
-      "sha256": "4e64bea7c6ea6703a6dff85ddfa576d80d009d5a1004d7d98715322037f5f0f1",
+      "sha256": "69a8dde9b082d6282004b9791d66695d7b2c65af19792366cb3fb28da116dbf7",
       "sizeBytes": 773165
     },
     {
       "path": "source.spdx.json",
-      "sha256": "e2fd5a0ae215b4002ba30d132f454fa732264ccbf9a0a66c183f6ac3e3747811",
+      "sha256": "b124b40556f51f1c364bffe390db4b5ffed62afc9ad2c5d44c2ba46dd5872009",
       "sizeBytes": 623847
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-03T17:39:14Z",
+  "generatedAt": "2026-10-04T00:52:52Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -153,9 +153,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "2e86280fb3e7a0c6e8364f8fe54a7709ea623563",
+      "gitBlob": "58e81521df71065a2e1ecaf08a7489a23b28360c",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "b6d2b3f9246d5445743ad604d6c6070ef832fe73c22f7588af0c31cb8e86b6aa",
+      "sha256": "181e18aff2e8ee2d5379eaca47f76fc67557577796f1c599f4306f2eedbcad36",
       "sizeBytes": 41635
     },
     {
@@ -1454,6 +1454,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "b35d3be3b2ef8933eed969dbf123746042c57640",
-  "subjectTree": "ca298c0cd626d5d15a0beb770b4e3569c49348f0"
+  "subjectCommit": "81122aadfd52c32359b5c07ba3ed8d42980fa413",
+  "subjectTree": "6052383295c2d82e6237cd5e03b379c54e9596a5"
 }
