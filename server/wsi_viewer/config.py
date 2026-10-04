@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     alignment_valis_lightglue_weights_sha256: str | None = None
     alignment_wsireg_enabled: bool = False
     alignment_deeperhistreg_enabled: bool = False
+    alignment_deeperhistreg_superpoint_weights_path: Path | None = None
+    alignment_deeperhistreg_superpoint_weights_sha256: str | None = None
+    alignment_deeperhistreg_superglue_weights_path: Path | None = None
+    alignment_deeperhistreg_superglue_weights_sha256: str | None = None
     admin_annotation_canary_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False

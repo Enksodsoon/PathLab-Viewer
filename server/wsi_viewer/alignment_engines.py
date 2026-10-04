@@ -150,6 +150,14 @@ def _hash_file(path: Path) -> str:
 
 def configured_engine_resources(config: Any, name: str) -> dict[str, Any]:
     canonical = ENGINE_ALIASES.get(name, name)
+    if canonical == ENGINE_DHR_LEARNED:
+        result = {}
+        for resource in ("superpoint", "superglue"):
+            for suffix, field in (("Path", "path"), ("Sha256", "sha256")):
+                value = getattr(config, f"alignment_deeperhistreg_{resource}_weights_{field}", None)
+                if value is not None:
+                    result[f"{resource}Weights{suffix}"] = str(value)
+        return result
     if canonical != ENGINE_VALIS and ENGINE_VALIS not in RECIPE_STAGES.get(canonical, ()):
         return {}
     result = {}
