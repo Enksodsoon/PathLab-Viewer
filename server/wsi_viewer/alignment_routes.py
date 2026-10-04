@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import uuid
 import xml.etree.ElementTree as ET
@@ -37,7 +38,8 @@ from .alignment_engines import (
     engine_resource_availability,
     settings_digest,
 )
-from .alignment_geometry import derivative_sampling_geometry
+from .alignment_fast import PREPARATION_VERSION
+from .alignment_geometry import derivative_sampling_geometry, validate_sampling_geometry
 from .alignment_policy import case_ids_conflict, current_registration, registration_frame_current
 from .alignment_pyramid import read_region
 from .alignment_regions import (
@@ -303,6 +305,142 @@ def _live_input_frame_current(
     return True
 
 
+def _strict_registration_pair_current(
+    value: dict[str, Any],
+    source: Slide | None,
+    anchor: Slide | None,
+    storage: StorageLayout | None,
+) -> bool:
+    """Affirmative preview proof, without changing legacy canonical serving."""
+    if source is None or anchor is None or source.id == anchor.id:
+        return False
+    if any(
+        slide.trashed_at is not None or slide.state not in READY_STATES
+        for slide in (source, anchor)
+    ):
+        return False
+    if case_ids_conflict(source.case_id, anchor.case_id):
+        return False
+    if value.get("anchorSlideId") != anchor.id or value.get("coordinateReferenceId") != anchor.id:
+        return False
+    for slide, version, frame in (
+        (source, "sourceVersion", "sourceFrameVersion"),
+        (anchor, "anchorVersion", "anchorFrameVersion"),
+    ):
+        metadata = slide.slide_metadata or {}
+        if any(
+            type(metadata.get(key)) not in (int, float)
+            or not np.isfinite(metadata[key])
+            or metadata[key] <= 0
+            for key in ("width", "height")
+        ):
+            return False
+        if value.get(version) != slide.sha256 or value.get(frame) != metadata_frame_digest(
+            metadata
+        ):
+            return False
+    if not _live_input_frame_current(value, source, anchor, storage):
+        return False
+    settings = value.get("engineSettings") or {}
+    geometries = {
+        side: settings[f"{side}Geometry"]
+        for side in ("reference", "moving")
+        if f"{side}Geometry" in settings
+    }
+    if geometries:
+        try:
+            geometries = {
+                side: validate_sampling_geometry(geometry) for side, geometry in geometries.items()
+            }
+            digest = hashlib.sha256(
+                json.dumps(geometries, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+        except (AlignmentRejected, TypeError, ValueError):
+            return False
+        if (
+            value.get("samplingGeometryApplied") is not True
+            or value.get("samplingGeometryDigest") != digest
+        ):
+            return False
+    verified = current_registration(
+        value,
+        source_version=source.sha256,
+        anchor_version=anchor.sha256,
+        source_case_id=source.case_id,
+        anchor_case_id=anchor.case_id,
+        source_metadata=source.slide_metadata or {},
+        anchor_metadata=anchor.slide_metadata or {},
+        source_snapshot_version=slide_version(source) if not source.sha256 else None,
+        anchor_snapshot_version=slide_version(anchor) if not anchor.sha256 else None,
+    )
+    return bool(verified and verified.get("status") in {"ready", "approximate"})
+
+
+def _candidate_pair_current(
+    row: ComparisonRegistrationCandidate,
+    item: ComparisonSet,
+    slides: dict[str, Slide],
+    anchors: dict[str, str],
+    storage: StorageLayout | None,
+    *,
+    current_settings: bool,
+) -> bool:
+    source, anchor = slides.get(row.slide_id), slides.get(row.anchor_slide_id)
+    if (
+        not current_settings
+        or row.set_version != item.version
+        or row.slide_id == item.reference_slide_id
+        or anchors.get(row.slide_id) != row.anchor_slide_id
+        or source is None
+        or anchor is None
+        or row.source_version != source.sha256
+        or row.anchor_version != anchor.sha256
+        or row.slide_id not in item.source_versions
+        or row.anchor_slide_id not in item.source_versions
+        or item.source_versions[row.slide_id] != source.sha256
+        or item.source_versions[row.anchor_slide_id] != anchor.sha256
+    ):
+        return False
+    bindings = {
+        "sourceVersion": row.source_version,
+        "anchorVersion": row.anchor_version,
+        "engine": row.engine,
+        "engineVersion": row.engine_version,
+        "settingsDigest": row.settings_digest,
+    }
+    if any(
+        key in row.registration and row.registration[key] != value
+        for key, value in bindings.items()
+    ):
+        return False
+    return _strict_registration_pair_current(
+        {**row.registration, **bindings, "provenance": "automatic-candidate"},
+        source,
+        anchor,
+        storage,
+    )
+
+
+def _native_overview_fallback(
+    value: dict[str, Any] | None,
+    source: Slide,
+    anchor: Slide | None,
+    storage: StorageLayout | None,
+) -> dict[str, Any] | None:
+    for option in (value, (value or {}).get("overviewFallback")):
+        if (
+            option
+            and option.get("engine") == ENGINE_NATIVE_OVERVIEW
+            and option.get("status") == "approximate"
+            and (option.get("evidence") or {}).get("phase") == "preview"
+            and (option.get("evidence") or {}).get("preparationVersion") == PREPARATION_VERSION
+            and (option.get("overviewTriangles") or option.get("triangles"))
+            and _strict_registration_pair_current(option, source, anchor, storage)
+        ):
+            return option
+    return None
+
+
 def _json(
     item: ComparisonSet,
     slides: list[Slide],
@@ -339,6 +477,11 @@ def _json(
         members.append(
             {
                 "slideId": slide.id,
+                "alignmentSourceVersion": slide_version(slide),
+                "nativeOverviewFallback": _native_overview_fallback(
+                    item.registrations.get(slide.id), slide,
+                    by_id.get(anchors.get(slide.id, item.reference_slide_id)), storage,
+                ),
                 "displayName": slide.display_name,
                 "stain": slide.stain,
                 "metadata": public_geometry_metadata(slide.slide_metadata)
@@ -982,11 +1125,45 @@ def register_alignment_routes(
             .where(ComparisonRegistrationCandidate.comparison_set_id == set_id)
             .order_by(ComparisonRegistrationCandidate.created_at.desc())
         )
-        return {
-            "comparisonSetId": set_id,
-            "setVersion": item.version,
-            "engineAvailability": configured_availability(),
-            "candidates": [
+        slides = {slide.id: slide for slide in _members(database, item)}
+        anchors = {
+            member.slide_id: member.anchor_slide_id or item.reference_slide_id
+            for member in membership_rows(database, item)
+            if member.slide_id != item.reference_slide_id
+        }
+        result = []
+        for row in rows:
+            current_settings = (
+                row.engine in SUPPORTED_ENGINES
+                and row.engine_version == ENGINE_VERSIONS[row.engine]
+                and row.settings_digest
+                == settings_digest(row.engine, row.registration.get("engineSettings") or {})
+                and _live_input_frame_current(
+                    row.registration,
+                    database.get(Slide, row.slide_id),
+                    database.get(Slide, row.anchor_slide_id),
+                    storage,
+                )
+            )
+            current_pair = _candidate_pair_current(
+                row, item, slides, anchors, storage, current_settings=current_settings
+            )
+            registration = dict(row.registration)
+            fallback = registration.get("overviewFallback")
+            fallback_current = False
+            if (
+                current_pair and isinstance(fallback, dict)
+                and fallback.get("status") == "approximate"
+            ):
+                source, anchor = slides[row.slide_id], slides[row.anchor_slide_id]
+                fallback_current = (
+                    _native_overview_fallback(fallback, source, anchor, storage) is fallback
+                    if fallback.get("engine") == ENGINE_NATIVE_OVERVIEW
+                    else _strict_registration_pair_current(fallback, source, anchor, storage)
+                )
+            if fallback is not None and not fallback_current:
+                registration.pop("overviewFallback", None)
+            result.append(
                 {
                     "id": row.id,
                     "slideId": row.slide_id,
@@ -995,19 +1172,17 @@ def register_alignment_routes(
                     "engine": row.engine,
                     "engineVersion": row.engine_version,
                     "settingsDigest": row.settings_digest,
-                    "currentSettings": row.engine in SUPPORTED_ENGINES
-                    and row.engine_version == ENGINE_VERSIONS[row.engine]
-                    and row.settings_digest
-                    == settings_digest(row.engine, row.registration.get("engineSettings") or {})
-                    and _live_input_frame_current(
-                        row.registration,
-                        database.get(Slide, row.slide_id),
-                        database.get(Slide, row.anchor_slide_id),
-                        storage,
-                    ),
+                    "currentSettings": current_settings,
+                    "currentPair": current_pair,
+                    "sourceSnapshotVersion": slide_version(slides[row.slide_id])
+                    if current_pair
+                    else None,
+                    "anchorSnapshotVersion": slide_version(slides[row.anchor_slide_id])
+                    if current_pair
+                    else None,
                     "status": row.status,
                     "validationState": row.validation_state,
-                    "registration": _public_registration(row.registration),
+                    "registration": _public_registration(registration),
                     "recipeIdentity": row.registration.get("recipeIdentity", row.engine),
                     "stageProvenance": _public_registration(
                         row.registration.get(
@@ -1022,8 +1197,12 @@ def register_alignment_routes(
                     "failureReason": row.failure_reason,
                     "createdAt": row.created_at.isoformat(),
                 }
-                for row in rows
-            ],
+            )
+        return {
+            "comparisonSetId": set_id,
+            "setVersion": item.version,
+            "engineAvailability": configured_availability(),
+            "candidates": result,
         }
 
     def benchmark(
