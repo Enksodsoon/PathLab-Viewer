@@ -4,10 +4,11 @@ from __future__ import annotations
 import hashlib
 import re
 import uuid
+import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import cv2
 import numpy as np
@@ -17,7 +18,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
-from .alignment import _registration_triangles
+from .alignment import AlignmentRejected, _registration_triangles
+from .alignment_calibration import metadata_frame_digest
 from .alignment_engines import (
     ENGINE_ALIASES,
     ENGINE_DHR_CLASSICAL,
@@ -30,10 +32,13 @@ from .alignment_engines import (
     ENGINE_WSIREG,
     RECIPE_STAGES,
     SUPPORTED_ENGINES,
+    configured_engine_resources,
     engine_availability,
+    engine_resource_availability,
     settings_digest,
 )
-from .alignment_policy import case_ids_conflict, current_registration
+from .alignment_geometry import derivative_sampling_geometry
+from .alignment_policy import case_ids_conflict, current_registration, registration_frame_current
 from .alignment_pyramid import read_region
 from .alignment_regions import (
     RegionRejected,
@@ -236,12 +241,67 @@ def _alignment_anchors(slides: list[Slide], primary_reference_id: str) -> dict[s
     return anchors
 
 
+def _public_registration(value: Any) -> Any:
+    """Project local resources without changing private registration identity."""
+    if isinstance(value, dict):
+        return {
+            key: _public_registration(item)
+            for key, item in value.items()
+            if not (
+                str(key).casefold().endswith("weightspath") or str(key).casefold() == "resourcepath"
+            )
+        }
+    if isinstance(value, (list, tuple)):
+        return [_public_registration(item) for item in value]
+    return value
+
+
+def _live_input_frame_current(
+    registration: dict[str, Any],
+    source: Slide | None,
+    anchor: Slide | None,
+    storage: StorageLayout | None,
+) -> bool:
+    if source is None or anchor is None:
+        return False
+    if not registration_frame_current(
+        registration,
+        source_metadata=source.slide_metadata or {},
+        anchor_metadata=anchor.slide_metadata or {},
+    ):
+        return False
+    settings = registration.get("engineSettings") or {}
+    for side, slide in (("moving", source), ("reference", anchor)):
+        geometry = settings.get(f"{side}Geometry")
+        if not geometry or geometry.get("kind") not in {
+            "dzi-pyramid",
+            "immutable-overview",
+            "thumbnail-fallback",
+        }:
+            continue
+        if storage is None:
+            return False
+        try:
+            metadata = slide.slide_metadata or {}
+            expected = derivative_sampling_geometry(
+                storage.for_slide(slide.id).private_derivative,
+                (int(metadata["width"]), int(metadata["height"])),
+                kind=geometry["kind"],
+            )
+            if expected is None or any(geometry.get(key) != item for key, item in expected.items()):
+                return False
+        except (AlignmentRejected, OSError, KeyError, TypeError, ValueError, ET.ParseError):
+            return False
+    return True
+
+
 def _json(
     item: ComparisonSet,
     slides: list[Slide],
     *,
     shared: dict[str, int] | None = None,
     database: OrmSession | None = None,
+    storage: StorageLayout | None = None,
 ) -> dict[str, Any]:
     anchors = (item.alignment_config or {}).get("anchors", {})
     if database is not None:
@@ -297,23 +357,43 @@ def _json(
                 else anchors.get(slide.id, item.reference_slide_id),
             }
         )
-    return {
-        "id": item.id,
-        "name": item.name,
-        "referenceSlideId": item.reference_slide_id,
-        "status": "partial"
-        if item.status == "ready"
-        and any(
-            (member.get("registration") or {}).get("status") != "ready"
-            for member in members
-            if member["slideId"] != item.reference_slide_id
-        )
-        else item.status,
-        "version": item.version,
-        "alignmentConfig": item.alignment_config,
-        "members": members,
-        "regionalCorrections": _regional_corrections(database, item, by_id) if database else [],
-    }
+    for member in members:
+        source = by_id[member["slideId"]]
+        anchor = by_id.get(anchors.get(source.id, item.reference_slide_id))
+        registration = member["registration"]
+        if registration:
+            member["registration"] = current_registration(
+                registration,
+                source_metadata=source.slide_metadata or {},
+                anchor_metadata=(anchor.slide_metadata or {}) if anchor else {},
+                input_frame_current=_live_input_frame_current(
+                    registration, source, anchor, storage
+                ),
+            )
+    return cast(
+        dict[str, Any],
+        _public_registration(
+            {
+                "id": item.id,
+                "name": item.name,
+                "referenceSlideId": item.reference_slide_id,
+                "status": "partial"
+                if item.status == "ready"
+                and any(
+                    (member.get("registration") or {}).get("status") != "ready"
+                    for member in members
+                    if member["slideId"] != item.reference_slide_id
+                )
+                else item.status,
+                "version": item.version,
+                "alignmentConfig": item.alignment_config,
+                "members": members,
+                "regionalCorrections": _regional_corrections(database, item, by_id)
+                if database
+                else [],
+            }
+        ),
+    )
 
 
 def _regional_corrections(
@@ -377,11 +457,43 @@ def register_alignment_routes(
     if not enabled:
         return
 
+    def configured_enabled_engines() -> set[str]:
+        result = {ENGINE_NATIVE, ENGINE_NATIVE_OVERVIEW}
+        for engine, permitted in (
+            (ENGINE_HISALIGN, hisalign_enabled),
+            (ENGINE_VALIS, valis_enabled),
+            (ENGINE_WSIREG, wsireg_enabled),
+            (ENGINE_DHR_CLASSICAL, deeperhistreg_enabled),
+            (ENGINE_DHR_LEARNED, deeperhistreg_enabled),
+        ):
+            if permitted:
+                result.add(engine)
+        result.update(
+            recipe
+            for recipe, stages in RECIPE_STAGES.items()
+            if all(stage in result for stage in stages)
+        )
+        return result
+
+    def configured_availability() -> dict[str, dict[str, str | bool | None]]:
+        result = engine_availability()
+        permitted = configured_enabled_engines()
+        for engine, values in result.items():
+            if engine not in permitted:
+                values.update(available=False, reason="alignment-engine-disabled")
+                continue
+            available, reason = engine_resource_availability(
+                engine, configured_engine_resources(app.state.settings, engine)
+            )
+            if not available:
+                values.update(available=False, reason=reason)
+        return result
+
     def list_sets(
         _: Any = Depends(admin_dependency), database: OrmSession = Depends(database_dependency)
     ) -> list[dict[str, Any]]:
         return [
-            _json(item, _members(database, item), database=database)
+            _json(item, _members(database, item), database=database, storage=storage)
             for item in database.scalars(
                 select(ComparisonSet).order_by(ComparisonSet.updated_at.desc())
             )
@@ -432,7 +544,7 @@ def register_alignment_routes(
         sync_membership_mirror(database, item)
         queue_ready_registrations(database, item)
         database.commit()
-        return _json(item, [by_id[item] for item in ids], database=database)
+        return _json(item, [by_id[item] for item in ids], database=database, storage=storage)
 
     def get_set(
         set_id: str,
@@ -442,7 +554,7 @@ def register_alignment_routes(
         item = database.get(ComparisonSet, set_id)
         if item is None:
             raise _error("COMPARISON_NOT_FOUND", 404)
-        return _json(item, _members(database, item), database=database)
+        return _json(item, _members(database, item), database=database, storage=storage)
 
     def queue_set(
         set_id: str,
@@ -516,7 +628,7 @@ def register_alignment_routes(
             if payload.anchors == {}:
                 item.alignment_config = {**(item.alignment_config or {}), "anchors": {}}
         database.commit()
-        return _json(item, _members(database, item), database=database)
+        return _json(item, _members(database, item), database=database, storage=storage)
 
     def update_members(
         set_id: str,
@@ -618,7 +730,7 @@ def register_alignment_routes(
         sync_membership_mirror(database, item)
         queue_ready_registrations(database, item)
         database.commit()
-        return _json(item, _members(database, item), database=database)
+        return _json(item, _members(database, item), database=database, storage=storage)
 
     def reregister(
         set_id: str,
@@ -834,7 +946,7 @@ def register_alignment_routes(
                 "anchorSlideId": revision.anchor_slide_id,
                 "algorithmVersion": revision.algorithm_version,
                 "provenance": revision.provenance,
-                "registration": revision.registration,
+                "registration": _public_registration(revision.registration),
                 "createdAt": revision.created_at.isoformat(),
             }
             for revision in database.scalars(
@@ -860,7 +972,7 @@ def register_alignment_routes(
         return {
             "comparisonSetId": set_id,
             "setVersion": item.version,
-            "engineAvailability": engine_availability(),
+            "engineAvailability": configured_availability(),
             "candidates": [
                 {
                     "id": row.id,
@@ -873,16 +985,26 @@ def register_alignment_routes(
                     "currentSettings": row.engine in SUPPORTED_ENGINES
                     and row.engine_version == ENGINE_VERSIONS[row.engine]
                     and row.settings_digest
-                    == settings_digest(row.engine, row.registration.get("engineSettings") or {}),
+                    == settings_digest(row.engine, row.registration.get("engineSettings") or {})
+                    and _live_input_frame_current(
+                        row.registration,
+                        database.get(Slide, row.slide_id),
+                        database.get(Slide, row.anchor_slide_id),
+                        storage,
+                    ),
                     "status": row.status,
                     "validationState": row.validation_state,
-                    "registration": row.registration,
+                    "registration": _public_registration(row.registration),
                     "recipeIdentity": row.registration.get("recipeIdentity", row.engine),
-                    "stageProvenance": row.registration.get(
-                        "stageProvenance", row.registration.get("recipeStages", [])
+                    "stageProvenance": _public_registration(
+                        row.registration.get(
+                            "stageProvenance", row.registration.get("recipeStages", [])
+                        )
                     ),
-                    "benchmarkMeasurements": row.evidence.get("benchmarkMeasurements", {}),
-                    "evidence": row.evidence,
+                    "benchmarkMeasurements": _public_registration(
+                        row.evidence.get("benchmarkMeasurements", {})
+                    ),
+                    "evidence": _public_registration(row.evidence),
                     "artifactSha256": row.artifact_sha256,
                     "failureReason": row.failure_reason,
                     "createdAt": row.created_at.isoformat(),
@@ -907,22 +1029,17 @@ def register_alignment_routes(
         )
         if any(engine not in SUPPORTED_ENGINES for engine in requested):
             raise _error("ALIGNMENT_ENGINE_UNSUPPORTED")
-        enabled_engines = {ENGINE_NATIVE, ENGINE_NATIVE_OVERVIEW}
-        if hisalign_enabled:
-            enabled_engines.add(ENGINE_HISALIGN)
-        if valis_enabled:
-            enabled_engines.add(ENGINE_VALIS)
-        if wsireg_enabled:
-            enabled_engines.add(ENGINE_WSIREG)
-        if deeperhistreg_enabled:
-            enabled_engines.update({ENGINE_DHR_CLASSICAL, ENGINE_DHR_LEARNED})
-        enabled_engines.update(
-            recipe
-            for recipe, stages in RECIPE_STAGES.items()
-            if all(stage in enabled_engines for stage in stages)
-        )
+        enabled_engines = configured_enabled_engines()
         if any(engine not in enabled_engines for engine in requested):
             raise _error("ALIGNMENT_ENGINE_DISABLED", 409)
+        requested_settings = {
+            engine: configured_engine_resources(app.state.settings, engine) for engine in requested
+        }
+        if any(
+            not engine_resource_availability(engine, requested_settings[engine])[0]
+            for engine in requested
+        ):
+            raise _error("ALIGNMENT_ENGINE_RESOURCE_UNAVAILABLE", 409)
         slides = _members(database, item)
         anchors = _alignment_anchors(slides, item.reference_slide_id)
         anchors.update((item.alignment_config or {}).get("anchors", {}))
@@ -933,7 +1050,7 @@ def register_alignment_routes(
             anchor_id = anchors.get(slide.id, item.reference_slide_id)
             anchor = next(member for member in slides if member.id == anchor_id)
             for engine in requested:
-                digest = settings_digest(engine)
+                digest = settings_digest(engine, requested_settings[engine])
                 existing_candidate = database.scalar(
                     select(ComparisonRegistrationCandidate.id).where(
                         ComparisonRegistrationCandidate.comparison_set_id == item.id,
@@ -973,6 +1090,8 @@ def register_alignment_routes(
                             "anchorSlideId": anchor_id,
                             "setVersion": item.version,
                             "engine": engine,
+                            "engineSettings": requested_settings[engine],
+                            "requestedSettingsDigest": digest,
                             "progress": 0,
                             "stage": "queued",
                         },
@@ -1030,6 +1149,8 @@ def register_alignment_routes(
             candidate.engine, candidate.registration.get("engineSettings") or {}
         ):
             raise _error("ALIGNMENT_CANDIDATE_SETTINGS_STALE", 409)
+        if not _live_input_frame_current(candidate.registration, source, anchor, storage):
+            raise _error("ALIGNMENT_CANDIDATE_SETTINGS_STALE", 409)
         if candidate.engine in RECIPE_STAGES:
             measurements = candidate.evidence.get("benchmarkMeasurements")
             if (
@@ -1083,7 +1204,7 @@ def register_alignment_routes(
             else "partial"
         )
         database.commit()
-        return _json(item, _members(database, item), database=database)
+        return _json(item, _members(database, item), database=database, storage=storage)
 
     def jobs(
         set_id: str,
@@ -1226,6 +1347,11 @@ def register_alignment_routes(
                     anchor_version=target.sha256,
                     source_case_id=source.case_id,
                     anchor_case_id=target.case_id,
+                    source_metadata=source.slide_metadata or {},
+                    anchor_metadata=target.slide_metadata or {},
+                    input_frame_current=_live_input_frame_current(
+                        previous, source, target, storage
+                    ),
                 )
             if not previous:
                 reverse = item.registrations.get(target.id)
@@ -1236,6 +1362,11 @@ def register_alignment_routes(
                         anchor_version=source.sha256,
                         source_case_id=target.case_id,
                         anchor_case_id=source.case_id,
+                        source_metadata=target.slide_metadata or {},
+                        anchor_metadata=source.slide_metadata or {},
+                        input_frame_current=_live_input_frame_current(
+                            reverse, target, source, storage
+                        ),
                     )
                     if reverse and reverse.get("status") in {"ready", "approximate"}:
                         previous = {**reverse}
@@ -1267,7 +1398,7 @@ def register_alignment_routes(
         now = datetime.now(UTC)
         revision_id = str(uuid.uuid4())
         if payload.operation == "preview":
-            result = _json(item, list(members.values()), database=database)
+            result = _json(item, list(members.values()), database=database, storage=storage)
             result["regionalCorrections"] = [
                 entry for entry in result["regionalCorrections"] if entry["regionId"] != region_id
             ]
@@ -1313,7 +1444,7 @@ def register_alignment_routes(
             )
         )
         database.commit()
-        return _json(item, _members(database, item), database=database)
+        return _json(item, _members(database, item), database=database, storage=storage)
 
     def correct(
         set_id: str,
@@ -1407,6 +1538,8 @@ def register_alignment_routes(
             "provenance": "manual",
             "sourceVersion": members[slide_id].sha256,
             "anchorVersion": members[anchor_id].sha256,
+            "sourceFrameVersion": metadata_frame_digest(members[slide_id].slide_metadata or {}),
+            "anchorFrameVersion": metadata_frame_digest(members[anchor_id].slide_metadata or {}),
             "anchorSlideId": anchor_id,
             "coordinateReferenceId": anchor_id,
             "movingToReference": transform.tolist(),
@@ -1433,6 +1566,8 @@ def register_alignment_routes(
             anchor_version=members[anchor_id].sha256,
             source_case_id=members[slide_id].case_id,
             anchor_case_id=members[anchor_id].case_id,
+            source_metadata=members[slide_id].slide_metadata or {},
+            anchor_metadata=members[anchor_id].slide_metadata or {},
         )
         overview = (previous or {}).get("overviewFallback") or previous
         if (
@@ -1446,10 +1581,10 @@ def register_alignment_routes(
         ):
             registrations[slide_id]["overviewFallback"] = overview
         if payload.preview_only:
-            preview = _json(item, list(members.values()), database=database)
+            preview = _json(item, list(members.values()), database=database, storage=storage)
             for member in preview["members"]:
                 if member["slideId"] == slide_id:
-                    member["registration"] = registrations[slide_id]
+                    member["registration"] = _public_registration(registrations[slide_id])
             return preview
         # Maps depending on a corrected anchor must not retain stale coordinates.
         affected = {slide_id}
@@ -1485,7 +1620,7 @@ def register_alignment_routes(
             else "partial"
         )
         database.commit()
-        return _json(item, _members(database, item), database=database)
+        return _json(item, _members(database, item), database=database, storage=storage)
 
     def public_share(public_id: str, database: OrmSession) -> LibraryShare:
         try:
@@ -1533,7 +1668,9 @@ def register_alignment_routes(
             database, item
         ):
             raise _error("COMPARISON_NOT_FOUND", 404)
-        payload = _json(item, _members(database, item), shared=positions, database=database)
+        payload = _json(
+            item, _members(database, item), shared=positions, database=database, storage=storage
+        )
         for member in payload["members"]:
             member["tileSource"] = member["tileSource"].replace("{sharePublicId}", public_id)
         return payload

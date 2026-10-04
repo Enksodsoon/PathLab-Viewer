@@ -6,6 +6,8 @@ The slide pyramids and canonical automatic maps remain unchanged.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from datetime import UTC
 from pathlib import Path
@@ -15,6 +17,7 @@ import cv2
 import numpy as np
 
 from .alignment import AlignmentRejected, map_registration_point
+from .alignment_calibration import normalized_microns_per_pixel
 from .alignment_pyramid import read_region
 from .models import Slide
 
@@ -24,11 +27,41 @@ class RegionRejected(ValueError):
 
 
 def slide_version(slide: Slide) -> str:
-    """Bind digest-less derivatives to a concrete source snapshot too."""
-    timestamp = slide.updated_at
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=UTC)
-    return slide.sha256 or f"updated:{timestamp.astimezone(UTC).isoformat()}"
+    """Bind content and the original pixel/physical frame to an opaque snapshot."""
+    content = slide.sha256
+    if not content:
+        timestamp = slide.updated_at
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=UTC)
+        content = f"updated:{timestamp.astimezone(UTC).isoformat()}"
+    return content_geometry_version(content, slide.slide_metadata or {})
+
+
+def content_geometry_version(content: str, metadata: dict[str, Any]) -> str:
+    def safe(value: Any) -> Any:
+        if isinstance(value, float) and not math.isfinite(value):
+            return str(value)
+        return value
+
+    frame = {
+        key: safe(metadata.get(key))
+        for key in (
+            "width",
+            "height",
+            "physicalSizeX",
+            "physicalSizeY",
+            "physicalSizeUnit",
+            "physicalSizeXUnit",
+            "physicalSizeYUnit",
+        )
+    }
+    encoded = json.dumps(
+        {"schema": "alignment-source/1", "content": content, "frame": frame},
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode()
+    return "alignment:" + hashlib.sha256(encoded).hexdigest()
 
 
 def validate_anchors(member_ids: list[str], reference_id: str, anchors: dict[str, str]) -> None:
@@ -62,11 +95,8 @@ def _size(metadata: dict[str, Any]) -> tuple[float, float]:
 
 
 def _calibration(metadata: dict[str, Any]) -> np.ndarray[Any, Any] | None:
-    try:
-        values = np.asarray([float(metadata["physicalSizeX"]), float(metadata["physicalSizeY"])])
-    except (KeyError, TypeError, ValueError):
-        return None
-    return values if np.isfinite(values).all() and (values > 0).all() else None
+    values = normalized_microns_per_pixel(metadata)
+    return np.asarray(values) if values is not None else None
 
 
 def _local_linear(

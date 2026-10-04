@@ -9,6 +9,7 @@ from wsi_viewer.database import session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import ComparisonRegionCorrection, ComparisonSet, Slide, User
 from wsi_viewer.security import hash_password
+from wsi_viewer.alignment_regions import content_geometry_version
 
 
 def _stack(client, headers):
@@ -36,7 +37,8 @@ def _request(version, **overrides):
         "movingPoints": [[150, 150]],
         "referencePoints": [[170, 180]],
         **(
-            {"sourceVersion": "sha-2", "targetVersion": "sha-1"}
+            {"sourceVersion": content_geometry_version("sha-2", {"width":1000, "height":800, "physicalSizeX":.25, "physicalSizeY":.25, "physicalSizeUnit":"um"}),
+             "targetVersion": content_geometry_version("sha-1", {"width":1000, "height":800, "physicalSizeX":.25, "physicalSizeY":.25, "physicalSizeUnit":"um"})}
             if overrides.get("operation") == "save"
             else {}
         ),
@@ -56,8 +58,8 @@ def test_region_offset_preview_is_bounded_and_has_no_durable_side_effect(tmp_pat
         result = response.json()
         overlay = result["regionalCorrections"][0]
         assert overlay["sourceBounds"] == [100, 100, 200, 200]
-        assert overlay["sourceVersion"] == "sha-2"
-        assert overlay["targetVersion"] == "sha-1"
+        assert overlay["sourceVersion"].startswith("alignment:")
+        assert overlay["targetVersion"].startswith("alignment:")
         assert overlay["registration"]["status"] == "approximate"
         assert map_registration_point(overlay["registration"], 200, 200) == pytest.approx(
             (220, 230)
@@ -79,12 +81,14 @@ def test_region_two_points_solve_similarity_in_anisotropic_physical_frame(tmp_pa
                 "height": 800,
                 "physicalSizeX": 0.5,
                 "physicalSizeY": 1,
+                "physicalSizeUnit": "um",
             }
             database.get(Slide, "slide-1").slide_metadata = {
                 "width": 1000,
                 "height": 800,
                 "physicalSizeX": 1,
                 "physicalSizeY": 0.5,
+                "physicalSizeUnit": "um",
             }
             database.commit()
         headers = _headers(client)
@@ -297,7 +301,7 @@ def test_region_rejects_preview_snapshot_after_digestless_source_changes(
         preview = client.post(
             url + "/region-corrections", headers=headers, json=_request(stack["version"])
         ).json()["regionalCorrections"][0]
-        assert preview[version_key].startswith("updated:")
+        assert preview[version_key].startswith("alignment:")
         with factory() as database:
             database.get(Slide, slide_id).display_name = "Source replaced after preview"
             database.commit()
@@ -334,6 +338,46 @@ def test_region_save_requires_explicit_source_snapshots(tmp_path: Path, missing)
         assert response.status_code == 422, response.text
         assert response.json()["detail"]["code"] == "REGION_SOURCE_VERSIONS_REQUIRED"
         assert client.get(url).json()["regionalCorrections"] == []
+
+
+@pytest.mark.parametrize("change", [
+    {"width": 1100}, {"height": 900}, {"physicalSizeX": .5},
+    {"physicalSizeY": .5}, {"physicalSizeUnit": "nm"},
+])
+def test_region_same_sha_geometry_change_hides_revision_and_rejects_old_preview(tmp_path, change):
+    _correction_tiles(tmp_path)
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack, url = _stack(client, headers)
+        preview = client.post(url + "/region-corrections", headers=headers,
+                              json=_request(stack["version"])).json()["regionalCorrections"][0]
+        saved = client.post(url + "/region-corrections", headers=headers,
+                            json=_request(stack["version"], operation="save",
+                                          sourceVersion=preview["sourceVersion"],
+                                          targetVersion=preview["targetVersion"], regionId=preview["regionId"]))
+        assert saved.status_code == 200
+        with session_factory(client.app.state.settings)() as database:
+            source = database.get(Slide, "slide-2")
+            source.slide_metadata = {**source.slide_metadata, **change}
+            database.commit()
+        reloaded = client.get(url).json()
+        assert reloaded["regionalCorrections"] == []
+        response = client.post(url + "/region-corrections", headers=headers,
+                               json=_request(saved.json()["version"], operation="save",
+                                             sourceVersion=preview["sourceVersion"],
+                                             targetVersion=preview["targetVersion"], regionId=preview["regionId"]))
+        assert response.status_code == 409
+        with session_factory(client.app.state.settings)() as database:
+            assert database.query(ComparisonRegionCorrection).count() == 1
+
+
+def test_region_calibration_normalizes_declared_units_and_missing_units_is_uncalibrated():
+    from wsi_viewer.alignment_regions import _calibration
+    assert _calibration({"physicalSizeX": 500, "physicalSizeY": 1000,
+                         "physicalSizeUnit": "UnitsLength.NANOMETER"}).tolist() == [.5, 1]
+    assert _calibration({"physicalSizeX": .25, "physicalSizeY": .25}) is None
+    assert _calibration({"physicalSizeX": .25, "physicalSizeY": .25,
+                         "physicalSizeUnit": "pixel"}) is None
 
 
 @pytest.mark.parametrize("endpoint", ["", "/members"])
@@ -450,7 +494,7 @@ def test_one_point_scale_uses_both_axes_or_truthful_pixel_identity(tmp_path: Pat
         with session_factory(client.app.state.settings)() as database:
             metadata = {"width": 1000, "height": 800}
             if calibrated:
-                metadata.update(physicalSizeX=0.5, physicalSizeY=0.125)
+                metadata.update(physicalSizeX=0.5, physicalSizeY=0.125, physicalSizeUnit="um")
             database.get(Slide, "slide-2").slide_metadata = metadata
             database.commit()
         headers = _headers(client)

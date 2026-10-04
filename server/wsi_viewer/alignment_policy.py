@@ -1,10 +1,14 @@
 """Compatibility checks shared by serving and selecting registration revisions."""
 
+import math
 from copy import deepcopy
 from typing import Any
 
+from .alignment import AlignmentRejected
+from .alignment_calibration import metadata_frame_digest, normalized_microns_per_pixel
 from .alignment_engines import ENGINE_VERSIONS, settings_digest
 from .alignment_fast import PREPARATION_VERSION
+from .alignment_geometry import validate_sampling_geometry
 
 VALIDATION_POLICY = "distributed-support-v2"
 
@@ -15,6 +19,50 @@ def case_ids_conflict(source: str | None, anchor: str | None) -> bool:
     return bool(source_id and anchor_id and source_id != anchor_id)
 
 
+def registration_frame_current(
+    value: dict[str, Any],
+    *,
+    source_metadata: dict[str, Any] | None = None,
+    anchor_metadata: dict[str, Any] | None = None,
+) -> bool:
+    settings = value.get("engineSettings") or {}
+    if not isinstance(settings, dict):
+        return False
+    for side, token, metadata in (
+        ("moving", "sourceFrameVersion", source_metadata),
+        ("reference", "anchorFrameVersion", anchor_metadata),
+    ):
+        if metadata is None:
+            continue
+        if token in value and value[token] != metadata_frame_digest(metadata):
+            return False
+        try:
+            if f"{side}Geometry" in settings:
+                validate_sampling_geometry(
+                    settings[f"{side}Geometry"],
+                    source_size=(int(metadata["width"]), int(metadata["height"])),
+                )
+            if f"{side}MicronsPerPixel" in settings:
+                recorded = settings[f"{side}MicronsPerPixel"]
+                current = normalized_microns_per_pixel(metadata)
+                if current is None:
+                    if recorded is not None:
+                        return False
+                elif (
+                    not isinstance(recorded, (list, tuple))
+                    or len(recorded) != 2
+                    or any(type(v) not in (int, float) for v in recorded)
+                    or not all(
+                        math.isclose(v, actual, rel_tol=0, abs_tol=1e-8)
+                        for v, actual in zip(recorded, current, strict=True)
+                    )
+                ):
+                    return False
+        except (AlignmentRejected, KeyError, TypeError, ValueError, OverflowError):
+            return False
+    return True
+
+
 def current_registration(
     value: dict[str, Any] | None,
     *,
@@ -22,6 +70,9 @@ def current_registration(
     anchor_version: str | None = None,
     source_case_id: str | None = None,
     anchor_case_id: str | None = None,
+    source_metadata: dict[str, Any] | None = None,
+    anchor_metadata: dict[str, Any] | None = None,
+    input_frame_current: bool = True,
 ) -> dict[str, Any] | None:
     if not value:
         return value
@@ -42,6 +93,9 @@ def current_registration(
         and value.get("sourceVersion") not in {None, source_version}
         or anchor_version is not None
         and value.get("anchorVersion") not in {None, anchor_version}
+    )
+    incompatible_source |= not input_frame_current or not registration_frame_current(
+        value, source_metadata=source_metadata, anchor_metadata=anchor_metadata
     )
     if str(value.get("provenance", "")).startswith(("manual", "automatic")):
         incompatible_source |= (
@@ -80,6 +134,8 @@ def current_registration(
                 fallback,
                 source_version=value.get("sourceVersion"),
                 anchor_version=value.get("anchorVersion"),
+                source_metadata=source_metadata,
+                anchor_metadata=anchor_metadata,
             )
             if (
                 not compatible

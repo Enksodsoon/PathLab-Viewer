@@ -62,6 +62,7 @@ def _client(
                         "height": 800,
                         "physicalSizeX": 0.25,
                         "physicalSizeY": 0.25,
+                        "physicalSizeUnit": "um",
                     },
                 )
             )

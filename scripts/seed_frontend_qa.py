@@ -81,6 +81,7 @@ def seed_alignment(settings: Settings) -> None:
                         "height": 480,
                         "physicalSizeX": 0.5,
                         "physicalSizeY": 0.5,
+                        "physicalSizeUnit": "um",
                     },
                     organ_site="Synthetic",
                     stain="QA",
