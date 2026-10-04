@@ -68,16 +68,16 @@ ENGINE_VERSIONS = {
 }
 ADAPTER_VERSIONS = {
     ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
-    ENGINE_NATIVE_OVERVIEW: "pathlab-adapter-v1-native-prepared-overview",
-    ENGINE_HISALIGN: "pathlab-adapter-v5-declared-tissue-crop-support",
-    ENGINE_VALIS: "pathlab-adapter-v16-declared-tissue-crop-support",
-    ENGINE_WSIREG: "pathlab-adapter-v3-declared-tissue-crop-support",
-    ENGINE_DHR_CLASSICAL: "pathlab-adapter-v2-declared-tissue-crop-support",
-    ENGINE_DHR_LEARNED: "pathlab-adapter-v2-declared-tissue-crop-support",
+    ENGINE_NATIVE_OVERVIEW: "pathlab-adapter-v3-per-axis-original-frame-support",
+    ENGINE_HISALIGN: "pathlab-adapter-v6-explicit-sampling-frame",
+    ENGINE_VALIS: "pathlab-adapter-v18-explicit-sampling-and-admitted-resources",
+    ENGINE_WSIREG: "pathlab-adapter-v5-explicit-frame-upstream-owner-release",
+    ENGINE_DHR_CLASSICAL: "pathlab-adapter-v3-explicit-sampling-frame",
+    ENGINE_DHR_LEARNED: "pathlab-adapter-v3-explicit-sampling-frame",
 }
 for _recipe, _stages in RECIPE_STAGES.items():
     ENGINE_VERSIONS[_recipe] = "+".join(ENGINE_VERSIONS[stage] for stage in _stages)
-    ADAPTER_VERSIONS[_recipe] = "pathlab-recipe-v4-initializer-provenance:" + "+".join(
+    ADAPTER_VERSIONS[_recipe] = "pathlab-recipe-v5-effective-stage-provenance:" + "+".join(
         ADAPTER_VERSIONS[stage] for stage in _stages
     )
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
@@ -148,8 +148,36 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def configured_engine_resources(config: Any, name: str) -> dict[str, Any]:
+    canonical = ENGINE_ALIASES.get(name, name)
+    if canonical != ENGINE_VALIS and ENGINE_VALIS not in RECIPE_STAGES.get(canonical, ()):
+        return {}
+    result = {}
+    for asset, field in (("Disk", "disk"), ("LightGlue", "lightglue")):
+        for suffix, config_suffix in (("Path", "path"), ("Sha256", "sha256")):
+            value = getattr(config, f"alignment_valis_{field}_weights_{config_suffix}", None)
+            if value is not None:
+                result[f"valis{asset}Weights{suffix}"] = str(value)
+    return result
+
+
 def engine_resource_availability(name: str, settings: dict[str, Any]) -> tuple[bool, str | None]:
     """Check optional immutable research assets without importing models."""
+    canonical = ENGINE_ALIASES.get(name, name)
+    if canonical in RECIPE_STAGES:
+        for stage in RECIPE_STAGES[canonical]:
+            available, reason = engine_resource_availability(
+                stage, {**settings, **settings.get("stages", {}).get(stage, {})}
+            )
+            if not available:
+                return available, reason
+    if canonical == ENGINE_VALIS:
+        from .alignment_resources import EngineResourceUnavailable, verified_valis_resources
+
+        try:
+            verified_valis_resources(settings)
+        except (EngineResourceUnavailable, OSError):
+            return False, "verified-valis-weights-unavailable"
     if ENGINE_ALIASES.get(name, name) == ENGINE_DHR_LEARNED:
         for key in ("superpoint", "superglue"):
             path = Path(str(settings.get(f"{key}WeightsPath", "")))
@@ -441,6 +469,7 @@ class NativeEngine:
         payload = result.as_json()
         payload["engine"] = self.name
         payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["engineSettings"] = inputs.settings or {}
         return EngineRun(payload, None, None, time.monotonic() - started)
 
 
@@ -690,6 +719,7 @@ class HisAlignEngine:
             )
         payload["engine"] = self.name
         payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["engineSettings"] = inputs.settings or {}
         payload["evidence"] = {
             **payload.get("evidence", {}),
             "rigidInitializer": initializer,
@@ -869,6 +899,12 @@ class ValisEngine:
         return True, None
 
     def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
+        from .alignment_resources import admitted_valis_resources
+
+        with admitted_valis_resources(inputs.settings or {}):
+            return self._register_admitted(inputs, progress)
+
+    def _register_admitted(self, inputs: EngineInput, progress: Progress) -> EngineRun:
         available, reason = self.available()
         if not available:
             raise AlignmentRejected(reason or "VALIS is unavailable")
@@ -950,7 +986,7 @@ class ValisEngine:
                 del registrar
                 gc.collect()
                 progress({"stage": "valis-input-blur-fallback", "progress": 35})
-                retry = self.register(
+                retry = self._register_admitted(
                     replace(
                         inputs,
                         workspace=inputs.workspace / "input-blur-fallback",
@@ -1140,6 +1176,7 @@ class ValisEngine:
             )
         payload["engine"] = self.name
         payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["engineSettings"] = inputs.settings or {}
         payload["evidence"] = {
             **payload.get("evidence", {}),
             "adapterVersion": ADAPTER_VERSIONS[self.name],
@@ -1229,6 +1266,13 @@ def run_engine(
     settings: dict[str, Any] | None = None,
     progress: Progress = lambda _values: None,
 ) -> EngineRun:
+    from .alignment_geometry import original_frame_registration, validate_input_geometry
+
+    validate_input_geometry(
+        settings or {},
+        {"reference": reference.size, "moving": moving.size},
+        {"reference": reference_full_size, "moving": moving_full_size},
+    )
     root = workspace_root or Path(tempfile.gettempdir())
     with tempfile.TemporaryDirectory(prefix=f"pathlab-{name}-", dir=root) as temporary:
         run: EngineRun | None = None
@@ -1252,6 +1296,17 @@ def run_engine(
                     artifact_dir,
                     run.registration.get("initializerArtifact") if run is not None else None,
                 )
+        effective_settings = run.registration.get("engineSettings", settings or {})
+        registration = original_frame_registration(
+            {**run.registration, "engineSettings": effective_settings}, effective_settings
+        )
+        if registration is not run.registration:
+            run = replace(run, registration=registration)
+            if run.artifact_path is not None:
+                run.artifact_path.write_text(
+                    json.dumps(registration, sort_keys=True), encoding="utf-8"
+                )
+                run = replace(run, artifact_sha256=_hash_file(run.artifact_path))
         if run.artifact_path is None or artifact_dir is None:
             return run
         artifact_dir.mkdir(parents=True, exist_ok=True)

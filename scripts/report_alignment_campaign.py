@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 from wsi_viewer.alignment import AlignmentRejected, map_registration_point
-from wsi_viewer.alignment_benchmark import _pair_settings
+from wsi_viewer.alignment_benchmark import _pair_settings, _safe_resource_metrics
 from wsi_viewer.alignment_engines import (
     ENGINE_ALIASES,
     INITIALIZER_ARTIFACT_NAME,
@@ -321,6 +321,8 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
         receipt = json.loads((root / "cache" / f"{row['digest']}.json").read_text())
         registration = receipt.get("registration", {})
         evidence = registration.get("evidence", {})
+        resources = _safe_resource_metrics(receipt.get("resourceMetrics", {}))
+        row_memory_scope = resources.get("memoryMeasurementScope", memory_scope)
         stages = [public_stage(stage) for stage in registration.get("recipeStages", [])]
         review = independent_reviews.get((row["recipe"], row["pairIndex"], row["digest"]), {})
         public_rows.append(
@@ -359,12 +361,18 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
                         "mapReviewStatus": "unavailable / repeat map not persisted"
                         if r["outcome"] == "ok"
                         else "no-accepted-map",
-                        "peakMemoryMeasurementScope": memory_scope,
+                        "resourceMetrics": _safe_resource_metrics(r.get("resourceMetrics", {})),
+                        "peakMemoryMeasurementScope": r.get("resourceMetrics", {}).get(
+                            "memoryMeasurementScope", row_memory_scope
+                        ),
+                        "effectiveSettingsDigest": r.get("effectiveSettingsDigest"),
                     }
                     for i, r in enumerate(row.get("repeatComputeReceipts", []))
                 ],
                 "registrationStatus": registration.get("status"),
-                "peakMemoryMeasurementScope": memory_scope,
+                "peakMemoryMeasurementScope": row_memory_scope,
+                "resourceMetrics": resources,
+                "effectiveSettingsDigest": receipt.get("effectiveSettingsDigest"),
                 "requestedSettingsDigest": receipt.get("settingsDigest"),
                 "engineBuild": receipt.get("engineBuild"),
                 "runtimeVersions": receipt.get("runtimeVersions"),
@@ -409,6 +417,12 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
         repeats = [r for row in rows for r in row["repeatComputeReceipts"]]
         repeat_times = [r["runtimeSeconds"] for r in repeats if r["runtimeSeconds"] is not None]
         repeat_memory = [r["peakMemoryBytes"] for r in repeats if r["peakMemoryBytes"] is not None]
+        committed = [
+            r["resourceMetrics"]["peakCommittedMemoryBytes"]
+            for r in rows
+            if "peakCommittedMemoryBytes" in r["resourceMetrics"]
+        ]
+        measured_scopes = sorted({r["peakMemoryMeasurementScope"] for r in rows})
         recipes[recipe] = {
             **{k: original.get(k) for k in METRICS},
             "outcomes": dict(Counter(r["outcome"] for r in rows)),
@@ -433,7 +447,13 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
             "peakMemoryMedianBytes": percentile(memory, 50),
             "peakMemoryP95Bytes": percentile(memory, 95),
             "peakMemoryMeasuredPairs": len(memory),
-            "peakMemoryMeasurementScope": memory_scope,
+            "peakMemoryMeasurementScope": measured_scopes[0]
+            if len(measured_scopes) == 1
+            else ("mixed-scopes" if measured_scopes else memory_scope),
+            "peakMemoryMeasurementScopes": measured_scopes,
+            "peakCommittedMemoryMedianBytes": percentile(committed, 50),
+            "peakCommittedMemoryP95Bytes": percentile(committed, 95),
+            "peakCommittedMemoryMeasuredPairs": len(committed),
             "freshRepeatPeakMemoryMedianBytes": percentile(repeat_memory, 50),
             "freshRepeatPeakMemoryP95Bytes": percentile(repeat_memory, 95),
             "queueLatencySeconds": None,

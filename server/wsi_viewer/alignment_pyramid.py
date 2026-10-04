@@ -915,8 +915,10 @@ def read_region(
             )
             tile_path = path / relative_tile
             if not tile_path.is_file() and (path / ".openslide-source.json").is_file():
+                from .alignment_inputs import require_snapshot_tile_capacity
                 from .tile_routes import materialize_local_openslide_tile_from_root
 
+                require_snapshot_tile_capacity(path)
                 tile_path = materialize_local_openslide_tile_from_root(
                     path, path.name, relative_tile.as_posix()
                 )
@@ -1126,7 +1128,10 @@ def refine_supported_patches(
                 points: list[dict[str, Any]] = []
                 try:
                     patch = register_pair(
-                        reference, moving, max_dimension=1024, feature_only=True,
+                        reference,
+                        moving,
+                        max_dimension=1024,
+                        feature_only=True,
                         sampling_ratio=ms / rs,
                     )
                     if patch.status == "ready" and patch.triangles:
@@ -1548,7 +1553,10 @@ def register_components(
                     record = None
                     try:
                         result = register_pair(
-                            reference, moving, max_dimension=4096, feature_only=True,
+                            reference,
+                            moving,
+                            max_dimension=4096,
+                            feature_only=True,
                             sampling_ratio=moving_frame[2] / reference_frame[2],
                         )
                         record = asdict(result)

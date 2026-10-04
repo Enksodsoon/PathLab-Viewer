@@ -7,6 +7,7 @@ import importlib
 import importlib.metadata
 import json
 import time
+import traceback
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
@@ -29,6 +30,7 @@ from .alignment_engines import (
     _mark_approximate_engine_map,
     _sample_coordinate_map,
 )
+from .alignment_resources import EngineResourceUnavailable
 
 
 def _available(packages: tuple[str, ...]) -> tuple[bool, str | None]:
@@ -102,6 +104,29 @@ def wsireg_pull_transform(tforms: list[dict[str, Any]]) -> Any:
         transform_seq_idx=[0] * len(tforms),
     )
     return sequence.composite_transform
+
+
+def _call_wsireg_registration(
+    registration: Any, moving: Any, reference: Any, maps: Any, output: Path
+) -> Any:
+    """Release completed upstream filter frames before strict workspace cleanup.
+
+    wsireg 0.3.10 leaves its elastix filter in an exception traceback when ITK
+    raises. On Windows that filter owns an open iteration log. Project only
+    diagnostic strings, then clear completed frames so cleanup cannot replace
+    the actual registration failure with a sharing violation.
+    """
+    try:
+        return registration.register_2d_images_itkelx(
+            moving, reference, maps, output, return_image=False
+        )
+    except Exception as error:
+        error_type = type(error).__name__
+        detail = str(error)[:16384]
+        traceback.clear_frames(error.__traceback__)
+        raise AlignmentRejected(
+            f"wsireg upstream registration failed ({error_type}): {detail}"
+        ) from None
 
 
 def invert_coordinate_pull(
@@ -217,12 +242,12 @@ class WsiregEngine:
                 str(min(512, int(settings.get("iterations", 256))))
             ]
             params["NumberOfThreads"] = ["1"]
-        tforms = registration.register_2d_images_itkelx(
+        tforms = _call_wsireg_registration(
+            registration,
             upstream_image(moving, calibration[1]),
             upstream_image(reference, calibration[0]),
             maps,
             output,
-            return_image=False,
         )
         pull = wsireg_pull_transform(tforms)
 
@@ -309,7 +334,7 @@ class DeeperHistRegEngine:
                 path = Path(str(settings.get(f"{key}WeightsPath", "")))
                 digest = settings.get(f"{key}WeightsSha256")
                 if not path.is_file() or not digest or _hash_file(path) != digest:
-                    raise AlignmentRejected(
+                    raise EngineResourceUnavailable(
                         f"DeeperHistReg learned unavailable: verified {key} "
                         "research weights required"
                     )

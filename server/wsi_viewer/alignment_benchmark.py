@@ -26,9 +26,46 @@ from .alignment_engines import (
     settings_digest,
 )
 from .alignment_evaluation import evaluate_landmarks
+from .alignment_resources import EngineResourceUnavailable
 from .worker import _load_alignment_overview, _run_alignment_bounded
 
 BENCHMARK_VERSION = "pathlab-alignment-benchmark/1"
+
+
+def _safe_resource_metrics(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    result = {}
+    for key in (
+        "peakMemoryBytes",
+        "peakCommittedMemoryBytes",
+        "committedMemoryLimitBytes",
+        "kernelReportedPeakJobMemoryBytes",
+        "currentPrivateCommittedMemoryBytes",
+        "sampledPeakPrivateCommittedMemoryBytes",
+        "peakContainedProcesses",
+    ):
+        measured = value.get(key)
+        if (
+            isinstance(measured, (int, float))
+            and not isinstance(measured, bool)
+            and np.isfinite(measured)
+            and measured >= 0
+        ):
+            result[key] = measured
+    for key, allowed in {
+        "memoryMeasurementScope": {
+            "windows-job-sampled-working-set",
+            "root_process_sampled_working_set",
+            "linux-process-tree-sampled-rss",
+            "linux-owned-session-sampled-rss",
+        },
+        "processContainment": {"windows-job-object", "linux-process-group", "linux-owned-session"},
+        "committedMemoryMeasurementScope": {"windows-job-kernel-reported-high-water"},
+    }.items():
+        if value.get(key) in allowed:
+            result[key] = value[key]
+    return result
 
 
 def _progress_recorder(
@@ -151,6 +188,13 @@ def validate_manifest(manifest: dict[str, Any], *, screening: bool = False) -> N
 
 def _input_digest(slide: dict[str, Any]) -> str:
     root = Path(slide["path"])
+    from .alignment_inputs import DESCRIPTOR_NAME, immutable_descriptor
+
+    if (root / DESCRIPTOR_NAME).exists():
+        descriptor = immutable_descriptor(root, source_size=tuple(slide["size"]))
+        return hashlib.sha256(
+            json.dumps(descriptor, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
     digest = hashlib.sha256()
     # Hash actual registered pixels and geometry, not a user-entered file identity.
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
@@ -163,11 +207,15 @@ def _input_digest(slide: dict[str, Any]) -> str:
 
 
 def _runtime_versions() -> dict[str, str]:
+    import cv2
+
     result = {}
     for package in (
         "numpy",
         "opencv-python-headless",
         "opencv-python",
+        "opencv-contrib-python-headless",
+        "opencv-contrib-python",
         "Pillow",
         "wsireg",
         "itk-elastix",
@@ -178,6 +226,7 @@ def _runtime_versions() -> dict[str, str]:
     ):
         with suppress(importlib.metadata.PackageNotFoundError):
             result[package] = importlib.metadata.version(package)
+    result["loaded-cv2"] = cv2.__version__
     return result
 
 
@@ -469,6 +518,7 @@ def run_benchmark(
                 stage_events: list[dict[str, Any]] = []
                 outcome = "ok"
                 reason_code = None
+                resource_metrics: dict[str, Any] = {}
                 if not availability.get(recipe, {}).get("available") or not resources_available:
                     outcome = "unavailable"
                     reason_code = resource_reason or "optional-runtime-unavailable"
@@ -497,7 +547,14 @@ def run_benchmark(
                                     or "registration returned unsupported status"
                                 ),
                             )
+                    except EngineResourceUnavailable as error:
+                        outcome = "unavailable"
+                        reason_code = "verified-engine-resource-unavailable"
+                        _private_diagnostic(output, key, type(error).__name__, str(error))
                     except AlignmentRejected as error:
+                        resource_metrics = _safe_resource_metrics(
+                            getattr(error, "resource_metrics", {})
+                        )
                         outcome = "rejected"
                         reason_code = "registration-or-resource-gate-rejected"
                         _private_diagnostic(output, key, type(error).__name__, str(error))
@@ -506,6 +563,8 @@ def run_benchmark(
                         reason_code = type(error).__name__
                         _private_diagnostic(output, key, type(error).__name__, str(error))
                 # Paths and upstream error messages can contain private slide identities.
+                effective_settings = registration.get("engineSettings")
+                resource_metrics.update(_safe_resource_metrics(registration))
                 registration = {
                     k: v
                     for k, v in registration.items()
@@ -525,6 +584,12 @@ def run_benchmark(
                     else None,
                     "stageTimings": stage_events,
                     "settingsDigest": settings_digest(recipe, settings),
+                    "requestedSettingsDigest": settings_digest(recipe, settings),
+                    "effectiveSettings": effective_settings,
+                    "effectiveSettingsDigest": settings_digest(recipe, effective_settings)
+                    if isinstance(effective_settings, dict)
+                    else None,
+                    "resourceMetrics": resource_metrics,
                     "inputDigests": inputs,
                     "engineBuild": ENGINE_VERSIONS[recipe],
                     "runtimeVersions": _runtime_versions(),
@@ -534,10 +599,13 @@ def run_benchmark(
                 temporary.replace(cache)
             repeats = list(receipt.get("repeatComputeReceipts", []))
             for _repeat in range(len(repeats), repeat_runs):
+                if receipt["outcome"] == "unavailable":
+                    break
                 if not availability.get(recipe, {}).get("available") or not resources_available:
                     break
                 repeat_started = time.monotonic()
                 repeat_payload: dict[str, Any] = {}
+                repeat_resources: dict[str, Any] = {}
                 repeat_outcome = "ok"
                 try:
                     repeat_payload = _run_alignment_bounded(
@@ -563,7 +631,15 @@ def run_benchmark(
                             ),
                             attempt=f"repeat-{_repeat}",
                         )
+                except EngineResourceUnavailable as error:
+                    repeat_outcome = "unavailable"
+                    _private_diagnostic(
+                        output, key, type(error).__name__, str(error), attempt=f"repeat-{_repeat}"
+                    )
                 except AlignmentRejected as error:
+                    repeat_resources = _safe_resource_metrics(
+                        getattr(error, "resource_metrics", {})
+                    )
                     repeat_outcome = "rejected"
                     _private_diagnostic(
                         output, key, type(error).__name__, str(error), attempt=f"repeat-{_repeat}"
@@ -577,7 +653,18 @@ def run_benchmark(
                     {
                         "runtimeSeconds": time.monotonic() - repeat_started,
                         "outcome": repeat_outcome,
-                        "peakMemoryBytes": repeat_payload.get("peakMemoryBytes"),
+                        "peakMemoryBytes": repeat_payload.get(
+                            "peakMemoryBytes", repeat_resources.get("peakMemoryBytes")
+                        ),
+                        "resourceMetrics": {
+                            **repeat_resources,
+                            **_safe_resource_metrics(repeat_payload),
+                        },
+                        "effectiveSettingsDigest": settings_digest(
+                            recipe, repeat_payload["engineSettings"]
+                        )
+                        if isinstance(repeat_payload.get("engineSettings"), dict)
+                        else None,
                         "timingScope": "fresh-supervised-child-repeat-host-filesystem-cache",
                     }
                 )
@@ -596,7 +683,9 @@ def run_benchmark(
                 review = {}
             row = {
                 **receipt,
-                "peakMemoryBytes": receipt.get("registration", {}).get("peakMemoryBytes"),
+                "peakMemoryBytes": receipt.get("registration", {}).get(
+                    "peakMemoryBytes", receipt.get("resourceMetrics", {}).get("peakMemoryBytes")
+                ),
                 "cached": cached,
                 "pairIndex": pair_index,
                 "kind": pair["kind"],
@@ -636,7 +725,12 @@ def run_benchmark(
         "screening": screening,
         **aggregate_results(rows),
         "rows": [
-            {k: v for k, v in row.items() if k not in {"landmarks", "registration"}} for row in rows
+            {
+                k: v
+                for k, v in row.items()
+                if k not in {"landmarks", "registration", "effectiveSettings"}
+            }
+            for row in rows
         ],
     }
     (output / "report.json").write_text(

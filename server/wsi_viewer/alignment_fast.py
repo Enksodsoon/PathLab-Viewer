@@ -469,8 +469,11 @@ def _register_prepared(
         result.control_points,
         moving_mask=moving.mask,
         reference_mask=reference.mask,
-        moving_scale=moving.mask.shape[1] / moving.full_size[0],
-        reference_scale=width / reference.full_size[0],
+        moving_scale=(
+            moving.mask.shape[1] / moving.full_size[0],
+            moving.mask.shape[0] / moving.full_size[1],
+        ),
+        reference_scale=(width / reference.full_size[0], height / reference.full_size[1]),
     )
     if not cells:
         raise AlignmentRejected("Needs refinement: no supported overview cells")

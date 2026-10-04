@@ -6,6 +6,35 @@ from wsi_viewer import alignment
 from wsi_viewer.worker import _registration_quality
 
 
+def test_anisotropic_sampled_frame_preserves_nonuniform_mask_cell_support():
+    from dataclasses import replace
+
+    from wsi_viewer.alignment_fast import PreparationCache, _register_prepared
+
+    image = Image.new("RGB", (512, 256), "white")
+    drawing = ImageDraw.Draw(image)
+    drawing.rectangle((40, 70, 470, 190), fill=(190, 120, 155))
+    rng = np.random.default_rng(842)
+    for x, y in rng.integers([60, 85], [450, 175], (400, 2)):
+        drawing.ellipse((int(x), int(y), int(x + 3), int(y + 3)), fill=(45, 25, 80))
+    prepared, _ = PreparationCache().prepare("axis-test", image, (4096, 2048))
+    isotropic = _register_prepared(prepared, prepared, sigma=3)
+    anisotropic = replace(prepared, full_size=(4096, 4096))
+    result = _register_prepared(anisotropic, anisotropic, sigma=3)
+    assert len(result.overview_triangles) == len(isotropic.overview_triangles)
+    actual = sorted(
+        {tuple(point) for cell in result.overview_triangles for point in cell["moving"]}
+    )
+    expected = sorted(
+        {
+            (point[0], point[1] * 2)
+            for cell in isotropic.overview_triangles
+            for point in cell["moving"]
+        }
+    )
+    assert np.allclose(actual, expected)
+
+
 def test_partial_coarse_component_recovers_unique_feature_region_without_full_outline():
     from wsi_viewer.alignment_fast import PreparationCache, register_prepared
 

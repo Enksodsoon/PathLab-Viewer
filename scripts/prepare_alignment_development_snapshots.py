@@ -1,0 +1,447 @@
+"""Capture read-only requests and immutable workspace pixels for operational regression."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib
+import itertools
+import json
+import math
+import os
+import re
+import shutil
+import sqlite3
+import time
+import xml.etree.ElementTree as ET
+from contextlib import closing
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from wsi_viewer.alignment_calibration import metadata_frame_digest, normalized_microns_per_pixel
+from wsi_viewer.alignment_inputs import immutable_descriptor, pixel_digest
+
+
+def _digest(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _hash_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _copy_verified(source: Path, target: Path) -> str:
+    if source.is_symlink() or not source.is_file():
+        raise ValueError("source copy requires a regular local file")
+    before = source.stat()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256()
+    with source.open("rb") as incoming, target.open("xb") as outgoing:
+        for block in iter(lambda: incoming.read(1024 * 1024), b""):
+            outgoing.write(block)
+            digest.update(block)
+    after = source.stat()
+    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+        after.st_size,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    ) or _hash_file(target) != digest.hexdigest():
+        raise ValueError("source changed during verified workspace copy")
+    return digest.hexdigest()
+
+
+def capture(database: Path, output: Path) -> dict[str, Any]:
+    """SQLite backup supplies one consistent image including committed WAL rows."""
+    output.mkdir(parents=True, exist_ok=False)
+    captured = output / "capture.sqlite3"
+    with (
+        closing(sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)) as source,
+        closing(sqlite3.connect(captured)) as destination,
+    ):
+        source.backup(destination)
+    with closing(sqlite3.connect(captured)) as connection:
+        connection.row_factory = sqlite3.Row
+        slides = [
+            dict(row)
+            for row in connection.execute(
+                "SELECT id, sha256, slide_metadata, original_filename FROM slides ORDER BY id"
+            )
+        ]
+        stacks = [
+            dict(row)
+            for row in connection.execute(
+                "SELECT id, member_slide_ids FROM comparison_sets ORDER BY id"
+            )
+        ]
+    raw = [
+        {
+            "ordinal": index,
+            "stackId": stack["id"],
+            "referenceSlideId": reference,
+            "movingSlideId": moving,
+        }
+        for index, (stack, reference, moving) in enumerate(
+            (stack, reference, moving)
+            for stack in stacks
+            for reference, moving in itertools.permutations(
+                json.loads(stack["member_slide_ids"]), 2
+            )
+        )
+    ]
+    value = {
+        "schema": "pathlab-development-source-capture/1",
+        "capturedAt": datetime.now(UTC).isoformat(),
+        "databaseSha256": _hash_file(captured),
+        "slides": slides,
+        "stacks": stacks,
+        "rawOrderedRequests": raw,
+        "sourceMetadataDigest": _digest({"slides": slides, "stacks": stacks}),
+    }
+    (output / "source-capture.json").write_text(json.dumps(value, indent=2), encoding="utf-8")
+    return value
+
+
+def _source_files(
+    directory: Path, data_root: Path, slide: dict[str, Any]
+) -> tuple[Path | None, list[Path], dict[str, Any]]:
+    pointer = directory / ".openslide-source.json"
+    rendering: dict[str, Any] = {}
+    original: Path | None = None
+    if pointer.is_file():
+        rendering = json.loads(pointer.read_text(encoding="utf-8"))
+        candidate = Path(rendering["source"])
+        if candidate.is_absolute() and candidate.is_file():
+            original = candidate
+    if original is None:
+        candidate = data_root / "originals" / slide["id"] / "source.ome.tif"
+        if candidate.is_file():
+            original = candidate
+    files = [
+        path
+        for path in directory.rglob("*")
+        if path.is_file() and path.name != ".openslide-source.json"
+    ]
+    if len(files) > 100_000 or any(path.is_symlink() for path in files):
+        raise ValueError("derivative inventory exceeds bounded regular files")
+    if original is not None:
+        files = [path for path in files if path.name in {"slide.dzi", "thumbnail.jpg"}]
+    return original, sorted(files), rendering
+
+
+def _complete_pyramid(root: Path) -> bool:
+    descriptor = root / "slide.dzi"
+    if not descriptor.is_file():
+        return False
+    tree = ET.parse(descriptor).getroot()
+    size = next(node for node in tree if node.tag.rsplit("}", 1)[-1] == "Size")
+    width, height = int(size.attrib["Width"]), int(size.attrib["Height"])
+    maximum = math.ceil(math.log2(max(width, height)))
+    tile_size = int(tree.attrib["TileSize"])
+    for level in range(maximum + 1):
+        divisor = 2 ** (maximum - level)
+        for row in range(math.ceil(math.ceil(height / divisor) / tile_size)):
+            for column in range(math.ceil(math.ceil(width / divisor) / tile_size)):
+                if not (
+                    root / "slide_files" / str(level) / f"{column}_{row}.{tree.attrib['Format']}"
+                ).is_file():
+                    return False
+    return True
+
+
+def _original_calibration(
+    original: Path, expected_size: tuple[int, int]
+) -> tuple[float, float] | None:
+    openslide = importlib.import_module("openslide")
+    slide = openslide.OpenSlide(str(original))
+    try:
+        if tuple(slide.dimensions) != expected_size:
+            raise ValueError("verified original dimensions differ from captured frame")
+        return normalized_microns_per_pixel(
+            {
+                "physicalSizeX": slide.properties.get(openslide.PROPERTY_NAME_MPP_X),
+                "physicalSizeY": slide.properties.get(openslide.PROPERTY_NAME_MPP_Y),
+                "physicalSizeUnit": "um",
+            }
+        )
+    finally:
+        slide.close()
+
+
+def deduplicate(captured: dict[str, Any], sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    pairs: list[dict[str, Any]] = []
+    indices: dict[tuple[str, str], int] = {}
+    mapping = []
+    for request in captured["rawOrderedRequests"]:
+        reference, moving = (sources[request[key]] for key in ("referenceSlideId", "movingSlideId"))
+        key = (reference["contentFrameDigest"], moving["contentFrameDigest"])
+        if key[0] == key[1]:
+            mapping.append({**request, "pairIndex": None, "reason": "identical-content-self-pair"})
+            continue
+        if key not in indices:
+            indices[key] = len(pairs)
+            pairs.append(
+                {
+                    "kind": "positive",
+                    "reference": reference["manifestSide"],
+                    "moving": moving["manifestSide"],
+                    "landmarks": [],
+                    "landmarksFitFree": False,
+                    "independentlyReviewed": False,
+                    "developmentStacks": [],
+                }
+            )
+        index = indices[key]
+        pairs[index]["developmentStacks"].append(request["stackId"])
+        mapping.append({**request, "pairIndex": index})
+    return {
+        "schema": "pathlab-development-stacks/2",
+        "purpose": "ordered-pair-operational-regression-without-independent-ground-truth",
+        "qualificationEligible": False,
+        "sourceMetadataDigest": captured["sourceMetadataDigest"],
+        "requestedOrderedPairs": len(mapping),
+        "deduplicatedOrderedPairs": len(pairs),
+        "contentIdenticalSelfRequestsExcluded": sum(row["pairIndex"] is None for row in mapping),
+        "rawRequestMapping": mapping,
+        "pairs": pairs,
+        "settings": {},
+    }
+
+
+def _load_fallback_overview(root: Path, size: tuple[int, int]) -> tuple[Any, dict[str, Any]]:
+    from PIL import Image
+
+    with Image.open(root / "thumbnail.jpg") as opened:
+        image = opened.convert("RGB")
+    image.thumbnail((4096, 4096), Image.Resampling.LANCZOS)
+    return image, {
+        "schema": "pathlab-sampling-frame/1",
+        "kind": "thumbnail-fallback",
+        "sourceSize": list(size),
+        "analysisSize": list(image.size),
+        "coordinateFrameSize": list(size),
+        "samplingScale": [size[0] / image.width, size[1] / image.height],
+        "cropOrigin": [0, 0],
+    }
+
+
+def prepare(
+    database: Path,
+    data_root: Path,
+    output: Path,
+    *,
+    storage_budget_bytes: int = 24 * 1024**3,
+    tile_cache_budget_bytes: int = 8 * 1024**3,
+) -> dict[str, Any]:
+    from wsi_viewer.worker import _load_dzi_overview, _process_rss_bytes
+
+    started = time.monotonic()
+    captured = capture(database, output)
+    needed = {
+        request[key]
+        for request in captured["rawOrderedRequests"]
+        for key in ("referenceSlideId", "movingSlideId")
+    }
+    plans = []
+    for slide in captured["slides"]:
+        if slide["id"] not in needed:
+            continue
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", slide["id"]):
+            raise ValueError("invalid captured source identifier")
+        directory = data_root / "private" / slide["id"]
+        original, files, rendering = _source_files(directory, data_root, slide)
+        plans.append((slide, directory, original, files, rendering))
+    required = (
+        sum(
+            (original.stat().st_size if original else 0)
+            + sum(path.stat().st_size for path in files)
+            + 64 * 1024**2
+            for _, _, original, files, _ in plans
+        )
+        + tile_cache_budget_bytes
+    )
+    if required > storage_budget_bytes or required + 4 * 1024**3 > shutil.disk_usage(output).free:
+        raise ValueError("immutable snapshot storage preflight failed")
+    sources: dict[str, dict[str, Any]] = {}
+    preparation = []
+    for slide, directory, original, files, rendering in plans:
+        tick = time.monotonic()
+        root = output / "sources" / slide["id"]
+        root.mkdir(parents=True)
+        copied = []
+        for path in files:
+            name = path.relative_to(directory).as_posix()
+            copied.append({"name": name, "sha256": _copy_verified(path, root / name)})
+        original_info: dict[str, Any] = {
+            "verified": False,
+            "reason": "original-unavailable",
+            "databaseDeclaredSha256": slide["sha256"],
+        }
+        region: dict[str, Any] = {"available": False}
+        if original is not None:
+            name = "original" + original.suffix.lower()
+            sha = _copy_verified(original, root / name)
+            if slide["sha256"] and sha != slide["sha256"]:
+                raise ValueError("original pixels differ from captured source digest")
+            original_info = {
+                "verified": True,
+                "sha256": sha,
+                "databaseDeclaredSha256": slide["sha256"],
+            }
+            tile_size, quality = (
+                int(rendering.get("tileSize", 1024)),
+                int(rendering.get("quality", 92)),
+            )
+            if not 128 <= tile_size <= 1024 or not 1 <= quality <= 100:
+                raise ValueError("immutable regional rendering exceeds bounded tile profile")
+            (root / ".openslide-source.json").write_text(
+                json.dumps(
+                    {
+                        "source": str((root / name).resolve()),
+                        "tileSize": tile_size,
+                        "quality": quality,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            region = {
+                "available": True,
+                "kind": "openslide-original",
+                "file": name,
+                "sha256": sha,
+                "descriptorSha256": _hash_file(root / "slide.dzi"),
+                "rendering": {
+                    "tileSize": tile_size,
+                    "quality": quality,
+                    "overlap": 1,
+                    "limitBounds": False,
+                },
+                "tileCacheLimitBytes": tile_cache_budget_bytes // max(1, len(plans)),
+            }
+        elif _complete_pyramid(root):
+            region = {"available": True, "kind": "copied-dzi", "files": copied}
+        metadata = json.loads(slide["slide_metadata"])
+        size = (int(metadata["width"]), int(metadata["height"]))
+        copy_seconds = time.monotonic() - tick
+        overview_started = time.monotonic()
+        try:
+            image = _load_dzi_overview(root, maximum=4096)
+            geometry = image.info["alignmentGeometry"]
+        except (FileNotFoundError, OSError, ET.ParseError):
+            image, geometry = _load_fallback_overview(root, size)
+        pixels = pixel_digest(image)
+        geometry = {**geometry, "kind": "immutable-overview", "snapshotPixelSha256": pixels}
+        image.save(root / "overview.png", "PNG")
+        mpp = normalized_microns_per_pixel(metadata)
+        original_mpp = (
+            _original_calibration(root / region["file"], size)
+            if original_info["verified"]
+            else None
+        )
+        calibration_source = (
+            "captured-normalized-metadata" if mpp else "uncalibrated-missing-or-unknown-unit"
+        )
+        if mpp is None and original_mpp is not None:
+            mpp = original_mpp
+            calibration_source = "verified-original-openslide-mpp-properties"
+        descriptor = {
+            "schema": "pathlab-immutable-overview/1",
+            "image": "overview.png",
+            "imageSha256": _hash_file(root / "overview.png"),
+            "pixelSha256": pixels,
+            "geometry": geometry,
+            "regionSource": region,
+            "originalSource": original_info,
+            "calibration": {
+                "micronsPerPixel": list(mpp) if mpp else None,
+                "source": calibration_source,
+                "verifiedOriginalMicronsPerPixel": list(original_mpp) if original_mpp else None,
+                "metadataFrameDigest": metadata_frame_digest(metadata),
+                "rawMetadata": metadata,
+            },
+            "tissueCrop": False,
+            "inputScope": "immutable-wsi-regional-source"
+            if region["available"]
+            else "immutable-overview-regional-source-unavailable",
+        }
+        (root / "immutable-overview.json").write_text(
+            json.dumps(descriptor, indent=2), encoding="utf-8"
+        )
+        immutable_descriptor(root, source_size=size)
+        side = {"path": str(root.resolve()), "size": list(size), "tissueCrop": False}
+        if mpp:
+            side["micronsPerPixel"] = list(mpp)
+        semantic = {
+            "pixels": pixels,
+            "geometry": geometry,
+            "calibration": list(mpp) if mpp else None,
+            "tissueCrop": False,
+            "regional": region,
+        }
+        sources[slide["id"]] = {
+            "manifestSide": side,
+            "contentFrameDigest": _digest(semantic),
+            "descriptorDigest": _digest(descriptor),
+        }
+        preparation.append(
+            {
+                "sourceOrdinal": len(preparation),
+                "copyAndHashSeconds": copy_seconds,
+                "overviewAndVerificationSeconds": time.monotonic() - overview_started,
+                "originalVerified": original_info["verified"],
+                "regionalSourceAvailable": region["available"],
+                "workerLifetimePeakRssBytes": _process_rss_bytes(os.getpid(), peak=True),
+                "memoryMeasurementScope": "snapshot-preparation-process-lifetime-high-water",
+            }
+        )
+        print(
+            json.dumps({"preparedSources": len(sources), "plannedSources": len(plans)}), flush=True
+        )
+    manifest = deduplicate(captured, sources)
+    (output / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (output / "source-bindings.json").write_text(json.dumps(sources, indent=2), encoding="utf-8")
+    receipt = {
+        "sourceMetadataDigest": captured["sourceMetadataDigest"],
+        "sourceCount": len(sources),
+        "originalVerifiedCount": sum(row["originalVerified"] for row in preparation),
+        "missingOriginalCount": sum(not row["originalVerified"] for row in preparation),
+        "manifestSha256": _hash_file(output / "manifest.json"),
+        "wallSeconds": time.monotonic() - started,
+        "storagePreflightBytes": required,
+        "preparation": preparation,
+    }
+    (output / "preparation-receipt.json").write_text(
+        json.dumps(receipt, indent=2), encoding="utf-8"
+    )
+    return receipt
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--database", type=Path, required=True)
+    parser.add_argument("--data-root", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--storage-budget-bytes", type=int, default=24 * 1024**3)
+    parser.add_argument("--tile-cache-budget-bytes", type=int, default=8 * 1024**3)
+    args = parser.parse_args()
+    print(
+        json.dumps(
+            prepare(
+                args.database,
+                args.data_root,
+                args.output,
+                storage_budget_bytes=args.storage_budget_bytes,
+                tile_cache_budget_bytes=args.tile_cache_budget_bytes,
+            )
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

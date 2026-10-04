@@ -7,7 +7,7 @@ valid. `native` and `native-overview` resolve to `native-overview-v6`: bounded
 1024-pixel preparation, 1536 ORB features and conservative component matching.
 The legacy `native-v12` high-resolution engine keeps its prior version and
 settings identity. Optional absence is reported; another algorithm is never substituted.
-`ALIGNMENT_WSIREG_ENABLED` and `ALIGNMENT_DEEPERHISTREG_ENABLED` default false.
+`PATHLAB_ALIGNMENT_WSIREG_ENABLED` and `PATHLAB_ALIGNMENT_DEEPERHISTREG_ENABLED` default false.
 
 wsireg uses its genuine upstream elastix helper and rigid/affine parameter maps,
 with pinned wsireg 0.3.10 and itk-elastix 0.25.4. Its default remains rigid/affine.
@@ -31,7 +31,7 @@ warped reference frame into the original reference. Final triangles and controls
 are composed back into original moving coordinates. Stage receipts include
 versions, settings digests, timing, image scales, crop origins and calibration.
 Moving calibration becomes reference calibration for the residual stage.
-Hybrid adapter v4 preserves one private original-frame initializer map sidecar,
+Hybrid adapter v5 preserves one private original-frame initializer map sidecar,
 `initializer-coordinate-map.json`, capped at 16 MiB. Final receipts expose its
 fixed basename and SHA256 only. The sidecar is copied before temporary workspace
 cleanup, including when a later residual stage rejects. Initializer engine-output
@@ -42,7 +42,7 @@ actually applied affine projection. Residual-frame maps are never directly
 scored as original-frame maps.
 VALIS rigid initialization disables its nonrigid registrar. Pinned VALIS's
 rigid-only constructor omits `non_rigid_reg_kwargs`, although successful
-`register()` cleanup accesses it unconditionally. The v15 compatibility shim, retained in crop-aware adapter v16, initializes an
+`register()` cleanup accesses it unconditionally. The v15 compatibility shim, retained in explicit-frame/resource adapter v18, initializes an
 empty dict only for rigid-only registration when the attribute is absent,
 preserving existing options and measured error evidence. Every recipe shares
 one 600-second process-tree deadline, one CPU thread and the existing 7-GiB
@@ -149,3 +149,22 @@ Private `diagnostics/<receipt-digest>.json` files retain upstream exception type
 and messages for cold/repeat failures. Cached failures recorded before this
 feature cannot recover discarded messages; rerun them with `--no-resume` to
 obtain diagnostics. Public reports retain sanitized reason categories only.
+
+
+Future VALIS runs require both `valisDiskWeightsPath`/`valisDiskWeightsSha256` and
+`valisLightGlueWeightsPath`/`valisLightGlueWeightsSha256`. Service configuration
+uses `PATHLAB_ALIGNMENT_VALIS_DISK_WEIGHTS_PATH`/`_SHA256` and
+`PATHLAB_ALIGNMENT_VALIS_LIGHTGLUE_WEIGHTS_PATH`/`_SHA256`. Verified child-local
+loading blocks unadmitted URLs before upstream models load. API responses omit
+local resource paths while preserving hashes. The resource ledger separates
+permissive license eligibility from registration qualification; unresolved HIS
+license provenance and noncommercial DHR research assets stay outside production
+images.
+
+Requested settings retain stable queue/resume identity. Effective settings bind
+exact per-axis sampling, true source bounds, crop origins, calibration and stage
+versions; remaining execution budget and timings remain separate telemetry. DZI
+sampling uses its exact power-of-two divisor before later thumbnails. Immutable
+development snapshots preserve an admitted regional source for the actual WSI
+crop path when available and explicitly mark unavailable originals/regions.
+See [post-screening repair evidence](alignment-repair-2026-10-04.md).

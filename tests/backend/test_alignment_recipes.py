@@ -73,11 +73,110 @@ def test_recipe_registry_exposes_real_engines_and_hybrids():
         assert engines.get_engine(recipe).name in engines.SUPPORTED_ENGINES
 
 
+def test_hybrid_keeps_both_nonzero_crop_origins_without_double_translation(tmp_path, monkeypatch):
+    from wsi_viewer.alignment_geometry import original_frame_registration
+    from wsi_viewer.alignment_recipes import RecipeEngine
+
+    image = Image.fromarray(
+        np.random.default_rng(17).integers(0, 255, (100, 100, 3), dtype=np.uint8)
+    )
+    geometry = {
+        "schema": "pathlab-sampling-frame/1",
+        "kind": "component-region",
+        "sourceSize": [1000, 1000],
+        "analysisSize": [100, 100],
+        "coordinateFrameSize": [100, 100],
+        "samplingScale": [1, 1],
+        "cropOrigin": [100, 200],
+    }
+    settings = {
+        "referenceGeometry": geometry,
+        "movingGeometry": {**geometry, "cropOrigin": [300, 400]},
+    }
+    calls = []
+
+    class Stage:
+        def register(self, inputs, progress):
+            calls.append(inputs)
+            assert inputs.moving.tobytes() == image.tobytes()
+            points = [[20, 20], [70, 20], [20, 70]]
+            return engines.EngineRun(
+                {
+                    "status": "approximate",
+                    "movingToReference": [[1, 0, 0], [0, 1, 0]],
+                    "overviewTriangles": [{"reference": points, "moving": points}],
+                },
+                None,
+                None,
+                0.01,
+            )
+
+    monkeypatch.setattr(engines, "get_engine", lambda _: Stage())
+    run = RecipeEngine("native-wsireg").register(
+        engines.EngineInput(image, image, image.size, image.size, tmp_path, settings),
+        lambda _: None,
+    )
+    payload = original_frame_registration(run.registration, run.registration["engineSettings"])
+    assert np.asarray(payload["movingToReference"]) == pytest.approx(
+        np.array([[1, 0, -200], [0, 1, -200]])
+    )
+    assert map_registration_point(payload, 325, 425) == pytest.approx((125, 225))
+    saved = __import__("json").loads((tmp_path / engines.INITIALIZER_ARTIFACT_NAME).read_text())
+    assert saved["overviewTriangles"][0]["moving"][0] == [320, 420]
+
+
+def test_failed_wsireg_releases_filter_retained_by_upstream_traceback(tmp_path):
+    from types import SimpleNamespace
+
+    from wsi_viewer import alignment_optional
+
+    path = tmp_path / "IterationInfo.1.R0.txt"
+    closed = []
+
+    class Filter:
+        def __init__(self):
+            self.stream = path.open("wb")
+
+        def __del__(self):
+            self.stream.close()
+            closed.append(True)
+
+    def register(*args, **kwargs):
+        selx = Filter()
+        assert selx.stream.write(b"upstream iteration")
+        raise RuntimeError("actual upstream samples outside buffer")
+
+    with pytest.raises(AlignmentRejected, match="upstream.*samples outside buffer"):
+        alignment_optional._call_wsireg_registration(
+            SimpleNamespace(register_2d_images_itkelx=register), None, None, [], tmp_path
+        )
+    assert closed == [True]
+    path.unlink()  # Windows must permit real cleanup while the caught failure is still alive.
+
+
 def test_hybrid_composes_residual_in_initial_warp_frame(tmp_path, monkeypatch):
     from wsi_viewer.alignment_recipes import RecipeEngine
 
+    reference_geometry = {
+        "schema": "pathlab-sampling-frame/1",
+        "kind": "dzi-pyramid",
+        "sourceSize": [397, 398],
+        "analysisSize": [400, 400],
+        "coordinateFrameSize": [400, 400],
+        "samplingScale": [1, 1],
+        "cropOrigin": [0, 0],
+        "pyramidDivisor": 1,
+    }
+    moving_geometry = {**reference_geometry, "sourceSize": [399, 397]}
+
     initializer = [[2, 0, 10], [0, 3, 20]]
-    seed = {"status": "approximate", "movingToReference": initializer}
+    seed = {
+        "status": "approximate",
+        "movingToReference": initializer,
+        "overviewTriangles": [
+            {"moving": [[0, 0], [100, 0], [0, 100]], "reference": [[10, 20], [210, 20], [10, 320]]}
+        ],
+    }
     residual = {
         "status": "approximate",
         "movingToReference": [[1, 0, 5], [0, 1, -2]],
@@ -112,6 +211,8 @@ def test_hybrid_composes_residual_in_initial_warp_frame(tmp_path, monkeypatch):
                 "movingMicronsPerPixel": [0.5, 1],
                 "referenceCropped": True,
                 "movingCropped": False,
+                "referenceGeometry": reference_geometry,
+                "movingGeometry": moving_geometry,
                 "stages": {engines.ENGINE_WSIREG: {"movingMicronsPerPixel": [3, 4]}},
             },
         ),
@@ -132,6 +233,18 @@ def test_hybrid_composes_residual_in_initial_warp_frame(tmp_path, monkeypatch):
     assert calls[0].settings["movingCropped"] is False
     assert calls[1].settings["referenceCropped"] is True
     assert calls[1].settings["movingCropped"] is True
+    assert calls[0].settings["movingGeometry"] == moving_geometry
+    assert calls[1].settings["referenceGeometry"] == reference_geometry
+    assert calls[1].settings["movingGeometry"] == reference_geometry
+    assert run.registration["engineSettings"]["movingGeometry"] == moving_geometry
+    assert run.registration["engineSettings"]["referenceGeometry"] == reference_geometry
+    assert (
+        run.registration["engineSettings"]["stageEffectiveSettings"][0]["settings"][
+            "timeoutSeconds"
+        ]
+        == 600
+    )
+    assert run.registration["recipeStages"][0]["remainingBudgetSeconds"] <= 600
     assert run.registration["movingSupport"] == pytest.approx([0, 0, 100, 100])
     assert run.registration["referenceSupport"] == pytest.approx([15, 18, 215, 318])
 

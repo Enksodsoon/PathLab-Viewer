@@ -34,6 +34,7 @@ from .alignment import (
     register_pair,
     rescale_registration,
 )
+from .alignment_calibration import metadata_frame_digest, normalized_microns_per_pixel
 from .alignment_engines import (
     ENGINE_NATIVE,
     ENGINE_NATIVE_OVERVIEW,
@@ -44,7 +45,14 @@ from .alignment_engines import (
     settings_digest,
 )
 from .alignment_fast import PREPARATION_VERSION, PreparationCache, register_prepared
+from .alignment_geometry import (
+    derivative_sampling_geometry,
+    original_frame_registration,
+    validate_sampling_geometry,
+)
 from .alignment_policy import VALIDATION_POLICY, case_ids_conflict, current_registration
+from .alignment_processes import AlignmentContainmentLost
+from .alignment_processes import LinuxAlignmentGroup as _LinuxAlignmentGroup
 from .alignment_pyramid import (
     _candidate_component_pairs,
     component_bounds,
@@ -52,6 +60,9 @@ from .alignment_pyramid import (
     refine_supported_patches,
     register_components,
 )
+from .alignment_regions import slide_version
+from .alignment_resources import EngineResourceUnavailable
+from .alignment_windows import WindowsAlignmentJob as _WindowsAlignmentJob
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
@@ -174,7 +185,16 @@ def _best_compatible_registration(
     candidates = [
         value
         for item in candidates
-        if (value := current_registration(item)) and value.get("status") in {"ready", "approximate"}
+        if (
+            value := current_registration(
+                item,
+                source_metadata=slide.slide_metadata or {},
+                anchor_metadata=reference.slide_metadata or {},
+                source_snapshot_version=slide_version(slide) if not slide.sha256 else None,
+                anchor_snapshot_version=slide_version(reference) if not reference.sha256 else None,
+            )
+        )
+        and value.get("status") in {"ready", "approximate"}
     ]
     return max(candidates, key=_registration_quality, default=None)
 
@@ -518,15 +538,10 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
     tile_size = int(root.attrib["TileSize"])
     overlap = int(root.attrib.get("Overlap", "0"))
     image_format = root.attrib["Format"]
-    maximum_level = math.ceil(math.log2(max(full_width, full_height)))
-    level = maximum_level
-    while level > 0:
-        divisor = 2 ** (maximum_level - level)
-        if max(math.ceil(full_width / divisor), math.ceil(full_height / divisor)) <= maximum:
-            break
-        level -= 1
-    divisor = 2 ** (maximum_level - level)
-    width, height = math.ceil(full_width / divisor), math.ceil(full_height / divisor)
+    geometry = derivative_sampling_geometry(derivative, (full_width, full_height), maximum=maximum)
+    assert geometry is not None
+    level = geometry["selectedLevel"]
+    width, height = geometry["analysisSize"]
     overview = Image.new("RGB", (width, height), "white")
     tile_root = derivative / "slide_files" / str(level)
     columns, rows = math.ceil(width / tile_size), math.ceil(height / tile_size)
@@ -534,8 +549,10 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
         for column in range(columns):
             path = tile_root / f"{column}_{row}.{image_format}"
             if not path.exists() and (derivative / ".openslide-source.json").is_file():
+                from .alignment_inputs import require_snapshot_tile_capacity
                 from .tile_routes import materialize_local_openslide_tile_from_root
 
+                require_snapshot_tile_capacity(derivative)
                 path = materialize_local_openslide_tile_from_root(
                     derivative, derivative.name, path.relative_to(derivative).as_posix()
                 )
@@ -554,11 +571,16 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
                 tile.crop((left, top, left + wanted_width, top + wanted_height)),
                 (column * tile_size, row * tile_size),
             )
+    overview.info["alignmentGeometry"] = geometry
     return overview
 
 
 def _load_alignment_overview(derivative: Path) -> Image.Image:
     """Prefer a bounded pyramid level for every registration engine."""
+    from .alignment_inputs import DESCRIPTOR_NAME, load_immutable_overview
+
+    if (derivative / DESCRIPTOR_NAME).exists():
+        return load_immutable_overview(derivative)
     try:
         return _load_dzi_overview(derivative)
     except (FileNotFoundError, OSError, ET.ParseError):
@@ -576,11 +598,14 @@ def _alignment_child(
     artifact_dir: str | None,
     output: Any,
     seed_registration: dict[str, Any] | None = None,
+    startup_gate: Any = None,
 ) -> None:
     # Give every native registration and any JVM it launches one process group
     # so the OCI supervisor can stop the complete tree on timeout/cancellation.
     if not sys.platform.startswith("win"):
         os.setsid()
+    if startup_gate is not None and not startup_gate.wait(30):
+        return
     try:
         cv2.setNumThreads(1)
         cv2.setRNGSeed(0)
@@ -590,12 +615,59 @@ def _alignment_child(
 
         reference_image = overview(reference_derivative)
         moving_image = overview(moving_derivative)
+        original_reference_size, original_moving_size = reference_full_size, moving_full_size
+        # Capture exact pyramid geometry before any engine resizes its pixels.
+        # Plain JPEG requests retain their existing numerical/settings contract.
+        engine_settings = dict(engine_settings or {})
+        for side, image, derivative, true_size in (
+            ("reference", reference_image, reference_derivative, reference_full_size),
+            ("moving", moving_image, moving_derivative, moving_full_size),
+        ):
+            geometry = image.info.get("alignmentGeometry")
+            if geometry is None and (Path(derivative) / "slide.dzi").is_file():
+                geometry = {
+                    "schema": "pathlab-sampling-frame/1",
+                    "kind": "thumbnail-fallback",
+                    "sourceSize": list(true_size),
+                    "analysisSize": list(image.size),
+                    "coordinateFrameSize": list(true_size),
+                    "samplingScale": [true_size[0] / image.width, true_size[1] / image.height],
+                    "cropOrigin": [0, 0],
+                }
+            if geometry is not None:
+                geometry = validate_sampling_geometry(
+                    geometry, source_size=true_size, analysis_size=image.size
+                )
+                engine_settings[f"{side}Geometry"] = geometry
+                frame_size = tuple(geometry["coordinateFrameSize"])
+                if side == "reference":
+                    reference_full_size = frame_size
+                else:
+                    moving_full_size = frame_size
         if engine_name == ENGINE_VALIS and all(
             (Path(path) / "slide.dzi").is_file()
             for path in (reference_derivative, moving_derivative)
         ):
             reference_boxes = component_bounds(reference_image, reference_full_size)
             moving_boxes = component_bounds(moving_image, moving_full_size)
+            reference_boxes = [
+                (
+                    left,
+                    top,
+                    min(right, original_reference_size[0]),
+                    min(bottom, original_reference_size[1]),
+                )
+                for left, top, right, bottom in reference_boxes
+            ]
+            moving_boxes = [
+                (
+                    left,
+                    top,
+                    min(right, original_moving_size[0]),
+                    min(bottom, original_moving_size[1]),
+                )
+                for left, top, right, bottom in moving_boxes
+            ]
             if 1 < len(reference_boxes) == len(moving_boxes):
                 started = time.monotonic()
                 pairs, _ = _candidate_component_pairs(
@@ -608,6 +680,7 @@ def _alignment_child(
                 )
                 parts = []
                 failures = []
+                component_settings_receipts = []
                 for index, (moving_index, reference_index) in enumerate(pairs):
                     reference_crop, reference_frame = read_region(
                         Path(reference_derivative), reference_boxes[reference_index], 2048
@@ -623,6 +696,21 @@ def _alignment_child(
                         moving_crop.width * moving_frame[2],
                         moving_crop.height * moving_frame[2],
                     )
+                    component_settings = dict(engine_settings)
+                    for side, crop, frame, true_size in (
+                        ("reference", reference_crop, reference_frame, original_reference_size),
+                        ("moving", moving_crop, moving_frame, original_moving_size),
+                    ):
+                        component_settings[f"{side}Geometry"] = {
+                            "schema": "pathlab-sampling-frame/1",
+                            "kind": "component-region",
+                            "sourceSize": list(true_size),
+                            "analysisSize": list(crop.size),
+                            "coordinateFrameSize": [crop.width * frame[2], crop.height * frame[2]],
+                            "samplingScale": [frame[2], frame[2]],
+                            "cropOrigin": list(frame[:2]),
+                            "pyramidDivisor": frame[2],
+                        }
                     key = hashlib.sha256(
                         repr(
                             (
@@ -634,7 +722,7 @@ def _alignment_child(
                                 moving_frame,
                                 reference_size,
                                 moving_size,
-                                settings_digest(engine_name, engine_settings),
+                                settings_digest(engine_name, component_settings),
                                 "ordered-components-v1",
                             )
                         ).encode()
@@ -662,11 +750,26 @@ def _alignment_child(
                                 reference_full_size=reference_size,
                                 moving_full_size=moving_size,
                                 artifact_dir=component_dir,
-                                settings=engine_settings,
+                                settings=component_settings,
                                 progress=lambda values: output.put({"progress": values}),
                             )
                             payload = run.registration
-                        parts.append((payload, reference_frame, moving_frame))
+                        # run_engine already composed the crop origins into
+                        # original coordinates; merging must not apply them twice.
+                        parts.append(
+                            (
+                                payload,
+                                (0, 0, reference_frame[2])
+                                if payload.get("samplingGeometryApplied") is True
+                                else reference_frame,
+                                (0, 0, moving_frame[2])
+                                if payload.get("samplingGeometryApplied") is True
+                                else moving_frame,
+                            )
+                        )
+                        component_settings_receipts.append(
+                            payload.get("engineSettings", component_settings)
+                        )
                     except AlignmentRejected as error:
                         failures.append(
                             {
@@ -685,6 +788,10 @@ def _alignment_child(
                         }
                     )
                 payload = merge_component_maps(parts)
+                payload["engineSettings"] = {
+                    **engine_settings,
+                    "componentEffectiveSettings": component_settings_receipts,
+                }
                 payload["evidence"].update(
                     {
                         "componentOrderPreserved": True,
@@ -760,6 +867,8 @@ def _alignment_child(
                     }
                 ),
             )
+            refined = original_frame_registration(refined, engine_settings)
+            refined["engineSettings"] = engine_settings
             output.put({"ok": True, "result": refined})
             return
         result = None
@@ -808,7 +917,9 @@ def _alignment_child(
             elif result is None:
                 raise AlignmentRejected(overview_error or "No reliable correspondence found")
         assert result is not None
-        output.put({"ok": True, "result": result.as_json()})
+        payload = original_frame_registration(result.as_json(), engine_settings)
+        payload["engineSettings"] = engine_settings
+        output.put({"ok": True, "result": payload})
     except Exception as error:
         output.put({"ok": False, "type": type(error).__name__, "error": str(error)})
 
@@ -879,7 +990,14 @@ def _process_tree_rss_bytes(process_id: int) -> int:
     return sum(_process_rss_bytes(pid) for pid in _descendant_process_ids(process_id))
 
 
-def _terminate_process_tree(process: ChildProcess) -> None:
+def _terminate_process_tree(
+    process: ChildProcess,
+    linux_group: _LinuxAlignmentGroup | None = None,
+) -> None:
+    if linux_group is not None:
+        linux_group.close()
+        process.join(2)
+        return
     if process.pid and not sys.platform.startswith("win"):
         with suppress(ProcessLookupError):
             os.killpg(process.pid, signal.SIGTERM)
@@ -913,6 +1031,7 @@ def _run_alignment_bounded(
     if heartbeat:
         heartbeat()
     context = multiprocessing.get_context("spawn")
+    startup_gate = context.Event() if sys.platform.startswith(("win", "linux")) else None
     output = context.Queue(maxsize=1)
     process = context.Process(
         target=_alignment_child,
@@ -926,6 +1045,7 @@ def _run_alignment_bounded(
             str(artifact_dir) if artifact_dir else None,
             output,
             seed_registration,
+            startup_gate,
         ),
         daemon=True,
     )
@@ -933,7 +1053,27 @@ def _run_alignment_bounded(
     started = time.monotonic()
     last_heartbeat = started
     peak_memory_bytes = 0
+    windows_job = None
+    linux_group = None
+    resource_metrics: dict[str, Any] = {}
     try:
+        if startup_gate is not None and sys.platform.startswith("win"):
+            try:
+                windows_job = _WindowsAlignmentJob(process.pid or 0, memory_bytes)
+                resource_metrics = windows_job.metrics()
+            except OSError as error:
+                raise AlignmentRejected(
+                    f"Windows process containment memory ceiling admission failed: {error}"
+                ) from error
+            startup_gate.set()
+        elif startup_gate is not None:
+            linux_group = _LinuxAlignmentGroup(process.pid or 0, min(10, timeout_seconds))
+            resource_metrics = {
+                "processContainment": "linux-owned-session",
+                "memoryMeasurementScope": "linux-owned-session-sampled-rss",
+                "peakMemoryBytes": 0,
+            }
+            startup_gate.set()
         # Drain the result while the child is alive: Queue's feeder can block
         # child shutdown until a large coordinate map has been consumed.
         while True:
@@ -941,12 +1081,22 @@ def _run_alignment_bounded(
                 heartbeat()
                 last_heartbeat = time.monotonic()
             if time.monotonic() - started > timeout_seconds:
-                _terminate_process_tree(process)
+                _terminate_process_tree(process, linux_group)
                 raise AlignmentRejected("registration exceeded the pair timeout")
-            current_memory_bytes = _process_tree_rss_bytes(process.pid or 0)
+            if windows_job is not None:
+                resource_metrics = windows_job.measure()
+                current_memory_bytes = int(resource_metrics["peakMemoryBytes"])
+            else:
+                current_memory_bytes = (
+                    sum(_process_rss_bytes(pid) for pid in linux_group.members())
+                    if linux_group is not None
+                    else _process_tree_rss_bytes(process.pid or 0)
+                )
             peak_memory_bytes = max(peak_memory_bytes, current_memory_bytes)
+            if linux_group is not None:
+                resource_metrics["peakMemoryBytes"] = peak_memory_bytes
             if current_memory_bytes > memory_bytes:
-                _terminate_process_tree(process)
+                _terminate_process_tree(process, linux_group)
                 raise AlignmentRejected(
                     "registration exceeded the memory ceiling "
                     f"({current_memory_bytes / 1024**3:.2f} GiB > "
@@ -964,6 +1114,10 @@ def _run_alignment_bounded(
                     raise AlignmentRejected("registration process ended without a result") from None
         process.join(2)
         if not result.get("ok"):
+            if result.get("type") == "EngineResourceUnavailable":
+                raise EngineResourceUnavailable(
+                    result.get("error") or "engine resource unavailable"
+                )
             raise AlignmentRejected(result.get("error") or "registration failed")
         payload = cast(dict[str, Any], result["result"])
         if result.get("artifactPath"):
@@ -973,11 +1127,41 @@ def _run_alignment_bounded(
         if result.get("runtimeSeconds") is not None:
             payload["runtimeSeconds"] = result["runtimeSeconds"]
         payload["peakMemoryBytes"] = peak_memory_bytes
+        if windows_job is not None:
+            resource_metrics = windows_job.measure()
+            payload.update(resource_metrics)
+        elif linux_group is not None:
+            payload.update(resource_metrics)
         return payload
+    except OSError as error:
+        platform = "Windows" if sys.platform.startswith("win") else "Linux"
+        rejected = AlignmentRejected(f"{platform} process containment accounting failed: {error}")
+        cast(Any, rejected).resource_metrics = resource_metrics
+        raise rejected from error
+    except AlignmentRejected as error:
+        cast(Any, error).resource_metrics = resource_metrics
+        raise
     finally:
-        if process.is_alive():
-            _terminate_process_tree(process)
-        output.close()
+        try:
+            try:
+                if windows_job is not None:
+                    windows_job.close()
+                if linux_group is not None:
+                    linux_group.close()
+            except OSError as error:
+                platform = "Windows" if sys.platform.startswith("win") else "Linux"
+                raise AlignmentContainmentLost(
+                    f"{platform} process containment cleanup could not prove "
+                    f"all descendants terminal: {error}",
+                    resource_metrics,
+                ) from error
+            finally:
+                if process.is_alive():
+                    _terminate_process_tree(process)
+                else:
+                    process.join(2)
+        finally:
+            output.close()
 
 
 class AlignmentPreempted(Exception):
@@ -1056,6 +1240,10 @@ def _preview_alignment(
     started = time.monotonic()
     checkpoint = dict(job.checkpoint or {})
     expected_sources = (reference.sha256, moving.sha256)
+    expected_frames = (
+        metadata_frame_digest(reference.slide_metadata or {}),
+        metadata_frame_digest(moving.slide_metadata or {}),
+    )
     deadline = datetime.fromisoformat(checkpoint["foregroundDeadlineAt"])
     queue_seconds = max(
         0.0, (datetime.now(UTC) - (deadline - timedelta(seconds=10))).total_seconds()
@@ -1064,6 +1252,7 @@ def _preview_alignment(
     hits = 0
     preparation_seconds = 0.0
     pair_hit = False
+    effective_settings: dict[str, Any] = {}
     try:
         if case_ids_conflict(moving.case_id, reference.case_id):
             raise AlignmentRejected("Needs refinement: slides have different case identifiers")
@@ -1075,6 +1264,14 @@ def _preview_alignment(
             metadata = slide.slide_metadata or {}
             size = (int(metadata["width"]), int(metadata["height"]))
             derivative = layout.for_slide(slide.id).private_derivative
+            side = "reference" if slide.id == reference.id else "moving"
+            if (derivative / "slide.dzi").is_file():
+                effective_settings[f"{side}Geometry"] = derivative_sampling_geometry(
+                    derivative, size, maximum=1024, kind="dzi-pyramid"
+                )
+            calibration = normalized_microns_per_pixel(metadata)
+            if calibration is not None:
+                effective_settings[f"{side}MicronsPerPixel"] = list(calibration)
 
             def load(path: Path = derivative, dimensions: tuple[int, int] = size) -> Image.Image:
                 if (path / "slide.dzi").is_file():
@@ -1098,7 +1295,12 @@ def _preview_alignment(
             prepared.append(value)
             versions.append((key, size))
             hits += int(hit)
-        cache_key = (*versions, PREPARATION_VERSION, VALIDATION_POLICY)
+        cache_key = (
+            *versions,
+            PREPARATION_VERSION,
+            VALIDATION_POLICY,
+            settings_digest(ENGINE_NATIVE_OVERVIEW, effective_settings),
+        )
         if cache_key in _preview_maps:
             _preview_maps.move_to_end(cache_key)
             payload = deepcopy(_preview_maps[cache_key])
@@ -1106,7 +1308,9 @@ def _preview_alignment(
         else:
             if datetime.now(UTC) >= deadline:
                 raise AlignmentRejected("Needs refinement: stack foreground deadline exceeded")
-            payload = register_prepared(*prepared).as_json()
+            payload = original_frame_registration(
+                register_prepared(*prepared).as_json(), effective_settings
+            )
             encoded_bytes = _map_bytes(payload)
             while _preview_maps and _preview_map_bytes + encoded_bytes > 16 * 1024**2:
                 _, removed = _preview_maps.popitem(last=False)
@@ -1128,11 +1332,14 @@ def _preview_alignment(
         provenance="automatic",
         sourceVersion=moving.sha256,
         anchorVersion=reference.sha256,
+        sourceFrameVersion=expected_frames[1],
+        anchorFrameVersion=expected_frames[0],
         anchorSlideId=reference.id,
         coordinateReferenceId=reference.id,
         engine=ENGINE_NATIVE_OVERVIEW,
         engineVersion=ENGINE_VERSIONS[ENGINE_NATIVE_OVERVIEW],
-        settingsDigest=settings_digest(ENGINE_NATIVE_OVERVIEW),
+        engineSettings=effective_settings,
+        settingsDigest=settings_digest(ENGINE_NATIVE_OVERVIEW, effective_settings),
     )
     payload["evidence"] = {
         **payload.get("evidence", {}),
@@ -1170,6 +1377,11 @@ def _preview_alignment(
         or comparison.source_versions.get(moving.id) != moving.sha256
         or comparison.source_versions.get(reference.id) != reference.sha256
         or expected_sources != (reference.sha256, moving.sha256)
+        or expected_frames
+        != (
+            metadata_frame_digest(reference.slide_metadata or {}),
+            metadata_frame_digest(moving.slide_metadata or {}),
+        )
     ):
         job.status = "cancelled"
         job.failure_code = "ALIGNMENT_STALE"
@@ -1275,6 +1487,18 @@ def process_next(
                 return False
         alignment_kinds = {"align", "align_benchmark"}
         active_statuses = {"leased", "running", "checkpointing"}
+        # This check runs inside the serialized claim transaction. A worker of
+        # any role must wait for the current alignment's containment cleanup;
+        # queued foreground work still remains visible to its preemption loop.
+        if (
+            database.scalar(
+                select(Job.id)
+                .where(Job.kind.in_(alignment_kinds), Job.status.in_(active_statuses))
+                .limit(1)
+            )
+            is not None
+        ):
+            return False
         if exclusive_alignment is True:
             # A queued alignment owns admission priority, but it starts only
             # after ordinary heavy work has drained.
@@ -1405,7 +1629,8 @@ def process_next(
                 job.lease_expires_at = None
                 database.commit()
                 return True
-            applied_settings: dict[str, Any] = {}
+            requested_settings: dict[str, Any] = dict(checkpoint.get("engineSettings") or {})
+            applied_settings: dict[str, Any] = dict(requested_settings)
             expected_version = checkpoint.get("setVersion", comparison.version)
             if comparison.version != expected_version or job.cancellation_requested_at is not None:
                 job.status = "cancelled"
@@ -1477,6 +1702,10 @@ def process_next(
                 database.commit()
                 reference_metadata = reference.slide_metadata or {}
                 moving_metadata = slide.slide_metadata or {}
+                expected_metadata_frames = (
+                    metadata_frame_digest(reference_metadata),
+                    metadata_frame_digest(moving_metadata),
+                )
                 try:
                     reference_full_size = (
                         int(reference_metadata["width"]),
@@ -1490,6 +1719,13 @@ def process_next(
                     raise AlignmentRejected(
                         "full slide dimensions unavailable for coordinate mapping"
                     ) from error
+                for side, pair_metadata in (
+                    ("reference", reference_metadata),
+                    ("moving", moving_metadata),
+                ):
+                    calibration = normalized_microns_per_pixel(pair_metadata)
+                    if calibration is not None:
+                        applied_settings[f"{side}MicronsPerPixel"] = list(calibration)
 
                 def renew_alignment_lease() -> None:
                     database.refresh(job)
@@ -1538,6 +1774,7 @@ def process_next(
                 )
                 run_options: dict[str, Any] = {
                     "engine_name": engine_name,
+                    "engine_settings": applied_settings,
                     "artifact_dir": artifact_dir,
                     "timeout_seconds": min(600, int(limits.get("timeoutSeconds", 600))),
                     "memory_bytes": min(7 * 1024**3, int(limits.get("memoryBytes", 7 * 1024**3))),
@@ -1583,17 +1820,37 @@ def process_next(
                     )
                     job.checkpoint = dict(checkpoint)
                     database.commit()
-                    applied_settings = {"maxImageDimension": 768}
+                    applied_settings = {**applied_settings, "maxImageDimension": 768}
                     result_json = run_with_remaining_budget(
-                        engine_settings=applied_settings,
-                        **run_options,
+                        **{**run_options, "engine_settings": applied_settings},
                     )
                     result_json["evidence"] = {
                         **(result_json.get("evidence") or {}),
                         "adaptiveMemoryFallback": True,
                         "fallbackReason": str(error),
                     }
-                result_json["engineSettings"] = applied_settings
+                effective_settings = result_json.get("engineSettings", applied_settings)
+                if not isinstance(effective_settings, dict):
+                    raise AlignmentRejected("effective engine settings must be an object")
+                try:
+                    effective_settings = json.loads(json.dumps(effective_settings, allow_nan=False))
+                except (TypeError, ValueError) as error:
+                    raise AlignmentRejected("invalid effective engine settings") from error
+                for side, true_size in (
+                    ("reference", reference_full_size),
+                    ("moving", moving_full_size),
+                ):
+                    if f"{side}Geometry" in effective_settings:
+                        validate_sampling_geometry(
+                            effective_settings[f"{side}Geometry"], source_size=true_size
+                        )
+                applied_settings = effective_settings
+                result_json.update(
+                    engineSettings=effective_settings,
+                    settingsDigest=settings_digest(engine_name, effective_settings),
+                    requestedSettings=requested_settings,
+                    requestedSettingsDigest=settings_digest(engine_name, requested_settings),
+                )
                 checkpoint.update(
                     {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 0}
                 )
@@ -1613,6 +1870,11 @@ def process_next(
                     or comparison.source_versions.get(slide.id) != slide.sha256
                     or comparison.source_versions.get(reference.id) != reference.sha256
                     or expected_sources != (reference.sha256, slide.sha256)
+                    or expected_metadata_frames
+                    != (
+                        metadata_frame_digest(reference.slide_metadata or {}),
+                        metadata_frame_digest(slide.slide_metadata or {}),
+                    )
                 ):
                     job.status = "cancelled"
                     job.failure_code = "ALIGNMENT_STALE"
@@ -1635,6 +1897,19 @@ def process_next(
                             "engineBuildVersion": ENGINE_VERSIONS[engine_name],
                         }
                     )
+                    for metric in (
+                        "memoryMeasurementScope",
+                        "peakCommittedMemoryBytes",
+                        "committedMemoryLimitBytes",
+                        "processContainment",
+                        "kernelReportedPeakJobMemoryBytes",
+                        "committedMemoryMeasurementScope",
+                        "currentPrivateCommittedMemoryBytes",
+                        "sampledPeakPrivateCommittedMemoryBytes",
+                        "peakContainedProcesses",
+                    ):
+                        if metric in result_json:
+                            evidence[metric] = result_json[metric]
                     database.add(
                         ComparisonRegistrationCandidate(
                             comparison_set_id=comparison.id,
@@ -1652,6 +1927,12 @@ def process_next(
                             ),
                             registration={
                                 **result_json,
+                                "sourceFrameVersion": metadata_frame_digest(
+                                    slide.slide_metadata or {}
+                                ),
+                                "anchorFrameVersion": metadata_frame_digest(
+                                    reference.slide_metadata or {}
+                                ),
                                 "provenance": "automatic-candidate",
                                 "anchorSlideId": reference.id,
                                 "coordinateReferenceId": reference.id,
@@ -1681,6 +1962,8 @@ def process_next(
                     "referenceVersion": primary_reference.sha256,
                     "anchorSlideId": reference.id,
                     "anchorVersion": reference.sha256,
+                    "sourceFrameVersion": metadata_frame_digest(slide.slide_metadata or {}),
+                    "anchorFrameVersion": metadata_frame_digest(reference.slide_metadata or {}),
                     "coordinateReferenceId": coordinate_reference_id,
                     "engine": engine_name,
                     "engineVersion": ENGINE_VERSIONS[engine_name],
@@ -1739,6 +2022,25 @@ def process_next(
                     "preservedExisting": preserved is not None,
                 }
                 job.status = "succeeded"
+            except AlignmentContainmentLost as error:
+                # A durable quarantine blocks all worker roles and replicas.
+                # Stale-running-job recovery must not release unknown children.
+                database.refresh(job)
+                job.status = "checkpointing"
+                job.failure_code = "ALIGNMENT_CONTAINMENT_LOST"
+                job.error = str(error)
+                quarantined_slide_id = job.slide_id
+                job.slide = None  # A slide purge must not cascade away quarantine.
+                job.checkpoint = {
+                    **checkpoint,
+                    "stage": "containment-quarantine",
+                    "quarantinedSlideId": quarantined_slide_id,
+                    "resourceMetrics": error.resource_metrics,
+                }
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                raise
             except AlignmentPreempted:
                 job.status = "queued"
                 job.checkpoint = {
@@ -1771,7 +2073,9 @@ def process_next(
                             engine=engine_name,
                             engine_version=ENGINE_VERSIONS[engine_name],
                             settings_digest=settings_digest(engine_name, applied_settings),
-                            status="rejected",
+                            status="unavailable"
+                            if isinstance(error, EngineResourceUnavailable)
+                            else "rejected",
                             validation_state="rejected",
                             registration={"engineSettings": applied_settings},
                             evidence={},
@@ -1779,7 +2083,11 @@ def process_next(
                         )
                     )
                     job.status = "failed_terminal"
-                    job.failure_code = "ALIGNMENT_ENGINE_REJECTED"
+                    job.failure_code = (
+                        "ALIGNMENT_ENGINE_UNAVAILABLE"
+                        if isinstance(error, EngineResourceUnavailable)
+                        else "ALIGNMENT_ENGINE_REJECTED"
+                    )
                     job.error = str(error)
                     job.heartbeat_at = None
                     job.lease_expires_at = None
@@ -1789,11 +2097,16 @@ def process_next(
                 existing = _best_compatible_registration(
                     database, comparison=comparison, slide=slide, reference=reference
                 )
-                if checkpoint.get("preserveExisting") and existing:
+                if (
+                    checkpoint.get("preserveExisting")
+                    or isinstance(error, EngineResourceUnavailable)
+                ) and existing:
                     registrations[slide.id] = existing
                 else:
                     registrations[slide.id] = {
-                        "status": "rejected",
+                        "status": "needs_refinement"
+                        if isinstance(error, EngineResourceUnavailable)
+                        else "rejected",
                         "provenance": "automatic",
                         "reason": str(error),
                     }
@@ -1805,7 +2118,11 @@ def process_next(
                     else "partial"
                 )
                 job.status = "failed_terminal"
-                job.failure_code = "ALIGNMENT_REJECTED"
+                job.failure_code = (
+                    "ALIGNMENT_ENGINE_UNAVAILABLE"
+                    if isinstance(error, EngineResourceUnavailable)
+                    else "ALIGNMENT_REJECTED"
+                )
                 job.error = str(error)
             if job.kind == "align" and comparison.version == expected_version:
                 if (

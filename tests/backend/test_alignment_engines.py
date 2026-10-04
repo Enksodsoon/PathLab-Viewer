@@ -347,7 +347,8 @@ def test_valis_artifact_preserves_final_approximate_qualification(
     )
     image = Image.fromarray(_tissue())
     original_pixels = image.tobytes()
-    run = ValisEngine().register(
+    # Resource admission has separate fail-closed tests; this fixture substitutes upstream models.
+    run = ValisEngine()._register_admitted(
         EngineInput(
             image,
             image,
@@ -493,7 +494,7 @@ def test_valis_retries_only_missing_evidence_with_input_blur(monkeypatch, tmp_pa
     inputs = EngineInput(image, image, image.size, image.size, tmp_path)
     progress = []
     if retry_succeeds:
-        run = ValisEngine().register(inputs, progress.append)
+        run = ValisEngine()._register_admitted(inputs, progress.append)
         assert run.registration["status"] == "approximate"
         assert run.registration["evidence"]["valisInitialFailure"] == "missing-validation-evidence"
         assert run.registration["evidence"]["valisInputBlurRadius"] == 0.6
@@ -502,7 +503,7 @@ def test_valis_retries_only_missing_evidence_with_input_blur(monkeypatch, tmp_pa
         assert run.runtime_seconds > 0
     else:
         with pytest.raises(AlignmentRejected, match="validation evidence"):
-            ValisEngine().register(inputs, progress.append)
+            ValisEngine()._register_admitted(inputs, progress.append)
     assert len(calls) == 2
     assert calls[0] == original and calls[1] != original
     assert image.tobytes() == original and inputs.settings is None

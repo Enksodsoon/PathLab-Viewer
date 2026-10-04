@@ -6,6 +6,7 @@ level-zero coordinates to original reference level-zero coordinates.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from dataclasses import replace
@@ -17,6 +18,7 @@ from PIL import Image
 
 from . import alignment_engines as engines
 from .alignment import AlignmentRejected, compose_transforms
+from .alignment_geometry import original_frame_registration
 
 
 class RecipeEngine:
@@ -40,6 +42,10 @@ class RecipeEngine:
             raise AlignmentRejected("registration exceeded the pair timeout")
         stages = engines.RECIPE_STAGES[self.name]
         receipts: list[dict[str, Any]] = []
+        effective_stages: list[dict[str, Any]] = []
+        input_geometry: dict[str, Any] = {
+            key: settings[key] for key in ("referenceGeometry", "movingGeometry") if key in settings
+        }
         stage_settings = settings.get("stages", {})
         crop_provenance = {
             key: settings[key] for key in ("referenceCropped", "movingCropped") if key in settings
@@ -60,6 +66,7 @@ class RecipeEngine:
                 **stage_settings.get(stage, {}),
                 **calibration,
                 **crop_provenance,
+                **input_geometry,
                 "timeoutSeconds": remaining,
                 "maximumDimension": 2048,
             }
@@ -70,20 +77,58 @@ class RecipeEngine:
                 values["movingMicronsPerPixel"] = calibration["referenceMicronsPerPixel"]
             if receipts and "referenceCropped" in crop_provenance:
                 values["movingCropped"] = crop_provenance["referenceCropped"]
+            if receipts and "referenceGeometry" in input_geometry:
+                frame = input_geometry["referenceGeometry"]
+                if list(stage_inputs.reference.size) != frame["analysisSize"]:
+                    frame = {
+                        "schema": "pathlab-sampling-frame/1",
+                        "kind": "resampled-reference",
+                        "sourceSize": frame["sourceSize"],
+                        "analysisSize": list(stage_inputs.reference.size),
+                        "coordinateFrameSize": frame["coordinateFrameSize"],
+                        "samplingScale": [
+                            stage_inputs.reference_full_size[0] / stage_inputs.reference.width,
+                            stage_inputs.reference_full_size[1] / stage_inputs.reference.height,
+                        ],
+                        "cropOrigin": frame["cropOrigin"],
+                        "parentFrameDigest": hashlib.sha256(
+                            json.dumps(frame, sort_keys=True).encode()
+                        ).hexdigest(),
+                    }
+                values["referenceGeometry"] = frame
+                values["movingGeometry"] = frame
             if stage == engines.ENGINE_VALIS and self.name == "valis-rigid-wsireg":
                 values["rigidOnly"] = True
+            if stage == engines.ENGINE_VALIS:
+                values.update(
+                    {
+                        key: value
+                        for key, value in settings.items()
+                        if key.startswith("valis") and "Weights" in key
+                    }
+                )
             stage_directory = inputs.workspace / f"stage-{len(receipts)}"
             stage_directory.mkdir(parents=True, exist_ok=True)
             stage_inputs = replace(stage_inputs, workspace=stage_directory, settings=values)
             progress({"stage": f"recipe-{stage}", "progress": 20 + len(receipts) * 35})
             result = engines.get_engine(stage).register(stage_inputs, progress)
+            # Elapsed budget is execution telemetry, never method identity.
+            effective = {
+                **result.registration.get("engineSettings", values),
+                "timeoutSeconds": total_budget,
+            }
+            effective_stages.append({"engine": stage, "settings": effective})
+            result = replace(
+                result, registration=original_frame_registration(result.registration, effective)
+            )
             if time.monotonic() - started > total_budget:
                 raise AlignmentRejected("registration exceeded the pair timeout")
             receipts.append(
                 {
                     "engine": stage,
                     "buildVersion": engines.ENGINE_VERSIONS[stage],
-                    "settingsDigest": engines.settings_digest(stage, values),
+                    "settingsDigest": engines.settings_digest(stage, effective),
+                    "remainingBudgetSeconds": remaining,
                     "runtimeSeconds": result.runtime_seconds,
                     "status": result.registration.get("status"),
                     "coordinateFrame": "level-zero-reference",
@@ -132,7 +177,11 @@ class RecipeEngine:
         )
         image_initial = np.zeros((2, 3))
         image_initial[:, :2] = ref_scale @ initial[:, :2] @ mov_scale
-        image_initial[:, 2] = ref_scale @ initial[:, 2]
+        ref_origin = np.asarray(
+            input_geometry.get("referenceGeometry", {}).get("cropOrigin", [0, 0])
+        )
+        mov_origin = np.asarray(input_geometry.get("movingGeometry", {}).get("cropOrigin", [0, 0]))
+        image_initial[:, 2] = ref_scale @ (initial[:, 2] + initial[:, :2] @ mov_origin - ref_origin)
         warped = cv2.warpAffine(
             np.asarray(inputs.moving.convert("RGB")),
             image_initial,
@@ -161,7 +210,12 @@ class RecipeEngine:
             for cell in residual.get(key) or []:
                 moving = np.asarray(original(cell["moving"]))
                 # Refuse original-frame extrapolation introduced by initializer padding.
-                if np.any(moving < 0) or np.any(moving >= np.asarray(inputs.moving_full_size)):
+                true_bounds = np.asarray(
+                    input_geometry.get("movingGeometry", {}).get(
+                        "sourceSize", inputs.moving_full_size
+                    )
+                )
+                if np.any(moving < 0) or np.any(moving >= true_bounds):
                     continue
                 result.append({**cell, "moving": moving.tolist(), "provenance": self.name})
             return result
@@ -181,6 +235,8 @@ class RecipeEngine:
             **residual,
             "engine": self.name,
             "engineVersion": engines.ENGINE_VERSIONS[self.name],
+            "engineSettings": {**settings, "stageEffectiveSettings": effective_stages},
+            "samplingGeometryApplied": False,
             "movingToReference": compose_transforms(
                 residual["movingToReference"], initial.tolist()
             ),
@@ -209,13 +265,34 @@ class RecipeEngine:
                     inputs.moving_full_size[0] / inputs.moving.width,
                     inputs.moving_full_size[1] / inputs.moving.height,
                 ],
-                "cropOrigin": [0, 0],
+                "cropOrigin": ref_origin.tolist(),
+                "movingCropOrigin": mov_origin.tolist(),
                 "maximumDimension": 2048,
                 "pairCalibration": calibration,
                 "initializerKind": "affine-overview-in-level-zero-frame",
                 "initializerSupportAppliedToWarp": False,
             },
         }
+        if input_geometry:
+            # Composition above is already in both original frames. Reuse the
+            # shared clipper with zero origins, then bind the actual frame digest.
+            zero_settings = {
+                **settings,
+                **{key: {**value, "cropOrigin": [0, 0]} for key, value in input_geometry.items()},
+            }
+            payload = original_frame_registration(payload, zero_settings)
+            payload["samplingGeometryDigest"] = hashlib.sha256(
+                json.dumps(
+                    {
+                        side: input_geometry[f"{side}Geometry"]
+                        for side in ("reference", "moving")
+                        if f"{side}Geometry" in input_geometry
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            payload["engineSettings"] = {**settings, "stageEffectiveSettings": effective_stages}
         if not local:
             payload["status"] = "approximate"
         artifact = inputs.workspace / "recipe-map.json"

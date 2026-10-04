@@ -400,8 +400,8 @@ def _registration_triangles(
     *,
     moving_mask: np.ndarray | None = None,
     reference_mask: np.ndarray | None = None,
-    moving_scale: float = 1.0,
-    reference_scale: float = 1.0,
+    moving_scale: float | tuple[float, float] = 1.0,
+    reference_scale: float | tuple[float, float] = 1.0,
     sampling_ratio: float = 1.0,
 ) -> list[dict[str, Any]]:
     """Triangulate trusted matches and reject folded or unstable cells."""
@@ -444,9 +444,10 @@ def _registration_triangles(
         moving_allowed, reference_allowed, moving_labels, reference_labels = mask_context
 
         def mask_point(
-            point: np.ndarray, scale: float, shape: tuple[int, int]
+            point: np.ndarray, scale: float | tuple[float, float], shape: tuple[int, int]
         ) -> tuple[int, int] | None:
-            x, y = int(round(float(point[0]) * scale)), int(round(float(point[1]) * scale))
+            scale_x, scale_y = (scale, scale) if isinstance(scale, (int, float)) else scale
+            x, y = int(round(float(point[0]) * scale_x)), int(round(float(point[1]) * scale_y))
             return (x, y) if 0 <= x < shape[1] and 0 <= y < shape[0] else None
 
         moving_vertices = [mask_point(point, moving_scale, moving_mask.shape) for point in source]
@@ -893,9 +894,7 @@ def register_pair(
 ) -> RegistrationResult:
     if max_dimension < 256 or max_dimension > 4096:
         raise ValueError("max_dimension must be between 256 and 4096")
-    if sampling_ratio is not None and (
-        not np.isfinite(sampling_ratio) or sampling_ratio <= 0
-    ):
+    if sampling_ratio is not None and (not np.isfinite(sampling_ratio) or sampling_ratio <= 0):
         raise ValueError("sampling_ratio must be finite and positive")
     reference_rgb, reference_scale = _bounded_rgb(reference, max_dimension)
     moving_rgb, moving_scale = _bounded_rgb(moving, max_dimension)

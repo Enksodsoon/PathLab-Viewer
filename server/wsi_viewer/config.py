@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     alignment_enabled: bool = False
     alignment_hisalign_enabled: bool = False
     alignment_valis_enabled: bool = False
+    alignment_valis_disk_weights_path: Path | None = None
+    alignment_valis_disk_weights_sha256: str | None = None
+    alignment_valis_lightglue_weights_path: Path | None = None
+    alignment_valis_lightglue_weights_sha256: str | None = None
     alignment_wsireg_enabled: bool = False
     alignment_deeperhistreg_enabled: bool = False
     admin_annotation_canary_enabled: bool = False

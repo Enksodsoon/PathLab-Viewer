@@ -1,0 +1,533 @@
+{
+  "schema": "pathlab-frozen-support-diagnosis/1",
+  "manifestSha256": "d8fc10b233149495758c7ff23f15f35ec7ca9dd6cc959301fbb172be5906746a",
+  "loadedOpenCvVersion": "4.9.0",
+  "scope": "saved-transform-and-mask-only; no fitting or gate changes; mask holes do not establish anatomical labels",
+  "rows": [
+    {
+      "pairIndex": 0,
+      "registrationDigest": "4650bc9346e1dd8496ee1022570e774fbd7b94f398904260a92d6537768a5de0",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 59,
+        "supported-saved-map": 19,
+        "enclosed-background-hole-outside-supported-cells": 2
+      },
+      "inComponentUnsupportedDetail": {
+        "outside-paired-mask-grid-control-hull": 13,
+        "mask-cell-filtering": 46
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 86,
+        "unfilteredCandidateCells": 199,
+        "legacyScalarMaskFilteredCells": 86,
+        "perAxisMaskFilteredCells": 86,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 61
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 59,
+        "enclosed-background-mask-hole": 2
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 45,
+        "external-background": 6,
+        "enclosed-background-mask-hole": 7,
+        "outside-frame": 3
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.6311707997650218,
+        "thin": 0.8193636997253085,
+        "calibrated-normal": 0.7221890390271939,
+        "calibrated-thin": 0.7003856153820726,
+        "prepared-primary": 0.6311707997650218,
+        "prepared-thin": 0.8193636997253085,
+        "prepared-calibrated": 0.7003856153820726
+      }
+    },
+    {
+      "pairIndex": 1,
+      "registrationDigest": "94759a2825109643e0c900d65d3798aa065c0e2c61493e0059e6416b44c800d1",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 63,
+        "supported-saved-map": 15,
+        "enclosed-background-hole-outside-supported-cells": 2
+      },
+      "inComponentUnsupportedDetail": {
+        "mask-cell-filtering": 54,
+        "outside-paired-mask-grid-control-hull": 9
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 96,
+        "unfilteredCandidateCells": 243,
+        "legacyScalarMaskFilteredCells": 96,
+        "perAxisMaskFilteredCells": 96,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 65
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 63,
+        "enclosed-background-mask-hole": 2
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 47,
+        "enclosed-background-mask-hole": 11,
+        "external-background": 7
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.6351189080295766,
+        "thin": 0.8725658516969128,
+        "calibrated-normal": 0.6181764107234968,
+        "calibrated-thin": 0.723262220100509,
+        "prepared-primary": 0.6351189080295766,
+        "prepared-thin": 0.8725658516969128,
+        "prepared-calibrated": 0.723262220100509
+      }
+    },
+    {
+      "pairIndex": 2,
+      "registrationDigest": "afb82c41fa5bc9674193fd9d96d43b2649315a3d8bad280dce99cea30c02376c",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 68,
+        "supported-saved-map": 10,
+        "enclosed-background-hole-outside-supported-cells": 2
+      },
+      "inComponentUnsupportedDetail": {
+        "mask-cell-filtering": 61,
+        "outside-paired-mask-grid-control-hull": 7
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 101,
+        "unfilteredCandidateCells": 239,
+        "legacyScalarMaskFilteredCells": 101,
+        "perAxisMaskFilteredCells": 101,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 70
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 68,
+        "enclosed-background-mask-hole": 2
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 57,
+        "enclosed-background-mask-hole": 9,
+        "external-background": 4
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.5886024999629599,
+        "thin": 0.8800040808210778,
+        "calibrated-normal": 0.6881814433809029,
+        "calibrated-thin": 0.7741494890271527,
+        "prepared-primary": 0.5886024999629599,
+        "prepared-thin": 0.8800040808210778,
+        "prepared-calibrated": 0.7741494890271527
+      }
+    },
+    {
+      "pairIndex": 3,
+      "registrationDigest": "3e6c01a811432a70afadd2362f5bea1fa80efc044ef7548148982dcd88aef8d6",
+      "maskMode": null,
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 51,
+        "supported-saved-map": 9,
+        "outside-tissue-mask-or-frame": 9,
+        "enclosed-background-hole-outside-supported-cells": 11
+      },
+      "inComponentUnsupportedDetail": {
+        "outside-paired-mask-grid-control-hull": 9,
+        "mask-cell-filtering": 42
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 52,
+        "unfilteredCandidateCells": 198,
+        "legacyScalarMaskFilteredCells": 52,
+        "perAxisMaskFilteredCells": 52,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 65,
+        "enclosed-background-mask-hole": 6
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 56,
+        "external-background": 10,
+        "enclosed-background-mask-hole": 5
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 47,
+        "external-background": 15,
+        "enclosed-background-mask-hole": 8,
+        "outside-frame": 1
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.6655782794630841,
+        "thin": 0.8591408835393677,
+        "calibrated-normal": 0.785868036621416,
+        "calibrated-thin": 0.7974704023617978,
+        "prepared-primary": 0.6655782794630841,
+        "prepared-thin": 0.8591408835393677,
+        "prepared-calibrated": 0.7974704023617978
+      }
+    },
+    {
+      "pairIndex": 4,
+      "registrationDigest": "ed441d4d558f755ecf2c0620f9961901301b1f5fdaa7b646c9e58ed49dd7d814",
+      "maskMode": null,
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 51,
+        "supported-saved-map": 29
+      },
+      "inComponentUnsupportedDetail": {
+        "outside-paired-mask-grid-control-hull": 10,
+        "mask-cell-filtering": 41
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 116,
+        "unfilteredCandidateCells": 294,
+        "legacyScalarMaskFilteredCells": 116,
+        "perAxisMaskFilteredCells": 116,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 51
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 51
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 51
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.8359699905074427,
+        "thin": 0.9297604326616027,
+        "calibrated-normal": 0.7073326743036576,
+        "calibrated-thin": 0.7507890665547529,
+        "prepared-primary": 0.8359699905074427,
+        "prepared-thin": 0.9297604326616027,
+        "prepared-calibrated": 0.7507890665547529
+      }
+    },
+    {
+      "pairIndex": 5,
+      "registrationDigest": "285c3d9e4a7d1905316c82207aa53be54b34f9b38dc0353fefc81652aa628d89",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 50,
+        "supported-saved-map": 30
+      },
+      "inComponentUnsupportedDetail": {
+        "outside-paired-mask-grid-control-hull": 5,
+        "mask-cell-filtering": 45
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 181,
+        "unfilteredCandidateCells": 279,
+        "legacyScalarMaskFilteredCells": 181,
+        "perAxisMaskFilteredCells": 181,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 50
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 50
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "outside-frame": 1,
+        "tissue": 49
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.4187765776435628,
+        "thin": 0.9209520173466051,
+        "calibrated-normal": 0.7006177239249228,
+        "calibrated-thin": 0.7638626014720431,
+        "prepared-primary": 0.4187765776435628,
+        "prepared-thin": 0.9209520173466051,
+        "prepared-calibrated": 0.7638626014720431
+      }
+    },
+    {
+      "pairIndex": 6,
+      "registrationDigest": "b89f3496425583066c8e92ec8852f19532ca375468aa0fce2e866eeb0896ad5f",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 23,
+        "supported-saved-map": 57
+      },
+      "inComponentUnsupportedDetail": {
+        "outside-paired-mask-grid-control-hull": 7,
+        "mask-cell-filtering": 16
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 253,
+        "unfilteredCandidateCells": 294,
+        "legacyScalarMaskFilteredCells": 253,
+        "perAxisMaskFilteredCells": 253,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 23
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 23
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "outside-frame": 4,
+        "tissue": 19
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.7538446278619712,
+        "thin": 0.9201274567694498,
+        "calibrated-normal": 0.6762532993813224,
+        "calibrated-thin": 0.6769667333047614,
+        "prepared-primary": 0.7538446278619712,
+        "prepared-thin": 0.9201274567694498,
+        "prepared-calibrated": 0.6769667333047614
+      }
+    },
+    {
+      "pairIndex": 7,
+      "registrationDigest": "029edf24d15d41950f5fea3564aaf2918c7c08f76f86a4db938678361719b168",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 49,
+        "supported-saved-map": 31
+      },
+      "inComponentUnsupportedDetail": {
+        "mask-cell-filtering": 42,
+        "outside-paired-mask-grid-control-hull": 7
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 170,
+        "unfilteredCandidateCells": 265,
+        "legacyScalarMaskFilteredCells": 170,
+        "perAxisMaskFilteredCells": 170,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 49
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 49
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 45,
+        "enclosed-background-mask-hole": 4
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.4527169138870065,
+        "thin": 0.9205242087406481,
+        "calibrated-normal": 0.7347579457867844,
+        "calibrated-thin": 0.8111863386492386,
+        "prepared-primary": 0.4527169138870065,
+        "prepared-thin": 0.9205242087406481,
+        "prepared-calibrated": 0.8111863386492386
+      }
+    },
+    {
+      "pairIndex": 8,
+      "registrationDigest": "52146e2af455445b7daaf5096d4cff628c771a33a3f07dd902478668c48c72c6",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 33,
+        "supported-saved-map": 47
+      },
+      "inComponentUnsupportedDetail": {
+        "mask-cell-filtering": 26,
+        "outside-paired-mask-grid-control-hull": 7
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 225,
+        "unfilteredCandidateCells": 287,
+        "legacyScalarMaskFilteredCells": 225,
+        "perAxisMaskFilteredCells": 225,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 33
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 33
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 29,
+        "enclosed-background-mask-hole": 2,
+        "outside-frame": 2
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.7282092803859209,
+        "thin": 0.9446353336523482,
+        "calibrated-normal": 0.7073363444461479,
+        "calibrated-thin": 0.759883820263113,
+        "prepared-primary": 0.7282092803859209,
+        "prepared-thin": 0.9446353336523482,
+        "prepared-calibrated": 0.759883820263113
+      }
+    },
+    {
+      "pairIndex": 9,
+      "registrationDigest": "9638f73a06081dc55b7cfda95c27fca11adff4b018556c83d2807711f42bc00c",
+      "maskMode": "thin-tissue-fallback",
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "inside-accepted-component-outside-supported-grid-cells": 50,
+        "supported-saved-map": 30
+      },
+      "inComponentUnsupportedDetail": {
+        "mask-cell-filtering": 47,
+        "outside-paired-mask-grid-control-hull": 3
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 167,
+        "unfilteredCandidateCells": 276,
+        "legacyScalarMaskFilteredCells": 167,
+        "perAxisMaskFilteredCells": 167,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "tissue": 50
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 50
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 43,
+        "external-background": 1,
+        "enclosed-background-mask-hole": 6
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.4824214768306972,
+        "thin": 0.8904315953667404,
+        "calibrated-normal": 0.7617930523902756,
+        "calibrated-thin": 0.7877914148651174,
+        "prepared-primary": 0.4824214768306972,
+        "prepared-thin": 0.8904315953667404,
+        "prepared-calibrated": 0.7877914148651174
+      }
+    },
+    {
+      "pairIndex": 10,
+      "registrationDigest": "5b494edd32573018a92f8bb5c7987bb15f530e8ae16147da1b54fbf28b09dba0",
+      "maskMode": null,
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "supported-saved-map": 35,
+        "outside-tissue-mask-or-frame": 14,
+        "inside-accepted-component-outside-supported-grid-cells": 17,
+        "enclosed-background-hole-outside-supported-cells": 3
+      },
+      "inComponentUnsupportedDetail": {
+        "mask-cell-filtering": 12,
+        "outside-paired-mask-grid-control-hull": 5
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 311,
+        "unfilteredCandidateCells": 368,
+        "legacyScalarMaskFilteredCells": 311,
+        "perAxisMaskFilteredCells": 311,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "external-background": 14,
+        "tissue": 17,
+        "enclosed-background-mask-hole": 3
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "tissue": 33,
+        "external-background": 1
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "tissue": 25,
+        "external-background": 7,
+        "enclosed-background-mask-hole": 2
+      },
+      "fixedTransformMaskDice": {
+        "normal": 0.965322988812678,
+        "thin": 0.9847106740947194,
+        "calibrated-normal": 0.9522048911996919,
+        "calibrated-thin": 0.9854925941024596,
+        "prepared-primary": 0.965322988812678,
+        "prepared-thin": 0.9847106740947194,
+        "prepared-calibrated": 0.9854925941024596
+      }
+    },
+    {
+      "pairIndex": 11,
+      "registrationDigest": "d5a3324e0ec7bbb245176ed7cbf7b21d6a4d9ffedc4aa4ce85d144c711153d77",
+      "maskMode": null,
+      "maskSelectionScope": "preparation-branches-and-saved-mode-reconstruction",
+      "landmarkSupportCategories": {
+        "supported-saved-map": 48,
+        "enclosed-background-hole-outside-supported-cells": 3,
+        "inside-accepted-component-outside-supported-grid-cells": 27
+      },
+      "inComponentUnsupportedDetail": {
+        "mask-cell-filtering": 24,
+        "outside-paired-mask-grid-control-hull": 3
+      },
+      "fixedGridReconstruction": {
+        "matchesSavedMovingCellTopology": true,
+        "savedCells": 205,
+        "unfilteredCandidateCells": 305,
+        "legacyScalarMaskFilteredCells": 205,
+        "perAxisMaskFilteredCells": 205,
+        "scope": "same saved affine, masks and deterministic192-budget grid; no fitting/promotion"
+      },
+      "unsupportedSourceMaskStates": {
+        "enclosed-background-mask-hole": 3,
+        "tissue": 27
+      },
+      "unsupportedPublishedReferenceMaskStates": {
+        "enclosed-background-mask-hole": 1,
+        "tissue": 29
+      },
+      "unsupportedAffineProjectedReferenceMaskStates": {
+        "enclosed-background-mask-hole": 3,
+        "tissue": 27
+      },
+      "fixedTransformMaskDice": {
+        "normal": null,
+        "thin": null,
+        "calibrated-normal": 0.925785169878634,
+        "calibrated-thin": 0.8562656811075833,
+        "prepared-primary": 0.8647078036963445,
+        "prepared-thin": null,
+        "prepared-calibrated": null
+      }
+    }
+  ],
+  "totals": {
+    "inside-accepted-component-outside-supported-grid-cells": 541,
+    "supported-saved-map": 360,
+    "enclosed-background-hole-outside-supported-cells": 23,
+    "outside-tissue-mask-or-frame": 23
+  }
+}

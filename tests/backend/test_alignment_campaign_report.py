@@ -116,6 +116,7 @@ def test_public_winner_is_suppressed_when_reviewed_safety_is_ineligible(
         "winners": {"fast": "native-overview-v6", "accurate": None},
         "qualificationGates": {},
     }
+
     monkeypatch.setattr(
         campaign_report,
         "select",
@@ -142,6 +143,54 @@ def test_public_winner_is_suppressed_when_reviewed_safety_is_ineligible(
         "suppressionReasons": ["repeat-negative-map-review-unavailable"],
         "scope": "reviewed-negative-cold-and-fresh-repeat-safety-policy",
     }
+
+
+def test_public_resources_preserve_distinct_job_rss_and_committed_peaks(campaign_report, tmp_path):
+    digest = "a" * 64
+    (tmp_path / "cache").mkdir()
+    resources = {
+        "peakMemoryBytes": 200,
+        "peakCommittedMemoryBytes": 900,
+        "committedMemoryLimitBytes": 800,
+        "memoryMeasurementScope": "windows-job-sampled-working-set",
+        "processContainment": "windows-job-object",
+        "privatePath": "private-original",
+    }
+    (tmp_path / "cache" / f"{digest}.json").write_text(
+        json.dumps(
+            {
+                "registration": {},
+                "resourceMetrics": resources,
+                "effectiveSettingsDigest": "e" * 64,
+                "settingsDigest": "r" * 64,
+            }
+        )
+    )
+    report = {
+        "screening": False,
+        "rows": [
+            {
+                "digest": digest,
+                "recipe": "native-overview-v6",
+                "pairIndex": 0,
+                "kind": "positive",
+                "outcome": "rejected",
+                "coldRuntimeSeconds": 1,
+                "peakMemoryBytes": 200,
+                "resourceMetrics": resources,
+            }
+        ],
+        "recipes": {"native-overview-v6": {}},
+        "winners": {"fast": None, "accurate": None},
+        "qualificationGates": {},
+    }
+    result = campaign_report.summarize(report, tmp_path, memory_scope="unrecorded")
+    row = result["rows"][0]
+    assert row["peakMemoryMeasurementScope"] == "windows-job-sampled-working-set"
+    assert row["resourceMetrics"]["peakCommittedMemoryBytes"] == 900
+    assert row["effectiveSettingsDigest"] == "e" * 64
+    assert result["recipes"]["native-overview-v6"]["peakCommittedMemoryP95Bytes"] == 900
+    assert "private-original" not in json.dumps(result)
 
 
 def _initializer_path(tmp_path, module):
@@ -475,3 +524,21 @@ def test_missing_map_or_independent_landmarks_is_unmeasured(campaign_report):
         assert result["status"] == "unmeasured"
         assert result["commonSupportedLandmarks"] is None
         assert result["errorsByUnit"] is None
+
+
+def test_preserved_wsireg_upstream_failure_is_unknown_negative_safety(campaign_report, tmp_path):
+    (tmp_path / "diagnostics").mkdir()
+    digest = "a" * 64
+    (tmp_path / "diagnostics" / (digest + ".json")).write_text(
+        json.dumps(
+            {
+                "exceptionType": "AlignmentRejected",
+                "message": (
+                    "wsireg upstream registration failed (RuntimeError): Internal elastix error"
+                ),
+            }
+        )
+    )
+    category = campaign_report.classify(tmp_path, digest, "rejected")
+    assert category == "upstream-or-runtime-failure"
+    assert campaign_report.negative_review_value(category) is None

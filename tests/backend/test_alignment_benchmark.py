@@ -3,6 +3,113 @@ import json
 import pytest
 
 
+def test_cache_retains_effective_provenance_without_exposing_private_settings(
+    tmp_path, monkeypatch
+):
+    from wsi_viewer import alignment_benchmark as bench
+    from wsi_viewer.alignment_engines import ENGINE_NATIVE_OVERVIEW, settings_digest
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+    }
+    effective = {"inputBlurRadius": 0.6, "resourcePath": str(tmp_path / "private-weights")}
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {ENGINE_NATIVE_OVERVIEW: {"available": True}}
+    )
+    calls = []
+    monkeypatch.setattr(
+        bench,
+        "_run_alignment_bounded",
+        lambda *a, **kw: calls.append(kw) or {"status": "rejected", "engineSettings": effective},
+    )
+    manifest = {"pairs": [pair], "settings": {"native": {"iterations": 2}}}
+    out = tmp_path / "out"
+    report = bench.run_benchmark(manifest, out, ["native"])
+    receipt = json.loads(next((out / "cache").glob("*.json")).read_text())
+    assert receipt["requestedSettingsDigest"] == settings_digest(
+        ENGINE_NATIVE_OVERVIEW, {"iterations": 2, "timeoutSeconds": 600}
+    )
+    assert receipt["effectiveSettings"] == effective
+    assert receipt["effectiveSettingsDigest"] == settings_digest(ENGINE_NATIVE_OVERVIEW, effective)
+    assert report["rows"][0]["effectiveSettingsDigest"] == receipt["effectiveSettingsDigest"]
+    assert str(tmp_path) not in json.dumps(report)
+    bench.run_benchmark(manifest, out, ["native"])
+    assert len(calls) == 1
+
+
+def test_resource_rejection_preserves_safe_peak_metrics(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_benchmark as bench
+    from wsi_viewer.alignment import AlignmentRejected
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "negative",
+        "landmarks": [],
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+    }
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
+
+    def fail(*a, **kw):
+        error = AlignmentRejected("memory ceiling on " + str(tmp_path))
+        error.resource_metrics = {
+            "peakMemoryBytes": 1234,
+            "peakCommittedMemoryBytes": 5678,
+            "memoryMeasurementScope": "windows-job-sampled-working-set",
+            "privatePath": str(tmp_path),
+        }
+        raise error
+
+    monkeypatch.setattr(bench, "_run_alignment_bounded", fail)
+    report = bench.run_benchmark({"pairs": [pair]}, tmp_path / "out", ["native"], repeat_runs=1)
+    row = report["rows"][0]
+    assert row["peakMemoryBytes"] == 1234
+    assert row["resourceMetrics"]["peakCommittedMemoryBytes"] == 5678
+    assert row["repeatComputeReceipts"][0]["peakMemoryBytes"] == 1234
+    assert str(tmp_path) not in json.dumps(report)
+
+
+def test_resource_changed_after_admission_is_unavailable_not_anatomical_rejection(
+    tmp_path, monkeypatch
+):
+    from wsi_viewer import alignment_benchmark as bench
+    from wsi_viewer.alignment_resources import EngineResourceUnavailable
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+    }
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
+
+    def unavailable(*args, **kwargs):
+        raise EngineResourceUnavailable("verified local weights changed")
+
+    monkeypatch.setattr(bench, "_run_alignment_bounded", unavailable)
+    row = bench.run_benchmark({"pairs": [pair]}, tmp_path / "out", ["native"], repeat_runs=1)[
+        "rows"
+    ][0]
+    assert row["outcome"] == "unavailable"
+    assert row["repeatComputeReceipts"] == []
+    assert row["coldRuntimeSeconds"] is None and row["admissionSeconds"] >= 0
+
+
 def _scored_row(kind="positive", *, manual=False):
     return {
         "recipe": "native",
@@ -489,3 +596,20 @@ def test_registration_change_invalidates_negative_and_latency_reviews(tmp_path, 
     assert changed["rows"][0]["wrongStructure"] is None
     assert changed["rows"][0]["frontendLatencyReviewed"] is False
     assert changed["recipes"]["native-overview-v6"]["missingNegativeReviews"] == 1
+
+
+def test_runtime_identity_binds_loaded_opencv_and_contrib_distribution(monkeypatch):
+    import cv2
+    from wsi_viewer import alignment_benchmark as benchmark
+
+    monkeypatch.setattr(
+        benchmark.importlib.metadata,
+        "version",
+        lambda name: "4.11" if name == "opencv-python-headless" else "4.9",
+    )
+    monkeypatch.setattr(cv2, "__version__", "4.9.0")
+    first = benchmark._runtime_versions()
+    assert first["opencv-contrib-python-headless"] == "4.9"
+    assert first["loaded-cv2"] == "4.9.0"
+    monkeypatch.setattr(cv2, "__version__", "4.11.0")
+    assert benchmark._runtime_versions() != first
