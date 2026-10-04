@@ -25,6 +25,22 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await page.goto(`/admin/comparisons/${id}`)
   await expect(page.getByLabel('Slide shown in pane 1')).toHaveValue(slideIds[1])
   await expect(page.getByLabel('Slide shown in pane 2')).toHaveValue(slideIds[2])
+  await expect(page.locator('.comparison-setup-menu')).not.toHaveAttribute('open', '')
+  const currentSet = await (await page.request.get(endpoint)).json()
+  const slidesButton = page.getByRole('button', { name: 'Slides', exact: true })
+  await slidesButton.focus(); await page.keyboard.press('Enter')
+  await expect(slidesButton).toHaveAttribute('aria-expanded', 'true')
+  await page.locator('#comparison-slides button').filter({ hasText: currentSet.members[0].displayName }).click()
+  await expect(page.getByLabel('Slide shown in pane 1')).toHaveValue(slideIds[0])
+  await page.locator('#comparison-slides button').filter({ hasText: currentSet.members[1].displayName }).click()
+  await expect(page.getByLabel('Slide shown in pane 1')).toHaveValue(slideIds[1])
+  await slidesButton.focus(); await page.keyboard.press('Enter')
+  await expect(slidesButton).toHaveAttribute('aria-expanded', 'false')
+  await page.getByRole('button', { name: 'Views linked' }).focus(); await page.keyboard.press('Enter')
+  await expect(page.getByRole('button', { name: 'Views independent' })).toHaveAttribute('aria-pressed', 'false')
+  await page.getByRole('button', { name: 'Views independent' }).focus(); await page.keyboard.press('Enter')
+  await expect(page.getByRole('button', { name: 'Views linked' })).toHaveAttribute('aria-pressed', 'true')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await expect(page.getByLabel('Loading mode', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Slide shown in pane 1')).toHaveCSS('appearance', 'none')
   await expect(page.getByLabel('Slide shown in pane 1')).toHaveCSS('background-color', 'rgb(45, 43, 39)')
@@ -80,6 +96,17 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await page.getByRole('button', { name: 'Adjust region' }).click()
   await expect(page.getByLabel('Correction reference slide')).toHaveValue(slideIds[2])
   await page.getByRole('button', { name: 'Record point pair' }).click()
+  let previewFailureInjected = false
+  await page.route(`**${endpoint}/region-corrections`, async route => {
+    if (!previewFailureInjected && route.request().method() === 'POST' && route.request().postDataJSON().operation === 'preview') {
+      previewFailureInjected = true
+      await route.fulfill({ status: 503, json: { detail: { code: 'QA_TRANSIENT_PREVIEW_FAILURE' } } })
+    } else await route.continue()
+  })
+  await page.getByRole('button', { name: 'Preview correction' }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByText('1 point pairs', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Preview correction' })).toBeEnabled()
   const previewResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'Preview correction' }).click()
   const preview = await previewResponse
@@ -102,6 +129,7 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await expect.poll(async () => (await applications()).length).toBeGreaterThan(0)
   await driveToInterior()
   await page.getByRole('button', { name: 'Adjust region' }).click()
+  const recordTwoPoints = async () => {
   await page.getByRole('button', { name: 'Record point pair' }).click()
   for (const pane of await page.locator('.comparison-pane').all()) {
     const canvas = pane.locator('.openseadragon-canvas').first()
@@ -116,6 +144,8 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   }
   await page.getByRole('button', { name: 'Record point pair' }).click()
   await expect(page.getByRole('button', { name: 'Record point pair' })).toBeDisabled()
+  }
+  await recordTwoPoints()
   const twoPointResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'Preview correction' }).click()
   const twoPoint = await twoPointResponse
@@ -125,6 +155,28 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   const afterCancel = await (await page.request.get(endpoint)).json()
   expect(afterCancel.version).toBe(savedSet.version)
   expect(afterCancel.regionalCorrections).toHaveLength(1)
+  await page.getByRole('button', { name: 'Adjust region' }).click()
+  await recordTwoPoints()
+  const secondPreviewResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Preview correction' }).click()
+  const secondPreview = await secondPreviewResponse
+  expect(secondPreview.ok(), await secondPreview.text()).toBe(true)
+  const secondSaveResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Save correction' }).click()
+  const secondSave = await secondSaveResponse
+  expect(secondSave.ok(), await secondSave.text()).toBe(true)
+  const twiceSaved = await secondSave.json()
+  expect(twiceSaved.version).toBe(savedSet.version + 1)
+  expect(twiceSaved.regionalCorrections).toHaveLength(2)
+  expect(secondSave.request().postDataJSON().movingPoints).toHaveLength(2)
+  await page.reload()
+  await expect.poll(async () => (await applications()).length).toBeGreaterThan(0)
+  const reloadedSet = await (await page.request.get(endpoint)).json()
+  expect(reloadedSet.version).toBe(twiceSaved.version)
+  expect(reloadedSet.regionalCorrections).toHaveLength(2)
+  await expect(page.locator('.comparison-setup-menu')).not.toHaveAttribute('open', '')
+  await page.screenshot({ path: testInfo.outputPath('alignment-two-point-saved.png'), fullPage: true })
+  await testInfo.attach('guided-correction-receipt', { body: JSON.stringify({ scope: 'Disposable synthetic tissue derivative, actual OSD and backend region API; no anatomical qualification.', loadedTiles, hiddenReference: true, slidesKeyboardSelection: true, syncKeyboardRoundtrip: true, advancedOpenedDuringGuidedCorrection: false, onePointSavedReloaded: true, twoPointPreviewCancelled: true, twoPointSavedReloaded: true, injectedTransientPreviewFailureRetainedPoints: previewFailureInjected, assertionRetries: testInfo.retry }), contentType: 'application/json' })
   await page.getByText('Advanced', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Active pane inspector' })).toBeVisible()
   await page.getByText('Display', { exact: true }).click()
