@@ -29,32 +29,39 @@ def qa_settings() -> Settings:
     return settings
 
 
-def seed_alignment(settings: Settings) -> None:
+def seed_alignment(settings: Settings, *, large_odd: bool = False) -> None:
     layout = StorageLayout(settings.data_root)
     image = Image.new("RGB", (640, 480), "white")
     draw = ImageDraw.Draw(image)
     draw.polygon([(60, 80), (500, 50), (570, 350), (110, 420)], fill=(210, 135, 180))
     for x, y in np.random.default_rng(42).integers([100, 100], [490, 350], (400, 2)):
         draw.ellipse((int(x), int(y), int(x + 5), int(y + 5)), fill=(70, 35, 95))
-    ids = [f"alignment-qa-{index:02d}" for index in range(12)]
+    if large_odd:
+        image = image.resize((5003, 4009))
+    width, height = image.size
+    prefix = "alignment-large-qa" if large_odd else "alignment-qa"
+    ids = [f"{prefix}-{index:02d}" for index in range(2 if large_odd else 12)]
     with session_factory(settings)() as database:
         for index, slide_id in enumerate(ids):
             if database.get(Slide, slide_id):
                 continue
             moved = Image.new("RGB", image.size, "white")
-            moved.paste(image, (index * 2, index))
+            moved.paste(image, (index * (16 if large_odd else 2), index * (8 if large_odd else 1)))
             derivative = layout.for_slide(slide_id).private_derivative
             derivative.mkdir(parents=True, exist_ok=True)
-            moved.save(derivative / "thumbnail.jpg")
+            thumbnail = moved.copy()
+            thumbnail.thumbnail((640, 640))
+            thumbnail.save(derivative / "thumbnail.jpg")
+            thumbnail.close()
             (derivative / "slide.dzi").write_text(
                 '<Image xmlns="http://schemas.microsoft.com/deepzoom/2008" '
                 'TileSize="256" Overlap="1" Format="jpeg">'
-                '<Size Width="640" Height="480"/></Image>'
+                f'<Size Width="{width}" Height="{height}"/></Image>'
             )
             maximum = math.ceil(math.log2(max(image.size)))
             for level in range(maximum + 1):
                 divisor = 2 ** (maximum - level)
-                small = moved.resize((math.ceil(640 / divisor), math.ceil(480 / divisor)))
+                small = moved.resize((math.ceil(width / divisor), math.ceil(height / divisor)))
                 root = derivative / "slide_files" / str(level)
                 root.mkdir(parents=True, exist_ok=True)
                 for row in range(math.ceil(small.height / 256)):
@@ -67,18 +74,19 @@ def seed_alignment(settings: Settings) -> None:
                                 min(small.height, (row + 1) * 256 + 1),
                             )
                         ).save(root / f"{column}_{row}.jpeg", quality=95)
+                small.close()
             database.add(
                 Slide(
                     id=slide_id,
                     public_id=f"synthetic-{slide_id}",
-                    display_name=f"Alignment QA {index:02d}",
+                    display_name=f"Alignment {'large ' if large_odd else ''}QA {index:02d}",
                     original_filename=f"synthetic-{index}.ome.tif",
                     source_bytes=1,
                     sha256=hashlib.sha256(moved.tobytes()).hexdigest(),
                     state=SlideState.READY_PRIVATE,
                     slide_metadata={
-                        "width": 640,
-                        "height": 480,
+                        "width": width,
+                        "height": height,
                         "physicalSizeX": 0.5,
                         "physicalSizeY": 0.5,
                         "physicalSizeUnit": "um",
@@ -88,14 +96,18 @@ def seed_alignment(settings: Settings) -> None:
                     tags=["alignment-qa"],
                 )
             )
+            moved.close()
         database.commit()
-    print(json.dumps({"slideIds": ids, "syntheticPixels": True}))
+    image.close()
+    print(json.dumps({"slideIds": ids, "syntheticPixels": True, "sourceSize": [width, height]}))
 
 
 def main() -> None:
     settings = qa_settings()
     if sys.argv[1] == "alignment":
-        seed_alignment(settings)
+        if len(sys.argv) > 3 or (len(sys.argv) == 3 and sys.argv[2] != "large-odd"):
+            raise ValueError("Unsupported alignment QA fixture mode")
+        seed_alignment(settings, large_odd=len(sys.argv) == 3)
         return
     count = int(sys.argv[1])
     if count not in (0, 1, 100, 1000):
