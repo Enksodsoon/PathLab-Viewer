@@ -65,7 +65,7 @@ def test_browser_absence_does_not_erase_source_notice_or_admission() -> None:
             encoding="utf-8"
         )
     assert manifest["releaseAdmission"] == "BLOCKED"
-    assert manifest["coverage"]["currentShippedInputs"] == 176
+    assert manifest["coverage"]["currentShippedInputs"] == 177
 
 
 def test_generation_is_byte_identical_across_directories(tmp_path: Path) -> None:
