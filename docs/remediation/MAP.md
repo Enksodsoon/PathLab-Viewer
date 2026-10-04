@@ -89,3 +89,7 @@ PR307 merged c37cf81 after all nine reviewed-head gates. Fresh main CI3716237638
 ## Fresh-main verification repair
 
 [Classroom polling verification](tickets/classroom-polling-verification.md) records reproduced readiness and fake-timer fixture defects from main ed1aa6a CI37167261430. Product source is unchanged. Preserve the failed baseline, repair verification, refresh immutable browser input receipts and require fresh reviewed-head/main checks.
+
+## Revised handoff sources and shared-link return
+
+[Versioned Antigravity reconciliation](ANTIGRAVITY_V2_RECONCILIATION.md) preserves the original954 entries/29 aggregate claims and separately reviews the September28 variants, including reused IDs. [Unavailable shared-link return](tickets/shared-unavailable-return.md) records a separately reproduced caller gap, local repair and pending release. PR309 merged c569453 and fresh main passed all nine campaign gates. Verified production remains c37cf81; external closure requirements remain open.

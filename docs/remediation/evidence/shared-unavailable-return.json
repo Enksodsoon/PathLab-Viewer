@@ -1,0 +1,52 @@
+{
+  "schema": "pathlab.shared-unavailable-return/1",
+  "baselineCommit": "c56945302d20fc3aa88a11e3637e40f9c442287c",
+  "productionTouched": false,
+  "originalSourceUnitFailures": 2,
+  "finalAffectedUnitPassed": 11,
+  "finalBrowserPassed": 32,
+  "browserProjects": [
+    "chromium",
+    "firefox",
+    "webkit",
+    "mobile-chromium"
+  ],
+  "viewportSizes": [
+    [
+      320,
+      740
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      900,
+      420
+    ],
+    [
+      1584,
+      992
+    ]
+  ],
+  "checks": [
+    "retry adds one request",
+    "Tab focus and Enter",
+    "44px target",
+    "viewport containment",
+    "anonymous authentication boundary",
+    "reload persistence",
+    "light/dark",
+    "reduced motion"
+  ],
+  "independentReview": "CLEAR",
+  "fullFrontend": {
+    "passed": 573,
+    "files": 85,
+    "seconds": 175.46
+  },
+  "frontendLint": "PASS",
+  "productionBuildSeconds": 9.75,
+  "hostedRelease": "PENDING",
+  "verifiedProduction": "c37cf81a1cabc967e3a587eb2610bf95993801ba"
+}

@@ -40,3 +40,16 @@
   background: var(--primary-hover);
   color: var(--on-primary-hover);
 }
+
+.share-message-return {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
