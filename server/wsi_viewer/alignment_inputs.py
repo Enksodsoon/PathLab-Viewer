@@ -87,6 +87,9 @@ def immutable_descriptor(
         raise AlignmentRejected("invalid immutable overview geometry")
     if value.get("pixelSha256") != geometry.get("snapshotPixelSha256"):
         raise AlignmentRejected("immutable pixel digest differs from sampling provenance")
+    original = value.get("originalSource", {})
+    if isinstance(original, dict) and original.get("copiedBytesVerified") is True:
+        verify_file(root, original.get("file"), original.get("sha256"))
     image_path = verify_file(
         root, value.get("image"), value.get("imageSha256"), maximum=MAX_OVERVIEW_BYTES
     )
@@ -102,6 +105,14 @@ def immutable_descriptor(
     region = value.get("regionSource")
     if not isinstance(region, dict) or type(region.get("available")) is not bool:
         raise AlignmentRejected("invalid immutable regional source provenance")
+    if region.get("kind") in {"copied-dzi", "copied-dzi-incomplete"}:
+        files = region.get("files")
+        if not isinstance(files, list) or not files or len(files) > 100_000:
+            raise AlignmentRejected("invalid immutable regional tile inventory")
+        for item in files:
+            if not isinstance(item, dict):
+                raise AlignmentRejected("invalid immutable regional tile inventory")
+            verify_file(root, item.get("name"), item.get("sha256"))
     if region["available"]:
         if region.get("kind") == "openslide-original":
             original = verify_file(root, region.get("file"), region.get("sha256"))
@@ -129,13 +140,7 @@ def immutable_descriptor(
             ):
                 raise AlignmentRejected("immutable regional rendering exceeds bounded tile profile")
         elif region.get("kind") == "copied-dzi":
-            files = region.get("files")
-            if not isinstance(files, list) or not files or len(files) > 100_000:
-                raise AlignmentRejected("invalid immutable regional tile inventory")
-            for item in files:
-                if not isinstance(item, dict):
-                    raise AlignmentRejected("invalid immutable regional tile inventory")
-                verify_file(root, item.get("name"), item.get("sha256"))
+            pass  # Its complete inventory was verified above.
         else:
             raise AlignmentRejected("invalid immutable regional source kind")
     return value

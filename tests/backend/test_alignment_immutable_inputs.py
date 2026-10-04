@@ -217,3 +217,107 @@ def test_fallback_snapshot_geometry_uses_actual_post_thumbnail_pixels(tmp_path):
     assert geometry["samplingScale"] == [84000 / image.width, 4000 / image.height]
     assert geometry["coordinateFrameSize"] == [84000, 4000]
     assert "pyramidDivisor" not in geometry
+
+
+@pytest.mark.parametrize(
+    "unit,expected_mpp", [("UnitsLength.MICROMETER", [0.5, 0.75]), ("unknown", None)]
+)
+def test_storage_ome_candidates_keep_copied_dzi_and_unverified_original_stage(
+    tmp_path, monkeypatch, unit, expected_mpp
+):
+    import importlib.util
+    import sqlite3
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "scripts"
+        / "prepare_alignment_development_snapshots.py"
+    )
+    spec = importlib.util.spec_from_file_location("snapshot_storage_candidate", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(
+        module,
+        "_original_calibration",
+        lambda *args: pytest.fail("storage fallback is not an admitted OpenSlide source"),
+    )
+    data = tmp_path / "data"
+    database = tmp_path / "input.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "create table slides(id text, sha256 text, slide_metadata text, original_filename text)"
+        )
+        connection.execute("create table comparison_sets(id text, member_slide_ids text)")
+        for name in ("a", "b"):
+            root = data / "private" / name
+            root.mkdir(parents=True)
+            (root / "slide.dzi").write_text(
+                '<Image TileSize="512" Overlap="1" Format="jpg" '
+                'xmlns="http://schemas.microsoft.com/deepzoom/2008">'
+                '<Size Width="100" Height="99"/></Image>'
+            )
+            for level in range(8):
+                if name == "b" and (level == 0 or unit == "unknown"):
+                    continue
+                tile = root / "slide_files" / str(level)
+                tile.mkdir(parents=True)
+                divisor = 2 ** (7 - level)
+                Image.new(
+                    "RGB",
+                    ((100 + divisor - 1) // divisor, (99 + divisor - 1) // divisor),
+                    (140, 80, 120),
+                ).save(tile / "0_0.jpg")
+            Image.new("RGB", (100, 99), (140, 80, 120)).save(root / "thumbnail.jpg")
+            candidate = data / "originals" / name / "source.ome.tif"
+            candidate.parent.mkdir(parents=True)
+            candidate.write_bytes(b"opaque storage conversion candidate")
+            declared = (
+                hashlib.sha256(candidate.read_bytes()).hexdigest() if name == "a" else "b" * 64
+            )
+            metadata = {
+                "width": 100,
+                "height": 99,
+                "physicalSizeX": 0.5,
+                "physicalSizeY": 0.75,
+                "physicalSizeUnit": unit,
+            }
+            connection.execute(
+                "insert into slides values(?,?,?,?)",
+                (name, declared, json.dumps(metadata), "acquisition.svs"),
+            )
+        connection.execute(
+            "insert into comparison_sets values(?,?)", ("stack", json.dumps(["a", "b"]))
+        )
+    output = tmp_path / "snapshots"
+    receipt = module.prepare(database, data, output, tile_cache_budget_bytes=0)
+    assert receipt["originalVerifiedCount"] == 0
+    assert receipt["missingOriginalCount"] == 0
+    assert receipt["storageCandidateCount"] == 2
+    for name in ("a", "b"):
+        root = output / "sources" / name
+        value = json.loads((root / "immutable-overview.json").read_text())
+        assert not (root / ".openslide-source.json").exists()
+        assert 'TileSize="512"' in (root / "slide.dzi").read_text()
+        assert value["originalSource"]["verified"] is False
+        assert value["originalSource"]["kind"] == "storage-ome-candidate"
+        assert value["originalSource"]["copiedBytesVerified"] is True
+        assert value["originalSource"]["databaseChecksumMatch"] is (name == "a")
+        assert value["calibration"]["micronsPerPixel"] == expected_mpp
+        assert value["regionSource"]["available"] is (name == "a")
+        if name == "a":
+            assert value["regionSource"]["kind"] == "copied-dzi"
+        if name == "b" and unit == "unknown":
+            assert "pyramidDivisor" not in value["geometry"]
+            assert value["overviewSourceKind"] == "thumbnail-fallback"
+            assert worker._load_alignment_overview(root).getpixel((50, 50)) != (255, 255, 255)
+        descriptor = root / "slide.dzi"
+        original_descriptor = descriptor.read_bytes()
+        descriptor.write_bytes(b"changed declared frame")
+        with pytest.raises(AlignmentRejected, match="digest mismatch"):
+            worker._load_alignment_overview(root)
+        descriptor.write_bytes(original_descriptor)
+        candidate = root / value["originalSource"]["file"]
+        candidate.write_bytes(b"changed")
+        with pytest.raises(AlignmentRejected, match="digest mismatch"):
+            worker._load_alignment_overview(root)

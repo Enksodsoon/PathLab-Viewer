@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from wsi_viewer.alignment_calibration import metadata_frame_digest, normalized_microns_per_pixel
+from wsi_viewer.alignment_geometry import derivative_sampling_geometry
 from wsi_viewer.alignment_inputs import immutable_descriptor, pixel_digest
 
 
@@ -110,19 +111,22 @@ def capture(database: Path, output: Path) -> dict[str, Any]:
 
 def _source_files(
     directory: Path, data_root: Path, slide: dict[str, Any]
-) -> tuple[Path | None, list[Path], dict[str, Any]]:
+) -> tuple[Path | None, list[Path], dict[str, Any], str]:
     pointer = directory / ".openslide-source.json"
     rendering: dict[str, Any] = {}
     original: Path | None = None
+    source_kind = "unavailable"
     if pointer.is_file():
         rendering = json.loads(pointer.read_text(encoding="utf-8"))
         candidate = Path(rendering["source"])
         if candidate.is_absolute() and candidate.is_file():
             original = candidate
+            source_kind = "explicit-openslide-pointer"
     if original is None:
         candidate = data_root / "originals" / slide["id"] / "source.ome.tif"
         if candidate.is_file():
             original = candidate
+            source_kind = "storage-ome-candidate"
     files = [
         path
         for path in directory.rglob("*")
@@ -130,9 +134,28 @@ def _source_files(
     ]
     if len(files) > 100_000 or any(path.is_symlink() for path in files):
         raise ValueError("derivative inventory exceeds bounded regular files")
-    if original is not None:
+    if source_kind == "explicit-openslide-pointer":
         files = [path for path in files if path.name in {"slide.dzi", "thumbnail.jpg"}]
-    return original, sorted(files), rendering
+    return original, sorted(files), rendering, source_kind
+
+
+def _copied_overview_available(root: Path, size: tuple[int, int]) -> bool:
+    geometry = derivative_sampling_geometry(root, size, maximum=4096)
+    if geometry is None:
+        return False
+    tree = ET.parse(root / "slide.dzi").getroot()
+    tile_size = int(tree.attrib["TileSize"])
+    width, height = geometry["analysisSize"]
+    return all(
+        (
+            root
+            / "slide_files"
+            / str(geometry["selectedLevel"])
+            / f"{column}_{row}.{tree.attrib['Format']}"
+        ).is_file()
+        for row in range(math.ceil(height / tile_size))
+        for column in range(math.ceil(width / tile_size))
+    )
 
 
 def _complete_pyramid(root: Path) -> bool:
@@ -255,14 +278,14 @@ def prepare(
         if not re.fullmatch(r"[A-Za-z0-9_-]+", slide["id"]):
             raise ValueError("invalid captured source identifier")
         directory = data_root / "private" / slide["id"]
-        original, files, rendering = _source_files(directory, data_root, slide)
-        plans.append((slide, directory, original, files, rendering))
+        original, files, rendering, source_kind = _source_files(directory, data_root, slide)
+        plans.append((slide, directory, original, files, rendering, source_kind))
     required = (
         sum(
             (original.stat().st_size if original else 0)
             + sum(path.stat().st_size for path in files)
             + 64 * 1024**2
-            for _, _, original, files, _ in plans
+            for _, _, original, files, _, _ in plans
         )
         + tile_cache_budget_bytes
     )
@@ -270,7 +293,7 @@ def prepare(
         raise ValueError("immutable snapshot storage preflight failed")
     sources: dict[str, dict[str, Any]] = {}
     preparation = []
-    for slide, directory, original, files, rendering in plans:
+    for slide, directory, original, files, rendering, source_kind in plans:
         tick = time.monotonic()
         root = output / "sources" / slide["id"]
         root.mkdir(parents=True)
@@ -283,17 +306,37 @@ def prepare(
             "reason": "original-unavailable",
             "databaseDeclaredSha256": slide["sha256"],
         }
-        region: dict[str, Any] = {"available": False}
+        region: dict[str, Any] = {
+            "available": False,
+            "kind": "copied-dzi-incomplete",
+            "files": copied,
+            "reason": "complete-regional-pyramid-unavailable",
+        }
         if original is not None:
-            name = "original" + original.suffix.lower()
+            name = (
+                "original" + original.suffix.lower()
+                if source_kind == "explicit-openslide-pointer"
+                else "stored-candidate.ome.tif"
+            )
             sha = _copy_verified(original, root / name)
-            if slide["sha256"] and sha != slide["sha256"]:
+            if (
+                source_kind == "explicit-openslide-pointer"
+                and slide["sha256"]
+                and sha != slide["sha256"]
+            ):
                 raise ValueError("original pixels differ from captured source digest")
             original_info = {
-                "verified": True,
+                "verified": source_kind == "explicit-openslide-pointer",
+                "kind": source_kind,
+                "file": name,
                 "sha256": sha,
                 "databaseDeclaredSha256": slide["sha256"],
+                "databaseChecksumMatch": sha == slide["sha256"] if slide["sha256"] else None,
+                "copiedBytesVerified": True,
             }
+            if source_kind == "storage-ome-candidate":
+                original_info["reason"] = "stored-candidate-original-stage-unverified"
+        if source_kind == "explicit-openslide-pointer":
             tile_size, quality = (
                 int(rendering.get("tileSize", 1024)),
                 int(rendering.get("quality", 92)),
@@ -331,10 +374,15 @@ def prepare(
         copy_seconds = time.monotonic() - tick
         overview_started = time.monotonic()
         try:
+            if source_kind != "explicit-openslide-pointer" and not _copied_overview_available(
+                root, size
+            ):
+                raise FileNotFoundError("copied bounded overview level is incomplete")
             image = _load_dzi_overview(root, maximum=4096)
             geometry = image.info["alignmentGeometry"]
         except (FileNotFoundError, OSError, ET.ParseError):
             image, geometry = _load_fallback_overview(root, size)
+        overview_kind = geometry["kind"]
         pixels = pixel_digest(image)
         geometry = {**geometry, "kind": "immutable-overview", "snapshotPixelSha256": pixels}
         image.save(root / "overview.png", "PNG")
@@ -355,6 +403,7 @@ def prepare(
             "image": "overview.png",
             "imageSha256": _hash_file(root / "overview.png"),
             "pixelSha256": pixels,
+            "overviewSourceKind": overview_kind,
             "geometry": geometry,
             "regionSource": region,
             "originalSource": original_info,
@@ -395,6 +444,8 @@ def prepare(
                 "copyAndHashSeconds": copy_seconds,
                 "overviewAndVerificationSeconds": time.monotonic() - overview_started,
                 "originalVerified": original_info["verified"],
+                "originalCandidatePresent": original is not None,
+                "originalCandidateKind": source_kind,
                 "regionalSourceAvailable": region["available"],
                 "workerLifetimePeakRssBytes": _process_rss_bytes(os.getpid(), peak=True),
                 "memoryMeasurementScope": "snapshot-preparation-process-lifetime-high-water",
@@ -410,7 +461,11 @@ def prepare(
         "sourceMetadataDigest": captured["sourceMetadataDigest"],
         "sourceCount": len(sources),
         "originalVerifiedCount": sum(row["originalVerified"] for row in preparation),
-        "missingOriginalCount": sum(not row["originalVerified"] for row in preparation),
+        "missingOriginalCount": sum(not row["originalCandidatePresent"] for row in preparation),
+        "unverifiedOriginalStageCount": sum(not row["originalVerified"] for row in preparation),
+        "storageCandidateCount": sum(
+            row["originalCandidateKind"] == "storage-ome-candidate" for row in preparation
+        ),
         "manifestSha256": _hash_file(output / "manifest.json"),
         "wallSeconds": time.monotonic() - started,
         "storagePreflightBytes": required,

@@ -117,3 +117,20 @@ source hashes, compute logs and the terminal directory-absence check are retaine
 This is an engine/runtime failure, not evidence of a correct anatomical rejection.
 The wsireg adapter version changes for this repair; frozen b35 outcomes remain
 unchanged.
+
+
+Storage `source.ome.tif` candidates follow a different preparation path from
+explicit OpenSlide pointers. Their complete existing DZI inventory and 512-pixel
+tile geometry are preserved. Copied candidate-byte checksums and agreement with
+the captured database checksum are recorded separately from original acquisition
+stage verification; checksum agreement alone does not establish that stage. The
+preparer synthesizes no OpenSlide pointer and performs no OpenSlide header read
+for such candidates. Complete copied DZI pyramids permit regional reads; partial
+pyramids explicitly lack admitted regional coverage. If the selected overview
+level is incomplete, a provenance-bound existing thumbnail supplies the overview
+instead of inventing white pixels for missing tiles. Candidate bytes remain bound
+to the private immutable descriptor even when only derived pixels are used.
+Preparation receipts separate physically missing candidates, storage candidates
+and unverified original stages. Actual candidate format/reader/header checks are
+still pending resource-slot release; synthetic fixtures do not establish genuine
+OME reader support.
