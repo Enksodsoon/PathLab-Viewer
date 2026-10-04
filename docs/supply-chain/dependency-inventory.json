@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T07:21:00.185413Z",
+  "generatedAt": "2026-10-04T07:28:38.078338Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -47,7 +47,7 @@
       "purpose": "current web build container base",
       "role": "build-only",
       "source": "docker.io/library/node",
-      "version": "26.8.1-alpine3.23"
+      "version": "26.10.0-alpine3.23"
     },
     {
       "admission": "BLOCKED",
@@ -17959,9 +17959,9 @@
       "sha256": "91465ba4b792c73057900edf45e3fe2c95d36b6e7772a2edc148d7d8af3644f7"
     },
     {
-      "gitBlob": "76a2948453f6b4e0e0f89f5e59ee29d770bdc79c",
+      "gitBlob": "82f367bee52397807aee0021758e23068c2c3336",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "cdabc9fe1c99a8eaa3b984fa3f1a30241b441dfbd57fd6ceb1f6976734387bf9"
+      "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
       "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
@@ -18834,6 +18834,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "aee4adc5d4234fa4d39d4ff2233c45fb01023a18",
-  "subjectTree": "dfc43bc501c5a8a382c44adb8d91e717285c513e"
+  "subjectCommit": "c9e049691d73eaba1fdf5c98f8e60b803f05fe15",
+  "subjectTree": "d97662b8840c2606c38b2b94985bd455ab34a0b8"
 }
