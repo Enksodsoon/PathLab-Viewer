@@ -1,6 +1,6 @@
 # Alignment repair and workflow verification
 
-Current implementation checkpoint: `6481133`, on `codex/alignment-usability`,
+Reconciled application checkpoint: `6481133`, on `codex/alignment-usability`,
 reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
 merge `2e2f99d` in an isolated checkout. The public screening remains bound to
 its earlier frozen source `b35d3be3b2ef8933eed969dbf123746042c57640`.
@@ -51,11 +51,18 @@ Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
 - Global CI Ruff and strict mypy passed on 82 source files. Security egress
   inventory covers 260 backend, 29 frontend and 97 egress files; its 11
   regression tests passed. Asset and dependency validators passed.
-- The earlier eight disposable fullstack alignment scenarios passed across
-  Chromium, Firefox, WebKit and mobile Chromium, without retries or skips.
-  They verified actual rendered tissue, tile responses, correction save/reload
-  and cancellation, responsive controls and themes. A final repeat against
-  the reconciled source is pending; it is reported separately from unit tests.
+- The [final guided browser receipt](alignment-results/ui-navigation-2026-10-04/guided-observations.json)
+  records 19 passing journeys across Chromium, Firefox, WebKit and mobile
+  Chromium, zero assertion retries, failures or skips. Each exercises keyboard
+  slide selection and Sync, one-point save/reload, two-point preview/cancel and
+  save/reload, plus an injected preview 503 followed by normal retry with points
+  retained. Guided correction never opens Advanced. Original nonuniform synthetic
+  derivative tiles visibly render in both panes. All four browsers also open
+  eight growing/repeated worker stacks of 2/4/8/12 slides, 32 cases total.
+  One WebKit setup attempt used an incorrect local executable path and failed
+  before browser launch; it is retained separately, with zero browser samples.
+  Active-refinement publication safety remains focused-test evidence, rather than
+  a scientific claim from these completed fixture jobs.
 - Final capacity contracts at `6481133`: 492 passed, 12 skipped; terminal exit
   zero, receipt `var/alignment-final-capacity.log`. These are contract tests,
   not concurrent production load qualification.
@@ -101,6 +108,10 @@ This proves owned-session cleanup on WSL2/Python 3.14.4; it does not verify the
 heavy registration runtime or ARM64. Descendants that create another session
 require the deployment's cgroup boundary. The owned fixture processes exited;
 Ubuntu remains running because an unrelated shell's ownership was uncertain.
+
+Subsequent immutable-input preparation fixes through `b210baa` have 61 focused geometry/input/benchmark
+tests and Ruff/mypy evidence. The full backend count above remains bound to
+`6481133`; it is not silently relabeled as a run against those later changes.
 
 Registration performance is measured on Windows x64. This host has no available Docker Linux
 engine, so Linux ARM64 runtime validation remains pending. PostgreSQL-dependent
