@@ -171,12 +171,29 @@ test('alignment candidate support retains current overview and direct pane Reset
     await candidatesSummary.click()
     await expect(preview).not.toBeVisible()
     await advancedSummary.focus()
-    await page.keyboard.press('Space')
-    await expect(candidatesSummary).not.toBeVisible()
     await expect(advancedSummary).toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(page.locator('.comparison-setup-menu')).not.toHaveAttribute('open', '')
+    await expect(advancedSummary).toBeFocused()
+    // WebKit can report a retained box for native closed-details descendants.
+    // Verify browser concealment, hit testing and keyboard exclusion directly.
+    const closedDrawer = await candidatesSummary.evaluate(element => {
+      const bounds = element.getBoundingClientRect()
+      const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+      return {
+        nativeVisible: element.checkVisibility({ checkVisibilityCSS: true, checkOpacity: true, contentVisibilityAuto: true }),
+        hitInsideClosedDrawer: Boolean(hit?.closest('.comparison-setup-menu > div')),
+      }
+    })
+    expect(closedDrawer.nativeVisible).toBe(false)
+    expect(closedDrawer.hitInsideClosedDrawer).toBe(false)
+    await page.keyboard.press('Tab')
+    const focusInsideClosedDrawer = await page.evaluate(() => Boolean(document.activeElement?.closest('.comparison-setup-menu > div')))
+    expect(focusInsideClosedDrawer).toBe(false)
     advancedKeyboardReceipts.push({
       openKey: 'Enter', closeKey: 'Space', candidateControlsVisibleWhileOpen: true,
       candidateSectionHiddenAfterClose: true, focusRetainedOnSummary: true,
+      ...closedDrawer, focusInsideClosedDrawer,
     })
   }
   await advancedSummary.click()
