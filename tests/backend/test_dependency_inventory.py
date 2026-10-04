@@ -8,7 +8,7 @@ from pathlib import Path
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "2c60595d5026228718861a9545f0a17d270328d9"
+SUBJECT = "8e2cc297ba872977d4dab19699a70cf94f670c32"
 
 
 def test_inventory_reconciles_every_manifest() -> None:

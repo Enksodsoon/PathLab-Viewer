@@ -41,5 +41,16 @@
       "skipReason": "Windows host lacks symbolic-link creation permission; Linux CI exercises case"
     }
   },
-  "hostedVerification": "PENDING"
+  "hostedVerification": {
+    "pullRequest": 309,
+    "reviewedHead": "12629b357c7e8da7c8810bc5341f0cf31cc20e18",
+    "allNinePassed": true,
+    "ciRun": 37169264222,
+    "securityRun": 37169264215,
+    "mergedCommit": "c56945302d20fc3aa88a11e3637e40f9c442287c",
+    "freshMainCI": 37170268596,
+    "freshMainSecurity": 37170268500,
+    "freshMainAllNinePassed": true,
+    "productionTouched": false
+  }
 }

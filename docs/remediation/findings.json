@@ -12699,7 +12699,7 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "Production c37cf81 verified after PR307, all nine fresh main gates, protected deployment37164136683, actual restore and fresh native persistence/viewer/Library checks. All44 campaign findings, original954 entries/29 subclaims and11 additional aliases retained. Browser distribution qualification remains in progress. External security facts, accountable software admissions and pending specific production confirmations/observations keep the campaign open.",
+  "campaignStatus": "Verified production c37cf81 remains unchanged. PR309 merged c569453 and all nine fresh main gates passed. Original954 source entries/29 aggregate claims and prior44 campaign findings retained; separate45th shared-unavailable return finding locally repaired. Two September28 Antigravity revisions and60 grouped claims separately reviewed. Fresh compiled-browser provenance and deterministic inventories pass local verification for this application change; PR310 hosted gates and protected delivery remain pending. External security facts, accountable software admissions and specific pending production qualifications keep the campaign open.",
   "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate. Current production c37cf81: PR307 reviewed head ddc74e4 passed all nine gates and normal protected squash merged c37cf81. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts after a retained unchanged Library-sort test observation and same-SHA failed-job rerun. Protected deployment37164136683 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200/anonymous drafts401. Explicit native Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved. Library return loaded authenticated content. No production held-key fault injection or new publication/learner/Cancel actions.",
   "campaignFindings": [
     {
@@ -13131,6 +13131,18 @@
         "Public shared collection viewer"
       ],
       "ticket": "docs/remediation/tickets/shared-viewer-canvas-keyboard.md"
+    },
+    {
+      "key": "campaign-shared-unavailable-return",
+      "status": "confirmed; locally repaired; release pending",
+      "evidence": "Antigravity v2 reconciliation line200 FE-89; two original-source unit failures prove missing return on unavailable public folder/collection.",
+      "repair": "Native Go to library link routes to existing /admin authentication boundary; preserve Retry and public permissions.",
+      "qualification": "Original-source two-unit red regression; repaired11 affected unit passes; final full frontend573 tests/85files175.46s, lint and production build pass; final32 browser cases across four engines/two callers/four viewports pass; independent review clear. Actual125assets/legal verification, deterministic inventories, SPDX2, Ruff, privacy/current history and45inventory regressions pass (one Windows symlink-permission skip); admissions remain unchanged. PR310 hosted gates and protected delivery pending.",
+      "callers": [
+        "Public shared folder unavailable state",
+        "Public shared collection unavailable state"
+      ],
+      "ticket": "docs/remediation/tickets/shared-unavailable-return.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -13814,6 +13826,390 @@
       "disposition": "hardening; model semantic qualification unresolved",
       "canonicalKey": "study.feature-schema-qualification",
       "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    }
+  ],
+  "revisedHandoffSources": [
+    {
+      "path": "docs/reports/CODEX_IMPLEMENTATION_PLAYBOOK.md",
+      "sha256": "da384211a8cbc107d71d979be65b11e6219dc4ed94713cb8713e76c739591111",
+      "lines": 277,
+      "revision": "2.0.0",
+      "date": "2026-09-28",
+      "review": "COMPLETE; evidence-backed dispositions; external qualification remains open",
+      "originalFrozenSourceIdentityRetained": true,
+      "evidence": "docs/remediation/ANTIGRAVITY_V2_RECONCILIATION.md"
+    },
+    {
+      "path": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md",
+      "sha256": "ceafbc7455b16b9692cebf6810c89d4f596a2b66237f61a7a8616df9f20ffaf2",
+      "lines": 225,
+      "revision": "2.0.0",
+      "date": "2026-09-28",
+      "review": "COMPLETE; evidence-backed dispositions; external qualification remains open",
+      "originalFrozenSourceIdentityRetained": true,
+      "evidence": "docs/remediation/ANTIGRAVITY_V2_RECONCILIATION.md"
+    }
+  ],
+  "revisedHandoffClaims": [
+    {
+      "versionedSourceAlias": "P47; R100 — Trap A",
+      "mechanism": "Sequential thumbnail reread",
+      "canonicalTracking": "conversion.sequential-thumbnail-read",
+      "evidenceDisposition": "conversion.py still loads separately after releasing the DZI image. HARDENING_REVIEW.md:498 preserves this bounded contract. Hardening; claimed elimination is false."
+    },
+    {
+      "versionedSourceAlias": "P49; R101 — Trap B",
+      "mechanism": "SQLite pool starvation",
+      "canonicalTracking": "database.bounded-pool; capacity.bounded-admission",
+      "evidenceDisposition": "database.py retains bounded PressureQueuePool, not NullPool. Hardening; claimed pool replacement is false."
+    },
+    {
+      "versionedSourceAlias": "P51; R102 — Trap C",
+      "mechanism": "PostgreSQL connection limit",
+      "canonicalTracking": "capacity.bounded-admission",
+      "evidenceDisposition": "compose.postgres.yaml retains max_connections=20 and shared_buffers=128MB. Hardening; claimed 100/256MB settings are false."
+    },
+    {
+      "versionedSourceAlias": "P53 — Trap D",
+      "mechanism": "Missing ICC fallback",
+      "canonicalTracking": "conversion.color-profile",
+      "evidenceDisposition": "conversion.py transforms present ICC profiles and supplies no invented source profile. HARDENING_REVIEW.md:472. Hardening; clinical-fidelity/fallback claim unsupported."
+    },
+    {
+      "versionedSourceAlias": "P57; R69 — SEC-01",
+      "mechanism": "Legacy administrator authorization",
+      "canonicalTracking": "auth.legacy-owner",
+      "evidenceDisposition": "Registered owner/session boundary evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P58; R70 — SEC-02",
+      "mechanism": "Last-owner/governance races",
+      "canonicalTracking": "identity.governance-lock",
+      "evidenceDisposition": "identity_mutation_lock.py and registered governance-lock evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P59; R71 — SEC-03",
+      "mechanism": "Shared authentication admission",
+      "canonicalTracking": "auth.shared-admission",
+      "evidenceDisposition": "admission.py and registered migration evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P60; R72 — SEC-04",
+      "mechanism": "Internal proxy-route denial",
+      "canonicalTracking": "edge.internal-route-denial",
+      "evidenceDisposition": "Caddy boundary and registered disposition. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P61; R73 — SEC-06",
+      "mechanism": "Delivery helper root confinement",
+      "canonicalTracking": "delivery.shared-boundary",
+      "evidenceDisposition": "delivery.py returns direct FileResponse before helper root check; approved callers constrain provenance. Hardening; unconditional-check repair claim is false."
+    },
+    {
+      "versionedSourceAlias": "P62; R74 — SEC-08/14/26, DATA-05",
+      "mechanism": "Revoked/trashed delivery",
+      "canonicalTracking": "sharing.revoke-delivery-auth; desktop.trashed-download; sharing.trashed-manifest; slide.individual-delivery-cleanup",
+      "evidenceDisposition": "Existing authorization/manifest-cleanup coverage. Covered; preserve distinct mechanisms."
+    },
+    {
+      "versionedSourceAlias": "P63; R75 — SEC-09/40/46",
+      "mechanism": "CSV formula injection",
+      "canonicalTracking": "annotation.csv-formula",
+      "evidenceDisposition": "Registered sanitized export boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P64; R76 — SEC-10",
+      "mechanism": "Teacher SSE ownership",
+      "canonicalTracking": "classroom.teacher-owner",
+      "evidenceDisposition": "Registered active-teacher capability boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P65; R77 — SEC-12",
+      "mechanism": "Request-body limits",
+      "canonicalTracking": "http.body-limits",
+      "evidenceDisposition": "Registered body-limit middleware evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P66; R78 — SEC-21",
+      "mechanism": "Pairing admission flooding",
+      "canonicalTracking": "desktop.pairing-admission",
+      "evidenceDisposition": "Registered database admission evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P67; R79 — SEC-23 / v2 BUG-NEW-01",
+      "mechanism": "Credentials surviving password changes",
+      "canonicalTracking": "auth.desktop-revocation",
+      "evidenceDisposition": "auth.py shared revocation path covers desktop credentials. Covered, fixed upstream. Versioned BUG-NEW-01 must not alias original worker deletion."
+    },
+    {
+      "versionedSourceAlias": "P68; R80 — SEC-38",
+      "mechanism": "Proxy/IP trust",
+      "canonicalTracking": "edge.proxy-trust",
+      "evidenceDisposition": "HARDENING_REVIEW.md:685. Existing hardening disposition; blanket resolved narrative overstates it."
+    },
+    {
+      "versionedSourceAlias": "P69; R81 — SEC-39",
+      "mechanism": "Prepared-ingest Windows traversal",
+      "canonicalTracking": "ingest.windows-path",
+      "evidenceDisposition": "Registered path-normalization boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P72; R84 — CONC-01",
+      "mechanism": "Pairing approval race",
+      "canonicalTracking": "desktop.pairing-cas",
+      "evidenceDisposition": "Registered CAS/locking evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P73; R85 — CONC-02",
+      "mechanism": "Recovery transaction serialization",
+      "canonicalTracking": "auth.recovery-lock",
+      "evidenceDisposition": "Registered dialect-specific recovery locking. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P74; R86 — CONC-03",
+      "mechanism": "Shared storage admission",
+      "canonicalTracking": "storage.shared-cap-lock",
+      "evidenceDisposition": "Registered transactional accounting boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P75; R87 — CONC-05/08/16",
+      "mechanism": "Study aggregate races",
+      "canonicalTracking": "study.readiness-aggregate-race; study.aggregate-concurrency",
+      "evidenceDisposition": "REPAIR_COVERAGE.md and Study regression evidence. Covered, repair present; retain both mechanisms."
+    },
+    {
+      "versionedSourceAlias": "P76; R88 — CONC-06",
+      "mechanism": "Study course capacity",
+      "canonicalTracking": "study.course-admission",
+      "evidenceDisposition": "Existing admission-lock coverage. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P77; R89 — CONC-18",
+      "mechanism": "Concurrent Study submissions",
+      "canonicalTracking": "study.task-submission-serialization",
+      "evidenceDisposition": "Actual HTTP race and repaired 200/429 regression retained. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P78; R92 — DATA-01",
+      "mechanism": "WSI byte-counter overflow",
+      "canonicalTracking": "db.wsi-bigint",
+      "evidenceDisposition": "Registered schema widening. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P79; R93 — DATA-02",
+      "mechanism": "Finalizer commit/orphan durability",
+      "canonicalTracking": "desktop.finalizer-commit-orphan",
+      "evidenceDisposition": "desktop_finalizer.py and transaction regressions. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P80; R94 — DATA-03",
+      "mechanism": "PostgreSQL sequence drift",
+      "canonicalTracking": "ops.postgres-sequences",
+      "evidenceDisposition": "Registered migration evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P81; R95 — DATA-04/19",
+      "mechanism": "Delete synchronization",
+      "canonicalTracking": "library.folder-delete-sync; library.delete-sync",
+      "evidenceDisposition": "Existing sync-event coverage. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P82; R96 — DATA-06",
+      "mechanism": "Desktop folder truncation",
+      "canonicalTracking": "desktop.folder-limit",
+      "evidenceDisposition": "Pagination and native 102-folder evidence. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "R97 — TIME-01 through TIME-05",
+      "mechanism": "UTC consistency",
+      "canonicalTracking": "time.utc-normalization; sharing.utc-expiry",
+      "evidenceDisposition": "Registered normalization/expiry evidence. Covered, fixed upstream; retain individual original aliases."
+    },
+    {
+      "versionedSourceAlias": "P83; R103 — v2 BUG-NEW-02",
+      "mechanism": "Claimed TUSD chunk-assembly repair",
+      "canonicalTracking": "conversion.serial-contract, related contract only",
+      "evidenceDisposition": "Current serial conversion/staging contract is reviewed; a separate worker chunk-assembly race is not established. Hardening/unsupported repair narrative; do not imply exact semantic equivalence."
+    },
+    {
+      "versionedSourceAlias": "P84; R104 — REL-01",
+      "mechanism": "Worker deletion durability",
+      "canonicalTracking": "worker.delete-durability",
+      "evidenceDisposition": "Existing deletion/constraint regressions. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P85; R105 — REL-03 through REL-08",
+      "mechanism": "Heartbeat/filesystem/deletion handling",
+      "canonicalTracking": "Existing individual worker keys",
+      "evidenceDisposition": "Original alias meanings and individual regression evidence remain authoritative. Covered as grouped historical summary, not one new defect."
+    },
+    {
+      "versionedSourceAlias": "P88; R108 — FE-01",
+      "mechanism": "Application error boundary",
+      "canonicalTracking": "web.application-boundary",
+      "evidenceDisposition": "Current boundary and rendered retry/reload/navigation test. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P89; R109 — FE-02",
+      "mechanism": "Authentication return path",
+      "canonicalTracking": "viewer.auth-return",
+      "evidenceDisposition": "Existing return-path coverage. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P90; R110 — FE-03",
+      "mechanism": "Viewer load errors",
+      "canonicalTracking": "viewer.load-errors",
+      "evidenceDisposition": "Current classified error/retry UI. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P91; R111 — storage aliases",
+      "mechanism": "Blocked browser storage",
+      "canonicalTracking": "web.api-storage; classroom.teacher-storage; sharing.viewer-storage; viewer.blocked-storage; study.csrf-storage; study.locale-storage",
+      "evidenceDisposition": "Existing caller-specific repairs/dispositions. Covered; preserve separate callers and original aliases."
+    },
+    {
+      "versionedSourceAlias": "P92; R112 — FE-08/10/40",
+      "mechanism": "IndexedDB transaction durability",
+      "canonicalTracking": "study.authoring-commit; study.local-commit",
+      "evidenceDisposition": "Existing completion/abort/close coverage. Covered; connection leaks is an imprecise summary of transaction durability."
+    },
+    {
+      "versionedSourceAlias": "P93; R113 — FE-12",
+      "mechanism": "Join notebook failure",
+      "canonicalTracking": "classroom.join-notebook-failure",
+      "evidenceDisposition": "Existing fallback coverage. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P94; R113 — FE-13",
+      "mechanism": "Invite polling failure",
+      "canonicalTracking": "classroom.invite-poll",
+      "evidenceDisposition": "Current transient/terminal handling plus PR309 verification repair. Covered, application repair present; fixture issue separately tracked."
+    },
+    {
+      "versionedSourceAlias": "P95 — FE-15",
+      "mechanism": "Draft-open retry",
+      "canonicalTracking": "annotation.draft-open-retry; campaign-annotation-draft-open-retry",
+      "evidenceDisposition": "Existing native failure/retry evidence. Covered, campaign repair present."
+    },
+    {
+      "versionedSourceAlias": "P96; R114 — FE-81",
+      "mechanism": "Private preview return/navigation",
+      "canonicalTracking": "viewer.private-return-navigation; library.preview-navigation",
+      "evidenceDisposition": "Current return link/adjacent navigation and coverage receipts. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P97; R115 — v2 FE-82",
+      "mechanism": "Single-card versus bulk selection",
+      "canonicalTracking": "library.single-action-selection",
+      "evidenceDisposition": "REPAIR_COVERAGE.md:73 and scoped card-action regressions. Covered by this mechanism; original FE-82 remains saved-view rehydration."
+    },
+    {
+      "versionedSourceAlias": "P98; R116 — v2 BUG-NEW-06",
+      "mechanism": "WebGL context restoration",
+      "canonicalTracking": "No established matching mechanism",
+      "evidenceDisposition": "No application webglcontextlost/restored listeners or reported regression found. Unsupported repair narrative; no confirmed current defect. Original alias remains capacity admission."
+    },
+    {
+      "versionedSourceAlias": "P99; R116 — v2 BUG-NEW-07",
+      "mechanism": "Viewport query debounce/cancellation",
+      "canonicalTracking": "annotation.viewport-count, related reviewed caller",
+      "evidenceDisposition": "Reviewed annotation paths do not issue the claimed per-pan queries; no matching bbox cancellation repair established. Unsupported narrative; do not equate original student-event-flood alias."
+    },
+    {
+      "versionedSourceAlias": "P100; R116 — v2 BUG-NEW-08",
+      "mechanism": "React Query invalidation loops",
+      "canonicalTracking": "No established matching mechanism",
+      "evidenceDisposition": "No React Query dependency/hooks found in current application. Unsupported narrative; original alias remains synthetic-reset retirement race."
+    },
+    {
+      "versionedSourceAlias": "R117 — PR276",
+      "mechanism": "Paused-upload cancellation",
+      "canonicalTracking": "campaign-upload-cancel-reservation",
+      "evidenceDisposition": "Existing cancellation implementation/ticket; specific native Cancel confirmation remains separate. Covered repair; live confirmation still open."
+    },
+    {
+      "versionedSourceAlias": "P123 through P142 — named campaign keys",
+      "mechanism": "Sixteen historical campaign mechanisms",
+      "canonicalTracking": "Same named keys in campaignFindings",
+      "evidenceDisposition": "All named keys are retained. Covered; historical all-deployed prose cannot close remaining action-specific qualification."
+    },
+    {
+      "versionedSourceAlias": "P150; R125",
+      "mechanism": "Accountable software admission",
+      "canonicalTracking": "INVENTORY_CLOSURE.md",
+      "evidenceDisposition": "Unresolved governance: 176 unreviewed shipped inputs and two source-only notice gaps. No automatic admission overlay or grant inferred."
+    },
+    {
+      "versionedSourceAlias": "P159; R137",
+      "mechanism": "Cloud-sync database placement",
+      "canonicalTracking": "Existing external environment finding",
+      "evidenceDisposition": "Unresolved external facts. Presence under OneDrive does not prove synchronization, sharing or production use."
+    },
+    {
+      "versionedSourceAlias": "P164",
+      "mechanism": "Secret rotation/provenance",
+      "canonicalTracking": "Existing external security finding",
+      "evidenceDisposition": "Unresolved external facts; no credential values inspected or exposed."
+    },
+    {
+      "versionedSourceAlias": "P167; R147",
+      "mechanism": "Larger soak certification",
+      "canonicalTracking": "Existing bounded-stress qualification",
+      "evidenceDisposition": "Local 20-session/30-minute Library soak is recorded in PRODUCTION_CLOSURE_QA.md:104. Broader dedicated-production certification remains unqualified; not a new bug."
+    },
+    {
+      "versionedSourceAlias": "P173; R156",
+      "mechanism": "Real WSI/physical devices",
+      "canonicalTracking": "Existing qualification limitations",
+      "evidenceDisposition": "Unqualified capability/clinical/device scope. Exact claimed universal Safari memory ceiling is unsupported here."
+    },
+    {
+      "versionedSourceAlias": "P177; R165",
+      "mechanism": "Study activation/PostgreSQL cutover",
+      "canonicalTracking": "Existing feature/operational gates",
+      "evidenceDisposition": "Operator/qualification work, not defects. Preserve gates and cutover safeguards."
+    },
+    {
+      "versionedSourceAlias": "P187; R180",
+      "mechanism": "Stale release chunks/automatic reload",
+      "canonicalTracking": "web.application-boundary; closure QA",
+      "evidenceDisposition": "Existing stale-chunk observation recovered through Reload app. Automatic reload is optional recovery policy requiring care for unsaved work; no new unrepaired outage established."
+    },
+    {
+      "versionedSourceAlias": "P198; R190",
+      "mechanism": "Permanently purge synthetic QA trash",
+      "canonicalTracking": "Existing QA cleanup authorization item",
+      "evidenceDisposition": "Destructive operational action, not a new defect; specific authorization required."
+    },
+    {
+      "versionedSourceAlias": "P202; R194",
+      "mechanism": "Distinct-identity competing admission",
+      "canonicalTracking": "Classroom qualification gap",
+      "evidenceDisposition": "PRODUCTION_CLOSURE_QA.md:53 retains this limitation; local admission tests are separate. Unresolved production qualification, not proved concurrency failure."
+    },
+    {
+      "versionedSourceAlias": "P206",
+      "mechanism": "Historical E2E menu-sweep flake",
+      "canonicalTracking": "Existing PR274 fixture history",
+      "evidenceDisposition": "Historical verification claim. Fresh reviewed-head checks remain authoritative."
+    },
+    {
+      "versionedSourceAlias": "R199 — FE-83",
+      "mechanism": "Redundant navigation surfaces",
+      "canonicalTracking": "library.navigation-design",
+      "evidenceDisposition": "HARDENING_REVIEW.md:785. Optional product consolidation; no reproduced broken action."
+    },
+    {
+      "versionedSourceAlias": "R200 — v2 FE-89",
+      "mechanism": "Missing exit on unavailable shared viewer",
+      "canonicalTracking": "Separate SharedViewerPage caller extension",
+      "evidenceDisposition": "Baseline c569453 unavailable branch has Retry only; original viewer.error-navigation repair covers ViewerPage. Separate confirmed SharedViewerPage return gap is locally repaired;11 affected unit,573 full frontend and32 browser passes. Native /admin link retains existing authentication boundary. Release pending; docs/remediation/tickets/shared-unavailable-return.md."
+    },
+    {
+      "versionedSourceAlias": "R201 — FE-90",
+      "mechanism": "Blank Study task/inverted limits",
+      "canonicalTracking": "study.blank-task",
+      "evidenceDisposition": "Blank-task repair already covered. Alleged inverted min/max is unsupported; do not change limits without reproduction."
     }
   ]
 }

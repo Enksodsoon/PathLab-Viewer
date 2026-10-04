@@ -10,7 +10,7 @@ import {
   X,
 } from '@phosphor-icons/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
 import { Loader } from '../components/Loader'
@@ -204,6 +204,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
         <button type="button" onClick={() => setRetry((current) => current + 1)}>
           Try again
         </button>
+        <Link className="share-message-return" to="/admin">Go to library</Link>
       </main>
     )
   }
