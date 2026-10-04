@@ -36,9 +36,23 @@
   "hostedBrowserExpected": {
     "passed": 285,
     "skipped": 3,
-    "state": "EXPECTED_NOT_YET_QUALIFIED"
+    "state": "QUALIFIED_REVIEWED_HEAD_AND_FRESH_MAIN"
   },
-  "hostedGates": "PENDING",
+  "hostedGates": "All nine reviewed-head and fresh-main gates passed",
   "productionTouched": false,
-  "verifiedProduction": "c37cf81a1cabc967e3a587eb2610bf95993801ba"
+  "verifiedProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+  "delivery": {
+    "reviewedHead": "3560cd52e31284387e57e29e619269bbe6104c04",
+    "mergedMain": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+    "freshMainBrowserPassed": 285,
+    "freshMainBrowserSkipped": 3,
+    "all32NewCasesExecuted": true,
+    "matrixSeconds": 855,
+    "matrixBudgetSeconds": 960,
+    "deploymentRun": 37177663993,
+    "deploymentConclusion": "success",
+    "nativeVerification": "PENDING"
+  },
+  "previousNativeQualifiedProduction": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
+  "verifiedProductionScope": "Exact SHA, protected deployment, restore and fresh health; native verification PENDING"
 }

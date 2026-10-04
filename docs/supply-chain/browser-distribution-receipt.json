@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "c8fb67817bcdddfd33c559c6542d62bd4ba2536e",
-  "subjectTree": "2afaf6205a3c893934bca406618838182e16c69a",
+  "subjectCommit": "f484c1ea3e801a132ddb013a57d1ff4852657132",
+  "subjectTree": "eeb0fb2b59f7215572ff93b168cd27eaf5693f27",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -241,7 +241,7 @@
     },
     {
       "path": "apps/web/e2e/shared-unavailable-return.spec.ts",
-      "gitBlob": "72aa95b8eb0a60ed6b42442bf9f60d8d8c9a6beb"
+      "gitBlob": "738a2808ccd34f6bba8a6d8c1c58d5b94d438013"
     },
     {
       "path": "apps/web/e2e/shared-viewer-responsive.spec.ts",
@@ -1312,7 +1312,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "0f3e60630ecb15fdd56a16eeb3ac98f19681b3712b7af20ada1bc8a07f3ec10b",
+  "sourceInputSetSha256": "cae581097697324f8304ed65c0817919d6b78dd9f12c9027c73276cd012da5be",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",

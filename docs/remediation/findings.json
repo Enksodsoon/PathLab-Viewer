@@ -12699,8 +12699,8 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "Verified production c37cf81 remains unchanged. PR309 merged c569453 and all nine fresh main gates passed. Original954 source entries/29 aggregate claims and prior44 campaign findings retained; separate45th shared-unavailable return finding locally repaired. Two September28 Antigravity revisions and60 grouped claims separately reviewed. Fresh compiled-browser provenance and deterministic inventories pass local verification for this application change; PR310 all nine reviewed-head gates passed and merged48434dd. A separate CI selector correction adds the32 locally qualified return cases omitted by its hosted matrix; complete hosted coverage and protected delivery remain pending. External security facts, accountable software admissions and specific pending production qualifications keep the campaign open.",
-  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate. Current production c37cf81: PR307 reviewed head ddc74e4 passed all nine gates and normal protected squash merged c37cf81. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts after a retained unchanged Library-sort test observation and same-SHA failed-job rerun. Protected deployment37164136683 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200/anonymous drafts401. Explicit native Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved. Library return loaded authenticated content. No production held-key fault injection or new publication/learner/Cancel actions.",
+  "campaignStatus": "Production5069c80 deployed through protected workflow37177663993 after all nine exact-main gates and actual285browser/3skip/all32new cases within855s/960s budget. Actual restore69tables/106325files/3286131731bytes and fresh health200/200/anonymous drafts401 passed. Native released verification remains pending: assessment tab signed out and Windows input stopped because current browser URL could not be confidently determined. Original954entries/29aggregate subclaims/45campaign findings and all versioned aliases retained. External security facts, specific native actions/observations, accountable admissions and production qualification gaps keep the campaign open.",
+  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate. Prior native-qualified production c37cf81: PR307 reviewed head ddc74e4 passed all nine gates and normal protected squash merged c37cf81. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts after a retained unchanged Library-sort test observation and same-SHA failed-job rerun. Protected deployment37164136683 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200/anonymous drafts401. Explicit native Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved. Library return loaded authenticated content. No production held-key fault injection or new publication/learner/Cancel actions. Current deployed production5069c80: protected workflow37177663993 succeeded after all nine fresh-main checks; exactSHA/actual restore/fresh health/access denial passed. Fresh native verification remains pending; prior native-qualified c37cf81 evidence is historical.",
   "campaignFindings": [
     {
       "key": "campaign-ci-inventory-subject",
@@ -13134,15 +13134,16 @@
     },
     {
       "key": "campaign-shared-unavailable-return",
-      "status": "confirmed; locally repaired; release pending",
+      "status": "confirmed; repaired and delivered in production5069c80; fresh native verification pending",
       "evidence": "Antigravity v2 reconciliation line200 FE-89; two original-source unit failures prove missing return on unavailable public folder/collection.",
       "repair": "Native Go to library link routes to existing /admin authentication boundary; preserve Retry and public permissions.",
-      "qualification": "Original-source two-unit red regression; repaired11 affected unit passes; final full frontend573 tests/85files175.46s, lint and production build pass; final32 browser cases across four engines/two callers/four viewports pass; independent review clear. Actual125assets/legal verification, deterministic inventories, SPDX2, Ruff, privacy/current history and45inventory regressions pass (one Windows symlink-permission skip); admissions remain unchanged. PR310 reviewed head5b4db461 passed all nine gates and merged48434dd. Its hosted matrix passed253 existing cases but omitted32 new locally qualified cases; the separate CI selector repair is tracked in docs/remediation/tickets/shared-return-ci-matrix.md. Fresh complete hosted coverage and protected delivery pending.",
+      "qualification": "Original-source two-unit red regression; repaired11 affected unit passes; final full frontend573 tests/85files175.46s, lint and production build pass; final32 browser cases across four engines/two callers/four viewports pass; independent review clear. Actual125assets/legal verification, deterministic inventories, SPDX2, Ruff, privacy/current history and45inventory regressions pass (one Windows symlink-permission skip); admissions remain unchanged. PR310 reviewed head5b4db461 passed all nine gates and merged48434dd. Its hosted matrix passed253 existing cases but omitted32 new locally qualified cases; the separate CI selector repair is tracked in docs/remediation/tickets/shared-return-ci-matrix.md. Fresh complete hosted coverage and protected delivery pending. PR311 reviewed head3560cd52 passed all nine checks and hosted285browser/3skip/all32new cases within916seconds; merged5069c80. Fresh main attempt1 retained one existing mobile annotation readiness failure before drawing assertions; unchanged focused20replays passed, followed by one unchanged failed-job retry. Attempt2 passed285/3skip/all32new within855seconds with original assertions/timeouts intact. Protected deployment37177663993 succeeded at exact5069c80; actual restore and fresh health/access denial passed. Fresh native return/persistence remains pending; no authentication or publication/Cancel action was automated.",
       "callers": [
         "Public shared folder unavailable state",
         "Public shared collection unavailable state"
       ],
-      "ticket": "docs/remediation/tickets/shared-unavailable-return.md"
+      "ticket": "docs/remediation/tickets/shared-unavailable-return.md",
+      "releaseEvidence": "docs/remediation/evidence/production-5069c80-release.json"
     }
   ],
   "currentClosureBranch": "main",
@@ -13179,13 +13180,51 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
-    "checkedAt": "2026-10-04T00:31:26.839824+00:00",
-    "deploymentRun": 37164136683,
+    "schema": "pathlab.production-remediation-release/1",
+    "sha": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+    "checkedAt": "2026-10-04T04:55:59.546787+00:00",
+    "deploymentRun": 37177663993,
     "deploymentConclusion": "success",
-    "ciRun": 37162376381,
-    "securityRun": 37162376369,
-    "requiredChecksReceipt": "var/main-c37cf81-required-checks.json",
+    "deploymentExactSHAEvidence": "Terminal protected log reports success after live checkout SHA and service health assertions.",
+    "ciRun": 37175468040,
+    "securityRun": 37175468076,
+    "qualification": {
+      "subject": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+      "run": 37175468040,
+      "all32NewCasesExecuted": true,
+      "browserPassed": 285,
+      "browserSkipped": 3,
+      "browserReportedRuntime": "14.2m",
+      "matrixStepSeconds": 855.0,
+      "matrixBudgetSeconds": 960,
+      "budgetPreserved": true,
+      "fullstackProductionTouched": false,
+      "scope": "Terminal official CI log and step metadata; full-stack case statistics require its separate retained report.",
+      "qualificationAttempt": 2,
+      "originalAttempt1": {
+        "browserPassed": 284,
+        "browserSkipped": 3,
+        "browserFailed": 1,
+        "failure": "Existing mobile annotation readiness deadline before drawing assertions",
+        "log": "var/main-5069c80-attempt1-ci.log",
+        "retained": true
+      },
+      "unchangedFocusedReplay": {
+        "passed": 20,
+        "seconds": 45.0
+      },
+      "assertionsAndTimeoutsUnchanged": true,
+      "fullstackEvidence": {
+        "executedAttempt": 1,
+        "carriedForwardByGitHub": true,
+        "expected": 30,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0,
+        "durationSeconds": 929.104887,
+        "report": "var/main-5069c80-fullstack-artifact/fullstack.json"
+      }
+    },
     "restore": {
       "archiveRoots": [
         "delivery",
@@ -13201,26 +13240,27 @@
       "tableCount": 69
     },
     "health": {
-      "checkedAt": "2026-10-04T00:29:04.645933+00:00",
-      "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+      "checkedAt": "2026-10-04T04:55:45.114220+00:00",
+      "requestedReleaseSubject": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+      "scope": "Anonymous health and actual assessment authorization boundary; exact deployed SHA requires independent terminal workflow evidence. No credentials or response bodies recorded.",
       "results": [
         {
           "path": "/livez",
           "status": 200,
           "expected": 200,
-          "elapsedSeconds": 0.172
+          "elapsedSeconds": 0.14
         },
         {
           "path": "/readyz",
           "status": 200,
           "expected": 200,
-          "elapsedSeconds": 0.125
+          "elapsedSeconds": 0.141
         },
         {
           "path": "/api/v2/admin/assessment/drafts",
           "status": 401,
           "expected": 401,
-          "elapsedSeconds": 0.109
+          "elapsedSeconds": 0.094
         }
       ],
       "passed": true
@@ -13231,36 +13271,16 @@
       "adminAnnotationCanary": true,
       "study": "existing disabled gate retained"
     },
-    "nativeViewer": {
-      "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
-      "observations": [
-        "Explicit browser Refresh after terminal deployment success",
-        "Patterned 3072 x 3072 tiles, two saved rectangles and NO CHANGES rendered"
-      ]
-    },
-    "nativeAssessment": {
-      "draftId": "8fa54472-90a8-4041-9462-eede03640074",
-      "observations": [
-        "Explicit browser Refresh after terminal deployment success",
-        "Existing c570116 acknowledgment marker retained",
-        "Two questions, 2.502 points and All changes saved retained"
-      ]
-    },
-    "limitations": "Positive native released persistence and viewer checks only; shared canvas held-key failure proved in the local four-engine regression, not injected through native production controls. No new publication, permissions, learner submission or Cancel actions.",
+    "nativeVerification": "PENDING: fresh signed-in return and persistence checks required; previous-release checks are separate.",
+    "campaignComplete": false,
     "remaining": [
-      "Human native folder drag observation",
-      "Pending specific synthetic action confirmations",
-      "External secret provenance/rotation and OneDrive sharing facts",
-      "Accountable software admissions and two exact source notice gaps",
-      "Browser artifact distribution qualification integration",
-      "Requirement-level campaign closure"
-    ],
-    "nativeLibrary": {
-      "observations": [
-        "Explicit Library return from authenticated viewer reached /admin",
-        "Library loaded synthetic B thumbnail and Open viewer / Quick look controls"
-      ]
-    }
+      "Fresh signed-in released native return and persistence checks",
+      "Specific synthetic Practice/learner and paused-upload Cancel confirmations",
+      "Human native production folder drag observation",
+      "Reported secret provenance/rotation and actual OneDrive sync/sharing facts",
+      "176 accountable software admissions and two exact unshipped source notice gaps",
+      "Distinct-identity production competing admission qualification"
+    ]
   },
   "previousProductionReleases": [
     {
@@ -13686,6 +13706,90 @@
       "limitations": "Positive native released save/reload and viewer checks only; failure/concurrency paths qualified locally/hosted, not injected into production. No clinical, physical-device, unrestricted capacity or zero-bug claim.",
       "evidenceOrigin": "Protected GitHub workflow logs and fresh native signed-in Edge observations; no credential values or production failure injection.",
       "completedAt": "2026-10-03T22:38:36Z"
+    },
+    {
+      "sha": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
+      "checkedAt": "2026-10-04T00:31:26.839824+00:00",
+      "deploymentRun": 37164136683,
+      "deploymentConclusion": "success",
+      "ciRun": 37162376381,
+      "securityRun": 37162376369,
+      "requiredChecksReceipt": "var/main-c37cf81-required-checks.json",
+      "restore": {
+        "archiveRoots": [
+          "delivery",
+          "originals",
+          "private",
+          "public"
+        ],
+        "fileBytes": 3286131731,
+        "fileCount": 106325,
+        "filesIntegrity": "restored",
+        "databaseIntegrity": "restored",
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69
+      },
+      "health": {
+        "checkedAt": "2026-10-04T00:29:04.645933+00:00",
+        "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+        "results": [
+          {
+            "path": "/livez",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.172
+          },
+          {
+            "path": "/readyz",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.125
+          },
+          {
+            "path": "/api/v2/admin/assessment/drafts",
+            "status": 401,
+            "expected": 401,
+            "elapsedSeconds": 0.109
+          }
+        ],
+        "passed": true
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing disabled gate retained"
+      },
+      "nativeViewer": {
+        "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
+        "observations": [
+          "Explicit browser Refresh after terminal deployment success",
+          "Patterned 3072 x 3072 tiles, two saved rectangles and NO CHANGES rendered"
+        ]
+      },
+      "nativeAssessment": {
+        "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+        "observations": [
+          "Explicit browser Refresh after terminal deployment success",
+          "Existing c570116 acknowledgment marker retained",
+          "Two questions, 2.502 points and All changes saved retained"
+        ]
+      },
+      "limitations": "Positive native released persistence and viewer checks only; shared canvas held-key failure proved in the local four-engine regression, not injected through native production controls. No new publication, permissions, learner submission or Cancel actions.",
+      "remaining": [
+        "Human native folder drag observation",
+        "Pending specific synthetic action confirmations",
+        "External secret provenance/rotation and OneDrive sharing facts",
+        "Accountable software admissions and two exact source notice gaps",
+        "Browser artifact distribution qualification integration",
+        "Requirement-level campaign closure"
+      ],
+      "nativeLibrary": {
+        "observations": [
+          "Explicit Library return from authenticated viewer reached /admin",
+          "Library loaded synthetic B thumbnail and Open viewer / Quick look controls"
+        ]
+      }
     }
   ],
   "additionalHandoffSources": [
