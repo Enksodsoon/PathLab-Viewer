@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T07:13:08.030969Z",
+  "generatedAt": "2026-10-04T07:28:38.078338Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -7,11 +7,11 @@
       "blockers": [
         "IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED"
       ],
-      "checksum": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "checksum": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
       "checksumVerified": true,
       "distribution": "development-only-container",
       "ecosystem": "container",
-      "id": "container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "id": "container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
       "license": "UNKNOWN",
       "manifestRefs": [
         "deploy/Dockerfile.web"
@@ -31,11 +31,11 @@
       "blockers": [
         "IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED"
       ],
-      "checksum": "sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
+      "checksum": "sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
       "checksumVerified": true,
       "distribution": "development-only-container",
       "ecosystem": "container",
-      "id": "container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
+      "id": "container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
       "license": "UNKNOWN",
       "manifestRefs": [
         "deploy/Dockerfile.web"
@@ -47,7 +47,7 @@
       "purpose": "current web build container base",
       "role": "build-only",
       "source": "docker.io/library/node",
-      "version": "26.8.1-alpine3.23"
+      "version": "26.10.0-alpine3.23"
     },
     {
       "admission": "BLOCKED",
@@ -17959,9 +17959,9 @@
       "sha256": "91465ba4b792c73057900edf45e3fe2c95d36b6e7772a2edc148d7d8af3644f7"
     },
     {
-      "gitBlob": "c6aff4424b3dc8b04d7ad5a5124450ed0d97610c",
+      "gitBlob": "82f367bee52397807aee0021758e23068c2c3336",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "30838fa644cdaee7131f7c5b1ad08e5b622a8d56c6443a789cf98ab5720a30cb"
+      "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
       "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
@@ -18834,6 +18834,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "f30eb628766fd9ef9f8763fca407899ef8a8583d",
-  "subjectTree": "894c16e90db6e294bd55c4e9cfe5cf527d40a145"
+  "subjectCommit": "c9e049691d73eaba1fdf5c98f8e60b803f05fe15",
+  "subjectTree": "d97662b8840c2606c38b2b94985bd455ab34a0b8"
 }

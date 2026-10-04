@@ -2,28 +2,28 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "0dee5eceb4f7240f5df05dd58d03592fcbacf2a2bfa7907914f8f7820ab40657",
-      "sizeBytes": 1449487
+      "sha256": "a8b2f27c5872c79f851236a2d1f40955433c8b0ee8910dcb3411eac1ee8447ef",
+      "sizeBytes": 1449488
     },
     {
       "path": "build.cdx.json",
-      "sha256": "d8933514647a49ea036ed0e39f6eae74c8feda6b3a701eb291cf43923c2fab0d",
-      "sizeBytes": 726291
+      "sha256": "49fa28e074a39d3c178237858ca246974e63ef323304d5e0845d292618b23717",
+      "sizeBytes": 726293
     },
     {
       "path": "build.spdx.json",
-      "sha256": "b0b24e8a6e309901f056b6f0082d3f1ff8c3ab02eb07eedc885d25b676ccd30f",
-      "sizeBytes": 586800
+      "sha256": "16d068649324a6eda15799f7322f9ed7a618ba48209fe7041a2607b372c38ff6",
+      "sizeBytes": 586802
     },
     {
       "path": "source.cdx.json",
-      "sha256": "169817211aa24e780eed822ecefbb624cd921d0f80a97a1d48157c6b54bfe950",
-      "sizeBytes": 768845
+      "sha256": "0df9c0380cef90e543bdbf49034e1f5c7dfe743d3704391b9a119d6f05805de0",
+      "sizeBytes": 768847
     },
     {
       "path": "source.spdx.json",
-      "sha256": "07a4e0c4887d70f2f96f6a146ab5803d03eaf6e207e647d2ce730329ff5814cd",
-      "sizeBytes": 620450
+      "sha256": "ae6c9f45d88fc825022e856898eb512622f289581cb2fd28333041bb71fecd97",
+      "sizeBytes": 620452
     }
   ],
   "coverage": {
@@ -31,7 +31,7 @@
     "assetRecords": 16,
     "buildComponents": 573,
     "currentShippedInputs": 176,
-    "dependencyRecordIdsSha256": "76c327e3dcf0614f763ecb6726d8d62b15e4f4b94f839413ed40a5d8fdfb646d",
+    "dependencyRecordIdsSha256": "840d6b5faad75a550a3600041c2838fa9cb1291e4347647d6c2b0c64faf4468e",
     "dependencyRecords": 581,
     "sourceComponents": 611,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-04T07:14:14Z",
+  "generatedAt": "2026-10-04T07:28:59Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -99,10 +99,10 @@
       "sizeBytes": 1538
     },
     {
-      "gitBlob": "5f5448ba76b117f4e159814a83bfd00f553210ed",
+      "gitBlob": "4b2d68f698d3485636235c25e64f688c9c7f9dfd",
       "path": "deploy/Dockerfile.web",
-      "sha256": "bad4f2f0bea5f6744d01ce3844d991be6ef2717d57214f7e96991151b3db6385",
-      "sizeBytes": 925
+      "sha256": "6fe57433f4a19f961845e45324f25f45d7dcdbfa872e16421c52267b4511379b",
+      "sizeBytes": 926
     },
     {
       "gitBlob": "03f671a9b82ae0949f941515011c5d578fb596a7",
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "6e66496c354488329faab050f2672b5425f51dc0",
+      "gitBlob": "00a17bfedcebf4859051a40c236c5b0124981910",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "fb54dd0c0d0a85886383beaad2aabcd1a938620f1376ec795fbe2b300f36ac86",
-      "sizeBytes": 812697
+      "sha256": "f69f791700fb9c12edc5b8f1d6d9454e52098b2270e68e5a5afe9efa950531f5",
+      "sizeBytes": 812698
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -165,10 +165,10 @@
       "sizeBytes": 15900
     },
     {
-      "gitBlob": "c6aff4424b3dc8b04d7ad5a5124450ed0d97610c",
+      "gitBlob": "82f367bee52397807aee0021758e23068c2c3336",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "30838fa644cdaee7131f7c5b1ad08e5b622a8d56c6443a789cf98ab5720a30cb",
-      "sizeBytes": 37286
+      "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d",
+      "sizeBytes": 37287
     },
     {
       "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
@@ -1415,6 +1415,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "551500396700513372673fe0dff6a9963ce06497",
-  "subjectTree": "a6cc0e1ade095b5d85476706c3f977ae81faac31"
+  "subjectCommit": "bf7b8d09f6abe483ff956698ae37c2b2af5fb629",
+  "subjectTree": "f43e19e6f755c283f93456f9540a888f72dfb380"
 }
