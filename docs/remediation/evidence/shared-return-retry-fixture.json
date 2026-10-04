@@ -57,5 +57,29 @@
   "productionTouched": false,
   "productionRelease": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
   "freshHostedQualification": "PENDING_FOR_NEW_HEAD",
-  "nativeProductionVerification": "PENDING"
+  "nativeProductionVerification": "PENDING",
+  "localChecks": {
+    "frontendLint": "PASS",
+    "qualificationBuildSeconds": 16.93,
+    "graphs": 4,
+    "emittedAssets": 125,
+    "assetsGraphsPrebuiltInputsAndExclusionsMatchPreviousReceipt": true,
+    "softwareValidation": "PASS",
+    "SPDXSource": "PASS",
+    "SPDXBuild": "PASS",
+    "privacyCurrentAndNewHistory": "PASS",
+    "findingAndRightsInvariants": "PASS",
+    "dependencyRecordsPreserved": 582,
+    "sourceComponents": 612,
+    "buildComponents": 574,
+    "noticeBytesPreserved": 1449829,
+    "noticeSha256": "9f7c52bca7c8453a6e9211a9d5f4edcf3ea59031f241b4b68738985a209a98b3",
+    "strictAdmission": "BLOCKED: 176 recorded unreviewed shipped inputs unchanged"
+  },
+  "immutableQualification": {
+    "implementation": "f484c1ea3e801a132ddb013a57d1ff4852657132",
+    "browserReceipt": "3ca837bfaa0779cc152e3c0d1e7f57210279ba84",
+    "softwareSubject": "f9d6a2e412812dd12a871c9a22254f5a199e305f",
+    "softwareArtifacts": "36ca33850128438e87f2a3deed11e8eb16b8b875"
+  }
 }
