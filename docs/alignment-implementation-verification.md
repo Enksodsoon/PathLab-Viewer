@@ -1,6 +1,6 @@
 # Alignment repair and workflow verification
 
-Reconciled application checkpoint: `b08a2a7`, on `codex/alignment-usability`,
+Reconciled application checkpoint: `296af2b4`, on `codex/alignment-usability`,
 reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
 merge `2e2f99d` in an isolated checkout. The public screening remains bound to
 its earlier frozen source `b35d3be3b2ef8933eed969dbf123746042c57640`.
@@ -41,6 +41,13 @@ Original slide pixels remain unchanged. Regional corrections are separate from
 canonical anchor maps, bounded to supported tissue, and labeled approximations.
 Unsupported anatomical counterparts remain unsupported.
 
+Repair `296af2b4` displays **Manually adjusted approximation** only after a
+supported saved regional transform is actually applied to a pane. Navigating
+outside its bounds clears the manual label when the overview takes over or the
+field is unsupported. Unsaved previews retain their distinct label. A focused
+regression first reproduced the missing label while confirming correct regional
+coordinates, then passed after the repair.
+
 ## Workflow
 
 The visible workflow is **Slides → Sync → Adjust region**. Slides default to two
@@ -52,7 +59,13 @@ Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
 
 ## Verification receipts
 
-- Fresh frontend source `85980c0` (unchanged by backend commit `922e418`):
+- Fresh frontend source `296af2b4`: 704 tests across 93 files passed in
+  151.00 seconds. Full ESLint, TypeScript, production/legal build and both bundle
+  budgets passed. Annotation initial gzip delta is 3,064 bytes (limit 5,120);
+  lazy code is 303,776 bytes (limit 307,200). Assessment learner delta is
+  1,894 bytes (limit 15,360), with teacher isolation passing. Private QA receipt
+  SHA256: `d42363ac12fbb735e50fcba824164f1814f84d03028aa98d6766705d1d8c9101`.
+- Earlier frontend source `85980c0` (unchanged by backend commit `922e418`):
   703 tests across 93 files, TypeScript, full ESLint and
   production build passed. Annotation and assessment bundle budgets passed
   against a byte-identical dependency lock and the current main baseline.
@@ -163,7 +176,7 @@ writing a revision. The UI retains the marks and requests a fresh preview.
 One-point offset correction preserves the newest applicable saved regional
 rotation/scale, including reverse navigation, before considering a canonical
 basis. These paths have 114 focused backend passes; the frontend contract is
-included in the fresh 703-test suite.
+included in the fresh 704-test suite.
 
 Registration performance is measured on Windows x64. This host has no available Docker Linux
 engine, so Linux ARM64 runtime validation remains pending. PostgreSQL-dependent

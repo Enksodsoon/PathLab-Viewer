@@ -1,16 +1,19 @@
 # Alignment recipe campaign: 2026-10-03
 
 Status: frozen public screening and isolated four-browser application measurements
-are complete. Immutable development preparation remains pending. No recipe qualified as a Fast or Accurate winner.
+are complete. Immutable development preparation completed; the expanded campaign
+awaits final UI verification and a separate repaired-source/settings freeze.
+No recipe qualified as a Fast or Accurate winner.
 Prior screening receipts are
 exploratory because frontend verification ran concurrently. They do not establish
 fair runtime comparisons or qualified winners.
 
 The public campaign reached terminal outcomes for 144 cold attempts and 144
 fresh-process repeats. A repeat launches a fresh process; it does not measure a
-warm worker. The historical development plan requests 488 cold attempts if four
-recipes advance; immutable specimen and content deduplication must precede that
-phase. Unavailable or resource-failed methods count as attempts, not successes.
+warm worker. Fresh immutable development capture maps all 134 requested
+comparisons to 122 deduplicated ordered pairs, making 488 planned cold attempts
+across four selected recipes. These attempts have not started. Unavailable or
+resource-failed methods count as attempts, not successes.
 
 ## Frozen inputs and implementation
 
@@ -226,23 +229,69 @@ legacy `native-v12` compatibility. Earlier receipts are exploratory.
 
 VALIS invokes upstream DISK depth and LightGlue pretrained resources, using the
 existing upstream cache during this baseline. Their exact cached-byte/release
-provenance is unresolved until the phase pause; this campaign does not establish
+provenance was unresolved during that run; this campaign does not establish
 weight-free operation or offline resource admission. Official LightGlue and DISK
 sources state Apache-2.0 terms, but those statements do not establish the identity
 of the present cached files. Explicit byte verification and download prevention
-must precede the separate development runtime freeze.
+must precede the separate development runtime freeze. Post-run verification
+matched the cached bytes to pinned upstream resources and implemented explicit
+offline admission, as recorded in [the repair report](alignment-repair-2026-10-04.md).
+That subsequent evidence does not change the baseline execution identity.
 
-Development expansion is deferred until the DZI-only sampling repair is verified
-and separately frozen. A 21912×19876 source selects a 2739×2485 overview at exact
+Immutable development preparation is complete. Expansion remains deferred until
+final UI verification and the repaired source/settings freeze. The DZI-only sampling
+repair has focused, full-backend and four-browser engineering evidence in
+[the implementation report](alignment-implementation-verification.md).
+A 21912×19876 source selects a 2739×2485 overview at exact
 divisor 8; using the original height as the overview coordinate frame instead
 of 19880 produces a proven 3-pixel Y drift at an interior sample. The completed
 public JPEG receipts keep their frozen geometry/settings and source identity.
 Development inputs will instead bind 21 immutable bounded-overview snapshots
 and their exact sampling geometry. Preparation timing/memory has separate
-receipts. Original-source provenance is verified where available and explicitly
-unavailable otherwise; absent renal originals are not treated as verified.
+receipts. Original-source provenance is verified where available; stored
+candidates with unverified acquisition stages retain that uncertainty even
+when copied bytes, geometry and reader profiles verify.
 The earlier derived development-manifest hash above is preparation history,
 not the future immutable development campaign freeze.
+
+The first contained preparation attempt rejected a storage candidate because
+the admission path expected no copied tile inventory. Its 39.063-second failure
+is retained separately. Fresh inventory diagnosis found complete DZI pyramids
+for all five candidates: 3,785 / 3,658 / 2,108 / 2,280 / 2,096 tiles. The earlier
+planning count of two derivative files resulted from an inventory filter;
+it did not establish empty source directories. The repair gives complete
+copied pyramids precedence and binds every copied tile, while separately
+rechecking candidate checksums, dimensions and bounded native-reader pixels.
+Those bound tiles cannot enter the generated-cache reset protocol.
+
+The repaired preparation completed in one contained child in 231.750 seconds,
+with sampled peak working set 443,895,808 bytes and kernel peak committed memory
+420,597,760 bytes under the 7,516,192,768-byte limit. Source module hashes and
+captured database/original-file stats were unchanged before and after.
+It copied 7,801,237,010 bytes of original/candidate files and 503,519,793 bytes
+across 13,969 derivative files; total materialized workspace is 8,383,882,677
+bytes. Storage preflight is 18,303,977,539 bytes including the 8 GiB cache budget
+and overview reservations; adding 4 GiB reserve remained below observed free
+space. The failed first capture remains separate.
+
+The 21 snapshots comprise 16 verified explicit original-pointer regional sources
+and five fully checksum-bound copied DZI sources. All five candidates passed
+fresh copied-byte, dimension and native 512-pixel reader checks, while retaining
+unverified acquisition-stage provenance. No originals are physically missing.
+All 21 have positive per-axis calibration: 16 from documented OpenSlide MPP
+properties and five from recognized captured metadata units. Calibration does
+not establish independent landmarks: this cohort has zero ground-truth pairs.
+All 134 raw requests map to the 122 content/frame/calibration-deduplicated pairs;
+there are zero identical-content self-request exclusions.
+
+Raw immutable manifest SHA256:
+`5b4a23af97ee9d172312205ff6649b7d1ce5ba22daf65b5b01ba0de287071e01`.
+The source metadata digest is
+`3e968798f40e16eb60eca5ccda9dbc4eb49d0c7e66a03c9b8299267b4d22b055`.
+Independent root verification rechecked every immutable descriptor, bound file
+and decoded overview pixel digest in 46.219 seconds. The largest overview side
+is 3,883 pixels, below the 4,096 bound. Source/settings and optional-resource
+freezes for the expanded run remain separate from these verified input receipts.
 
 ## Review and reporting rules
 
