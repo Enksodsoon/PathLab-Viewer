@@ -19,7 +19,7 @@ identified by the repository supply-chain records.
 RECORDED COMPONENTS
 -------------------
 
-ID: container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+ID: container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
 Name: caddy
 Version: 2.11.4-alpine
 License: UNKNOWN
@@ -28,7 +28,7 @@ Source: docker.io/library/caddy
 Blockers: IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED
 Notice files: NONE RECORDED
 
-ID: container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d
+ID: container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2
 Name: node
 Version: 26.8.1-alpine3.23
 License: UNKNOWN
