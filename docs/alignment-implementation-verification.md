@@ -1,6 +1,6 @@
 # Alignment repair and workflow verification
 
-Reconciled application checkpoint: `6481133`, on `codex/alignment-usability`,
+Reconciled application checkpoint: `b08a2a7`, on `codex/alignment-usability`,
 reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
 merge `2e2f99d` in an isolated checkout. The public screening remains bound to
 its earlier frozen source `b35d3be3b2ef8933eed969dbf123746042c57640`.
@@ -25,6 +25,18 @@ No production activation or deployment was performed.
   Explicit crop provenance selects the existing padded crop-support path, without
   lowering tissue/ambiguity/geometry thresholds or changing image coordinates.
 
+Later live-loader regressions found two additional causes on larger slides:
+zero saved tiles at the selected DZI level yielded an invented white overview,
+and a foreground map sampled at 1024 pixels was served stale when validation
+recomputed the default 4096-pixel level. Repair `4d027b7` uses the actual bounded
+thumbnail/immutable/pyramid frame and pixel identity in foreground preparation,
+keeps genuine sparse pyramids with any present tile, and validates the recorded
+DZI selection. Changed thumbnail pixels or source descriptors still invalidate
+maps. These repairs have 65 focused passing tests; fresh full backend and
+large-slide browser checks remain pending at this revision. Warm foreground
+requests now include bounded decode/hash preparation, so earlier warm timing
+receipts do not establish performance for this source.
+
 Original slide pixels remain unchanged. Regional corrections are separate from
 canonical anchor maps, bounded to supported tissue, and labeled approximations.
 Unsupported anatomical counterparts remain unsupported.
@@ -40,18 +52,27 @@ Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
 
 ## Verification receipts
 
-- Final frontend source `9dc96ff` (unchanged by subsequent backend-test/security
-  receipt commits): 702 tests across 93 files, TypeScript, full ESLint and
+- Fresh frontend source `85980c0` (unchanged by backend commit `922e418`):
+  703 tests across 93 files, TypeScript, full ESLint and
   production build passed. Annotation and assessment bundle budgets passed
   against a byte-identical dependency lock and the current main baseline.
-- Final full backend at `6481133`: 1,834 passed, 114 skipped, 85% line coverage
+  Annotation initial gzip delta is 3,066 bytes (limit 5,120); lazy code is
+  303,776 bytes (limit 307,200). Assessment learner delta is 1,869 bytes
+  (limit 15,360), with teacher isolation passing. Private QA receipt SHA256:
+  `d582d1fcf136f9282accb18e208a5fc2cb12d77909c0f707339af259f9e00f2c`.
+- Earlier full backend at `6481133`: 1,834 passed, 114 skipped, 85% line coverage
   in 983.55 seconds. PostgreSQL and platform/runtime-dependent skips remain
   explicit. Private receipts: `var/alignment-final-backend.xml` and
   `var/alignment-final-backend.log`.
-- Global CI Ruff and strict mypy passed on 82 source files. Security egress
+- Fresh full backend at `b08a2a7`: 1,874 passed, 114 skipped, 85% line coverage
+  in 1,000.98 seconds, terminal exit zero. Private receipts:
+  `var/alignment-final-repaired-green-backend.xml` and
+  `var/alignment-final-repaired-green-backend.log`. PostgreSQL and optional
+  platform/runtime skips remain explicit.
+- Fresh global CI Ruff and strict mypy passed on 83 source files at `922e418`. Security egress
   inventory covers 260 backend, 29 frontend and 97 egress files; its 11
   regression tests passed. Asset and dependency validators passed.
-- The [final guided browser receipt](alignment-results/ui-navigation-2026-10-04/guided-observations.json)
+- The [earlier guided browser receipt](alignment-results/ui-navigation-2026-10-04/guided-observations.json)
   records 19 passing journeys across Chromium, Firefox, WebKit and mobile
   Chromium, zero assertion retries, failures or skips. Each exercises keyboard
   slide selection and Sync, one-point save/reload, two-point preview/cancel and
@@ -109,9 +130,23 @@ heavy registration runtime or ARM64. Descendants that create another session
 require the deployment's cgroup boundary. The owned fixture processes exited;
 Ubuntu remains running because an unrelated shell's ownership was uncertain.
 
-Subsequent immutable-input preparation fixes through `b210baa` have 61 focused geometry/input/benchmark
-tests and Ruff/mypy evidence. The full backend count above remains bound to
-`6481133`; it is not silently relabeled as a run against those later changes.
+Subsequent input, live-loader and correction fixes have focused regression
+evidence. The first full run at `922e418` recorded 1,872 passes, 114 skips,
+one failed legacy loader mock and 85% coverage in 1,299.84 seconds. Its failed
+receipt remains `var/alignment-final-repaired-backend.log`/`.xml`. Test-only
+commit `b08a2a7` replaces that outdated mock and verifies explicit 1024/default
+4096 bounds, preserved geometry and pyramid preference in two focused passes.
+The complete backend rerun at `b08a2a7` passed as recorded above; the earlier
+full count remains bound to `6481133`. Fresh browser acceptance must also
+cover the preview-basis contract and the large odd-dimension real-worker fixture.
+
+One-point saves require the preview's `basisVersion`: an intervening automatic
+map change that alters its rotation/scale returns `REGION_PREVIEW_CHANGED` before
+writing a revision. The UI retains the marks and requests a fresh preview.
+One-point offset correction preserves the newest applicable saved regional
+rotation/scale, including reverse navigation, before considering a canonical
+basis. These paths have 114 focused backend passes; the frontend contract is
+included in the fresh 703-test suite.
 
 Registration performance is measured on Windows x64. This host has no available Docker Linux
 engine, so Linux ARM64 runtime validation remains pending. PostgreSQL-dependent
