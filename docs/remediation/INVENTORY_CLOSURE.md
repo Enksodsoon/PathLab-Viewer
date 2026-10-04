@@ -373,3 +373,7 @@ in fresh web, backend/container and Python build artifacts.
 ## Browser distribution qualification followup
 
 The historical five-delta instructions above describe the earlier notice-material checkpoint. Current classification is tracked in [browser shipped distribution](tickets/browser-shipped-distribution.md). Actual immutable compiler graphs and125emitted assets prove guid-typescript1.0.9 and eastasianwidth0.2.0 absent from the current compiled browser. Source records and exact notice blockers remain unchanged. Current generated coverage retains all612source components and selects176unreviewed shipped inputs; strict admission remainsBLOCKED. All full notice bytes and source/asset/toolchain identifier membership are unchanged. Protected hosted verification remains pending.
+
+## Hosted classification and subsequent fixture refresh
+
+PR308 head 7115f7424cab0eee9583b97bdf1331733defe146 passed all nine campaign checks, including Linux actual build/asset/legal comparison, and merged ed1aa6a. Fresh main web verification exposed a separately reproduced Classroom fixture readiness race; other main CI jobs and Security passed. [Fixture repair](tickets/classroom-polling-verification.md) retains the failed run and refreshes immutable source receipts without changing asset bytes or dependency rights/admissions. Current 176 shipped inputs remain RECORDED_UNREVIEWED; both unshipped source-notice gaps remain BLOCKED.
