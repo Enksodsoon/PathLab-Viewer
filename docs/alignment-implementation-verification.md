@@ -84,6 +84,16 @@ cannot remain active. The candidate inspection remains unsaved.
 
 ## Verification receipts
 
+- Maintained backend at clean `c5b49c8f`: 2,024 passed, 115 skipped and no
+  failures in 2,965.51 seconds, with 85% coverage and 236 warnings. The process
+  exited successfully. All 1,422 tracked file hashes, installed runtime versions
+  and Python binary hashes stayed byte-identical from startup to terminal;
+  both receipts have SHA-256
+  `d68769ee0e1a142de414fc2b09ca34ca534f5f2ef79c2cc08df62f3ddd5d8dbd`.
+  The full log and JUnit receipt are retained as
+  `var/alignment-maintained-final-green-backend.log` and `.xml`. Subsequent
+  Linux memory-enforcement and keyboard-test edits require their own verification;
+  this full-run receipt remains bound to the tested commit.
 - Maintained backend at clean `30d1f199`: 2,019 passed, 115 skipped and one
   failure in 1,254.38 seconds, with 85% coverage and 236 warnings. The only
   failure was the maintained inventory test's stale 177 shipped-input assertion;
@@ -91,7 +101,7 @@ cannot remain active. The candidate inspection remains unsaved.
   tzdata now also appears in the backend lock; neither change removes source
   admission blockers. The corrected assertion passes its focused rerun. This
   failed full run is retained as `var/alignment-maintained-final-backend.log`
-  and `.xml`; a fresh green full run remains required.
+  and `.xml`; the separate green rerun above supersedes this failed result.
   All 1,422 tracked source-file hashes, runtime versions and Python binary hashes
   were byte-identical at startup and terminal; receipt SHA-256:
   `12ca7333ef24954bfa6d0a1f42417f2ed1f1e3f4c53785b65fd80267ff69a797`.
@@ -110,7 +120,25 @@ cannot remain active. The candidate inspection remains unsaved.
   package and lock files stayed unchanged. The new compiled browser receipt
   binds source `9c677e8f`, four observed graphs and 129 emitted assets; actual
   distribution verification passed and the receipt was copied byte-identically.
-  The final legal build and fresh `316d6fc` baseline comparison remain pending.
+  The final legal build and fresh `316d6fc` baseline comparison passed as recorded
+  above. A later keyboard-only E2E edit needs a new browser source receipt; the
+  captured unit-test and production source bytes remain unchanged.
+- CI-scoped Ruff and strict mypy passed again at `c5b49c8f` (84 server files).
+  The actual current-tree scanner and complete 278-commit scan from `origin/main`
+  passed. Exact package-version contexts are recognized without exempting changed
+  hosts, URLs, paths, values or receipt parents; 36 focused tests passed. Seven
+  immutable campaign/runtime/kernel/optional-lock reports stayed unchanged.
+- The maintained Python wheel and sdist built from a clean Git archive at
+  `c5b49c8f`. Both include LICENSE and NOTICE with identical normalized Git
+  contents and contain the exact committed third-party notice bundle. The
+  packaged Windows checkout line endings are recorded separately. Wheel SHA-256:
+  `c456ec184d8db45acd9718b9a8af246e2a5b666d549472fc760ca3dc6797d95e`;
+  sdist SHA-256:
+  `c8a4c87169d8aec68b36a791e98e02fb1b15656aa67767dd2d80b27fb4cef6f4`.
+  An earlier in-place build was deliberately cancelled during traversal of the
+  large ignored workspace; its log is retained separately. Both SPDX documents
+  passed the hash-pinned checker installed in a separate directory, leaving the
+  QA and research environments unchanged.
 - Maintained-runtime CI Ruff scope (`server tests migrations`) and all 21
   changed Python scripts pass. Strict mypy passes all 84 server source files.
   An extra all-script Ruff invocation failed on 62 pre-existing findings in
