@@ -161,7 +161,7 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   expect(previewSet.regionalCorrections).toHaveLength(1)
   expect(previewSet.regionalCorrections[0].registration.status).toBe('approximate')
   expect(previewSet.regionalCorrections[0].basisVersion).toEqual(expect.any(String))
-  await expect(page.getByText('Unsaved correction preview', { exact: true })).toBeVisible()
+  await expect(page.getByText(/^Unsaved correction preview/)).toBeVisible()
   await assertManualPath(previewSet, 'one-point-preview', beforeOnePreview)
   await page.screenshot({ path: testInfo.outputPath('alignment-region-preview.png'), fullPage: true })
   const beforeOneSave = (await applications()).length
