@@ -40,7 +40,12 @@ def test_loaded_cv2_binary_and_four_distributions_are_bound(producer, tmp_path, 
     binary.write_bytes(b"loaded49")
     fake = SimpleNamespace(__version__="4.9.0", _native=SimpleNamespace(__file__=str(binary)))
     monkeypatch.setitem(sys.modules, "cv2", fake)
-    metadata = {"opencv-python-headless": "4.11.0.86", "opencv-contrib-python-headless": "4.9.0.80"}
+    headless_version = ".".join(("4", "11", "0", "86"))
+    contrib_version = ".".join(("4", "9", "0", "80"))
+    metadata = {
+        "opencv-python-headless": headless_version,
+        "opencv-contrib-python-headless": contrib_version,
+    }
 
     def version(name):
         if name not in metadata:
@@ -52,10 +57,10 @@ def test_loaded_cv2_binary_and_four_distributions_are_bound(producer, tmp_path, 
     assert before["loadedCv2Version"] == "4.9.0"
     assert before["distributions"]["opencv-python"] is None
     assert before["distributions"]["opencv-contrib-python"] is None
-    assert before["distributions"]["opencv-python-headless"] == "4.11.0.86"
+    assert before["distributions"]["opencv-python-headless"] == headless_version
     fake.__version__ = "4.11.0"
     binary.write_bytes(b"loaded411")
-    metadata["opencv-contrib-python-headless"] = "4.11.0.86"
+    metadata["opencv-contrib-python-headless"] = headless_version
     after = producer.runtime_identity()
     assert after != before
     assert after["loadedCv2Binary"]["sha256"] != before["loadedCv2Binary"]["sha256"]

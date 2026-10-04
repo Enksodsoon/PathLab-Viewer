@@ -365,6 +365,83 @@ def is_recorded_opencv_version(relative: str, line: str, start: int, end: int) -
     ))
 
 
+ALIGNMENT_PACKAGE_VERSIONS = {
+    "deploy/alignment-optional-runtime-lock.json": {
+        "opencv-python-headless": "4.14.0.94",
+    },
+    "docs/alignment-results/public-screening-2026-10-03/observations.json": {
+        "opencv-python-headless": "4.11.0.86",
+    },
+    "docs/alignment-results/development-expanded-2026-10-04/observations.json": {
+        "opencv-python-headless": "4.11.0.86",
+        "opencv-contrib-python-headless": "4.9.0.80",
+        "openslide-bin": "4.0.1.2",
+    },
+    "docs/alignment-results/runtime-2026-10-04/qa-runtime.json": {
+        "opencv-python-headless": "4.14.0.94",
+        "openslide-bin": "4.0.0.11",
+    },
+}
+ALIGNMENT_QA_RECEIPT = "docs/alignment-results/runtime-2026-10-04/qa-runtime.json"
+ALIGNMENT_QA_RECEIPT_SHA256 = "da9526a7f56b65fe88c21f6264a6ff790ab2b48ec5ced95e2e99245abb904c34"
+ALIGNMENT_VERSION_LINES = {
+    "docs/alignment-campaign-2026-10-03.md": {
+        "installed OpenCV headless distribution 4.11.0.86, torch 2.14.1, "
+        "VALIS 1.2.0, wsireg 0.3.10,",
+        "OpenCV headless 4.11.0.86, torch 2.14.1, VALIS 1.2.0, wsireg 0.3.10,",
+        "an additional installed `opencv-contrib-python-headless` 4.9.0.80.",
+    },
+    "docs/alignment-repair-2026-10-04.md": {
+        "headless 4.11.0.86 and contrib-headless 4.9.0.80, while the loaded module reports",
+    },
+    "docs/alignment-results/platform-2026-10-04/linux-containment-x64.json": {
+        '"kernel": "6.18.33.2-microsoft-standard-WSL2",',
+    },
+}
+HISTORICAL_ALIGNMENT_FIXTURE_PATH = "tests/backend/test_alignment_admission_capture.py"
+HISTORICAL_ALIGNMENT_FIXTURE_LABEL = "368df39c572f"
+HISTORICAL_ALIGNMENT_FIXTURE_SHA256 = (
+    "f55c429b317e81b92b445a57a414fa088aedb1098dea84e1525cee62d90871d3"
+)
+HISTORICAL_ALIGNMENT_FIXTURE_VERSION_LINES = {
+    'metadata = {"opencv-python-headless": "4.11.0.86", '
+    '"opencv-contrib-python-headless": "4.9.0.80"}',
+    'assert before["distributions"]["opencv-python-headless"] == "4.11.0.86"',
+    'metadata["opencv-contrib-python-headless"] = "4.11.0.86"',
+}
+
+
+def is_recorded_alignment_version(
+    relative: str, line: str, document_digest: str | None, label: str | None
+) -> bool:
+    """Recognize exact recorded version contexts, never arbitrary IPv4 values."""
+    if line.strip() in ALIGNMENT_VERSION_LINES.get(relative, set()):
+        return True
+    # This original regression fixture is only recognized in its immutable
+    # historical blob, never when reintroduced into the current tree.
+    if (
+        relative == HISTORICAL_ALIGNMENT_FIXTURE_PATH
+        and label == HISTORICAL_ALIGNMENT_FIXTURE_LABEL
+        and document_digest == HISTORICAL_ALIGNMENT_FIXTURE_SHA256
+        and line.strip() in HISTORICAL_ALIGNMENT_FIXTURE_VERSION_LINES
+    ):
+        return True
+    pair = re.fullmatch(r'\s*"([\w-]+)":\s*"([\d.]+)",?\s*', line)
+    if pair is None:
+        return False
+    key, value = pair.groups()
+    if ALIGNMENT_PACKAGE_VERSIONS.get(relative, {}).get(key) == value:
+        return True
+    # The only generic nested field is inside the unchanged approved OpenSlide
+    # receipt. Any changed parent, source, or other byte invalidates recognition.
+    return (
+        relative == ALIGNMENT_QA_RECEIPT
+        and document_digest == ALIGNMENT_QA_RECEIPT_SHA256
+        and key == "version"
+        and value == "4.0.0.11"
+    )
+
+
 def should_scan_text(relative: str) -> bool:
     path = Path(relative)
     return path.suffix.lower() in TEXT_SUFFIXES or path.name in {"Caddyfile", "Dockerfile"}
@@ -386,6 +463,15 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
         findings.append((display, 1, "sensitive credential container"))
         return findings
 
+    document_digest = (
+        hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()
+        if relative == ALIGNMENT_QA_RECEIPT
+        or (
+            relative == HISTORICAL_ALIGNMENT_FIXTURE_PATH
+            and label == HISTORICAL_ALIGNMENT_FIXTURE_LABEL
+        )
+        else None
+    )
     for line_number, line in enumerate(text.splitlines(), start=1):
         if any(marker in line for marker in PRIVATE_KEY_MARKERS):
             findings.append((display, line_number, "private key material"))
@@ -421,6 +507,8 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
             if is_embedded_numeric_identifier(line, match.start(), match.end()):
                 continue
             if is_recorded_opencv_version(relative, line, match.start(), match.end()):
+                continue
+            if is_recorded_alignment_version(relative, line, document_digest, label):
                 continue
             candidate = match.group(0)
             if is_public_ip(candidate) and (
