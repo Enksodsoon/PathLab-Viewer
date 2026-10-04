@@ -153,6 +153,25 @@ it('ends a candidate preview when same-version polling changes a source snapshot
   expect(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' })).toBeDisabled()
 })
 
+it.each(['known-case reassignment', 'readiness or trash eligibility change'])('rejects an old currentPair manifest against fresh %s member tokens', async change => {
+  const fixture = candidatePreviewFixture()
+  // The old manifest still asserts currentPair, while the independently fetched
+  // comparison has a new opaque eligibility token without a set-version change.
+  expect(fixture.manifest.candidates[0].currentPair).toBe(true)
+  fixture.comparison.members[1].alignmentSourceVersion = `alignment-preview:fresh-${change}`
+  Object.assign(fixture.comparison.members[1], { nativeOverviewFallback: null, registration: { status: 'rejected', provenance: 'automatic', reason: 'Current source eligibility changed' } })
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  expect(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Promote wsireg-0.3.8 for Slide 2' })).toBeDisabled()
+  expect(screen.queryByText('Experimental alignment preview')).not.toBeInTheDocument()
+  expect(fixture.comparison.version).toBe(fixture.manifest.setVersion)
+})
+
 it('honors fresh removal of an unsafe embedded candidate overview while retaining the candidate map', async () => {
   const fixture = candidatePreviewFixture()
   const manifest = fixture.manifest as unknown as RegistrationCandidateManifest
