@@ -6,6 +6,23 @@ import { createHash } from 'node:crypto'
 import { chromium, firefox, webkit, devices } from '@playwright/test'
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex')
+export function boundedPanStroke({ canvas, viewport, view, point }) {
+  if (!Array.isArray(point) || point.length !== 2
+    || ![canvas?.x, canvas?.y, canvas?.width, canvas?.height, viewport?.width, viewport?.height,
+      view?.centerX, view?.centerY, view?.imageZoom, view?.rotation, ...point].every(Number.isFinite)
+    || view.imageZoom <= 0) throw new Error('Invalid pointer field or visible geometry')
+  const left = Math.max(0, canvas.x), right = Math.min(viewport.width, canvas.x + canvas.width)
+  const top = Math.max(0, canvas.y), bottom = Math.min(viewport.height, canvas.y + canvas.height)
+  if (right - left <= 64 || bottom - top <= 64) throw new Error('No usable visible canvas intersection')
+  if (Math.hypot(view.centerX - point[0], view.centerY - point[1]) < 1) return null
+  const angle = view.rotation * Math.PI / 180
+  const dx = (view.centerX - point[0]) * view.imageZoom, dy = (view.centerY - point[1]) * view.imageZoom
+  const screenX = dx * Math.cos(angle) - dy * Math.sin(angle), screenY = dx * Math.sin(angle) + dy * Math.cos(angle)
+  if (![screenX, screenY].every(Number.isFinite)) throw new Error('Nonfinite pointer displacement')
+  const x = (left + right) / 2, y = (top + bottom) / 2
+  const fraction = Math.min(1, ((right - left) / 2 - 24) / Math.max(1, Math.abs(screenX)), ((bottom - top) / 2 - 24) / Math.max(1, Math.abs(screenY)))
+  return { start: [x, y], end: [x + screenX * fraction, y + screenY * fraction], visibleBounds: [left, top, right, bottom] }
+}
 function transform(cell, point) {
   const [[ax, ay], [bx, by], [cx, cy]] = cell.moving
   const divisor = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
@@ -72,7 +89,7 @@ async function main() {
 
   if (canonical(queue.admission) !== canonical(guard)) throw new Error('Queue admission differs from the exact private guard')
   const summary = values => {
-    const sorted = [...values].sort((a, b) => a - b)
+    const sorted = values.filter(Number.isFinite).sort((a, b) => a - b)
     return { count: sorted.length, median: sorted[Math.ceil(sorted.length * 0.5) - 1] ?? null, p95: sorted[Math.ceil(sorted.length * 0.95) - 1] ?? null }
   }
   const receipt = {
@@ -97,6 +114,7 @@ async function main() {
       const batch = { profile, version: null, browserClosed: true, maximumSeconds: 240, rows: queue.rows.map(row => ({
         recipe: row.recipe, jobId: row.jobId ?? null, candidateId: row.candidate?.id ?? null,
         candidateDigest: row.candidateDigest ?? null, outcome: 'no-application', reason: 'Not attempted',
+        pointerPanActionsStarted: 0, pointerPanActionsCompleted: 0,
         browserApplicationSeconds: null, setterAndCanvasObservationSeconds: null, setterMs: null, samples: [], automaticCorrection: null, humanCorrectionEffort: null,
         previewClickApplicationSeconds: null, previewClickApplication: null,
         previewClickApplicationReason: 'No admitted candidate Preview attempted',
@@ -133,6 +151,12 @@ async function main() {
             page.on('response', response => { if (response.ok() && response.url().includes('/preview/slide_files/')) loadedTiles++ })
             await page.addInitScript(() => {
               window.__operationalApplications = []
+              window.__operationalPointerReleases = []
+              window.addEventListener('pointerup', event => {
+                if (!(event.target instanceof Element) || !event.target.closest('.openseadragon-canvas')) return
+                requestAnimationFrame(() => window.__operationalPointerReleases.push({ x: event.clientX, y: event.clientY,
+                  captured: [...document.querySelectorAll('.openseadragon-canvas')].some(canvas => canvas.hasPointerCapture(event.pointerId)) }))
+              }, true)
               window.addEventListener('pathlab:alignment-applied', event => {
                 const row = { ...event.detail, observedAt: performance.now() }
                 window.__operationalApplications.push(row)
@@ -197,25 +221,35 @@ async function main() {
             const samples = [...new Set([0, Math.floor(cells.length / 2), cells.length - 1])]
             for (const cellIndex of samples) {
               const point = center(cells[cellIndex].moving)
-              const previous = await page.evaluate(id => window.__operationalApplications.findLast(item => item.sourceSlideId === id || item.slideId === id), source.slideId)
-              if (!previous) throw new Error('No actual OSD starting viewport application')
-              const view = previous.sourceSlideId === source.slideId ? previous.sourceViewport : previous.viewport
               const paneIndex = await page.locator('.comparison-pane select').evaluateAll((selects, id) => selects.findIndex(select => select.value === id), source.slideId)
               if (paneIndex < 0) throw new Error('Source slide is not displayed')
-              const pane = page.locator('.comparison-pane').nth(paneIndex)
-              const canvas = pane.locator('.openseadragon-canvas').first()
+              const canvas = page.locator('.comparison-pane').nth(paneIndex).locator('.openseadragon-canvas').first()
               await canvas.scrollIntoViewIfNeeded()
-              const box = await canvas.boundingBox()
-              if (!box) throw new Error('Source canvas not visible')
-              const before = await page.evaluate(() => window.__operationalApplications.length)
-              const started = await page.evaluate(() => performance.now())
-              const angle = view.rotation * Math.PI / 180, dx = (view.centerX - point[0]) * view.imageZoom, dy = (view.centerY - point[1]) * view.imageZoom
-              const x = box.x + box.width / 2, y = box.y + box.height / 2
-              await page.mouse.move(x, y); await page.mouse.down()
-              await page.mouse.move(x + dx * Math.cos(angle) - dy * Math.sin(angle), y + dx * Math.sin(angle) + dy * Math.cos(angle), { steps: 8 })
-              await page.waitForTimeout(250); await page.mouse.up()
-              await page.waitForFunction(({ count, id }) => window.__operationalApplications.slice(count).some(item => item.sourceSlideId === id), { count: before, id: source.slideId }, { timeout: 10_000 })
-              await page.waitForTimeout(350)
+              const started = await page.evaluate(() => performance.now()), panStrokes = []
+              for (let stroke = 0; stroke < 12; stroke++) {
+                const previous = await page.evaluate(id => window.__operationalApplications.findLast(item => item.sourceSlideId === id || item.slideId === id), source.slideId)
+                if (!previous) throw new Error('No actual OSD starting viewport application')
+                const view = previous.sourceSlideId === source.slideId ? previous.sourceViewport : previous.viewport
+                if (Math.hypot(view.centerX - point[0], view.centerY - point[1]) < 1) break
+                const box = await canvas.boundingBox()
+                if (!box) throw new Error('Source canvas not visible')
+                const gesture = boundedPanStroke({ canvas: box, viewport: page.viewportSize(), view, point })
+                const before = await page.evaluate(() => ({ applications: window.__operationalApplications.length, releases: window.__operationalPointerReleases.length }))
+                await page.mouse.move(...gesture.start); await page.mouse.down(); entry.pointerPanActionsStarted++
+                await page.mouse.move(...gesture.end, { steps: 8 })
+                await page.waitForTimeout(250); await page.mouse.up()
+                await page.waitForFunction(({ count, id }) => window.__operationalApplications.slice(count).some(item => item.sourceSlideId === id), { count: before.applications, id: source.slideId }, { timeout: 10_000 })
+                await page.waitForTimeout(350)
+                await page.waitForFunction(count => window.__operationalPointerReleases.length > count, before.releases, { timeout: 10_000 })
+                const release = await page.evaluate(() => window.__operationalPointerReleases.at(-1))
+                const [left, top, right, bottom] = gesture.visibleBounds
+                if (release.captured || release.x <= left || release.x >= right || release.y <= top || release.y >= bottom) throw new Error('Pan did not release capture inside the visible pane')
+                entry.pointerPanActionsCompleted++
+                panStrokes.push({ ...gesture, release })
+              }
+              const finalApplication = await page.evaluate(id => window.__operationalApplications.findLast(item => item.sourceSlideId === id || item.slideId === id), source.slideId)
+              if (!panStrokes.length && finalApplication?.sourceSlideId !== source.slideId) throw new Error('Already-centered source has no forward own-candidate readback for this sample; no fresh application is inferred')
+              if (!finalApplication || Math.hypot(finalApplication.sourceViewport.centerX - point[0], finalApplication.sourceViewport.centerY - point[1]) >= 1) throw new Error('Bounded pan did not reach selected candidate source point')
               const drawn = await page.evaluate(async id => {
                 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
                 const application = window.__operationalApplications.findLast(item => item.sourceSlideId === id)
@@ -236,11 +270,13 @@ async function main() {
                 || !Number.isFinite(applied.applicationMilliseconds) || !loadedTiles) throw new Error('Own map was not actually applied and rendered on both original panes')
               const residual = Math.hypot(applied.viewport.centerX - expected[0], applied.viewport.centerY - expected[1])
               if (!Number.isFinite(residual) || residual > 0.01) throw new Error('Actual OSD center differs from own cell oracle')
-              entry.samples.push({ cellIndex, applied, expected, centerResidualPixels: residual, nonuniformCanvases: drawn.nonuniform,
-                observedUiMs: drawn.checkedAt - started, setterMs: applied.applicationMilliseconds,
-                setterAndObservedRenderMs: applied.applicationMilliseconds + applied.frameObservedAt - applied.observedAt })
+              entry.samples.push({ cellIndex, panStrokes, actualPointerStrokes: panStrokes.length, applied, expected, centerResidualPixels: residual, nonuniformCanvases: drawn.nonuniform,
+                applicationFresh: panStrokes.length > 0, reason: panStrokes.length ? null : 'Selected point already centered; existing own-candidate readback and current canvas checked, no new setter clock',
+                observedUiMs: drawn.checkedAt - started, setterMs: panStrokes.length ? applied.applicationMilliseconds : null,
+                setterAndObservedRenderMs: panStrokes.length ? applied.applicationMilliseconds + applied.frameObservedAt - applied.observedAt : null })
             }
-            entry.setterAndCanvasObservationSeconds = summary(entry.samples.map(item => item.setterAndObservedRenderMs)).p95 / 1000
+            const setterP95 = summary(entry.samples.map(item => item.setterAndObservedRenderMs)).p95
+            entry.setterAndCanvasObservationSeconds = setterP95 === null ? null : setterP95 / 1000
             entry.setterMs = summary(entry.samples.map(item => item.setterMs))
             entry.observedUiMs = summary(entry.samples.map(item => item.observedUiMs))
             entry.setterAndObservedRenderMs = summary(entry.samples.map(item => item.setterAndObservedRenderMs))
@@ -253,17 +289,25 @@ async function main() {
             // This measures scripted crosshair actions, without anatomical scoring or a save.
             entry.automaticCorrection = []
             for (const pairs of [1, 2]) {
-              const actionStart = await page.evaluate(() => performance.now())
+              const actionStart = await page.evaluate(() => performance.now()), correctionPanStrokes = []
               await page.getByRole('button', { name: 'Adjust region', exact: true }).click()
               await page.getByRole('button', { name: 'Record point pair', exact: true }).click()
               if (pairs === 2) {
                 for (const pane of await page.locator('.comparison-pane').all()) {
                   const canvas = pane.locator('.openseadragon-canvas').first()
                   await canvas.scrollIntoViewIfNeeded()
-                  const box = await canvas.boundingBox(), x = box.x + box.width / 2, y = box.y + box.height / 2
-                  await page.mouse.move(x, y); await page.mouse.down()
-                  await page.mouse.move(x - 12, y - 10, { steps: 5 })
+                  const box = await canvas.boundingBox()
+                  const gesture = boundedPanStroke({ canvas: box, viewport: page.viewportSize(), view: { centerX: -12, centerY: -10, imageZoom: 1, rotation: 0 }, point: [0, 0] })
+                  const releasesBefore = await page.evaluate(() => window.__operationalPointerReleases.length)
+                  await page.mouse.move(...gesture.start); await page.mouse.down(); entry.pointerPanActionsStarted++
+                  await page.mouse.move(...gesture.end, { steps: 5 })
                   await page.waitForTimeout(250); await page.mouse.up()
+                  await page.waitForFunction(count => window.__operationalPointerReleases.length > count, releasesBefore)
+                  const release = await page.evaluate(() => window.__operationalPointerReleases.at(-1))
+                  const [left, top, right, bottom] = gesture.visibleBounds
+                  if (release.captured || release.x <= left || release.x >= right || release.y <= top || release.y >= bottom) throw new Error('Correction pan did not release inside the visible pane')
+                  entry.pointerPanActionsCompleted++
+                  correctionPanStrokes.push({ ...gesture, release })
                 }
                 await page.getByRole('button', { name: 'Record point pair', exact: true }).click()
               }
@@ -275,7 +319,7 @@ async function main() {
               await page.getByRole('button', { name: 'Cancel correction', exact: true }).click()
               entry.automaticCorrection.push({ scope: 'Scripted crosshair pairs, Preview and Cancel; no correspondence/human quality scoring and no Save',
                 recordedPointPairs: response.request().postDataJSON().movingPoints.length,
-                controlActionCount: pairs + 3, pointerPans: pairs === 2 ? 2 : 0,
+                controlActionCount: pairs + 3, logicalPanTargets: pairs === 2 ? 2 : 0, pointerPans: correctionPanStrokes.length, pointerPanStrokes: correctionPanStrokes,
                 previewObserved: response.ok(), responseStatus: response.status(),
                 observedSeconds: (actionEnd - actionStart) / 1000, humanCorrectionEffort: null, anatomicalAccuracy: null })
             }

@@ -10,6 +10,7 @@ type RegistrationTriangle = NonNullable<SlideRegistration['triangles']>[number]
 type View = { centerX: number; centerY: number; imageZoom: number; rotation: number }
 type Application = { sourceSlideId: string; slideId: string; retainedOverview: boolean; regional: boolean; sourceViewport: View; viewport: View }
 type Restoration = { slideId: string; requestedViewport: View; actualViewport: View | null }
+type PointerRelease = { x: number; y: number; captured: boolean }
 
 // Independent barycentric oracle: this does not call the production map lookup.
 function inCell(cell: RegistrationTriangle, point: Point, reverse: boolean): Point | null {
@@ -27,9 +28,16 @@ test('alignment candidate support retains current overview and direct pane Reset
   let loadedTiles = 0
   page.on('response', response => { if (response.ok() && response.url().includes('/preview/slide_files/')) loadedTiles++ })
   await page.addInitScript(() => {
-    Object.assign(window, { alignmentApplications: [], alignmentRestorations: [] })
+    Object.assign(window, { alignmentApplications: [], alignmentRestorations: [], alignmentPointerReleases: [] })
     window.addEventListener('pathlab:alignment-applied', event => (window as unknown as { alignmentApplications: unknown[] }).alignmentApplications.push((event as CustomEvent).detail))
     window.addEventListener('pathlab:alignment-restored', event => (window as unknown as { alignmentRestorations: unknown[] }).alignmentRestorations.push((event as CustomEvent).detail))
+    window.addEventListener('pointerup', event => {
+      if (!(event.target instanceof Element) || !event.target.closest('.openseadragon-canvas')) return
+      requestAnimationFrame(() => (window as unknown as { alignmentPointerReleases: PointerRelease[] }).alignmentPointerReleases.push({
+        x: event.clientX, y: event.clientY,
+        captured: [...document.querySelectorAll('.openseadragon-canvas')].some(canvas => canvas.hasPointerCapture(event.pointerId)),
+      }))
+    }, true)
   })
   await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
   const seed = (...args: string[]) => JSON.parse(execFileSync(process.env.PATHLAB_E2E_PYTHON!, [path.resolve('../../scripts/seed_frontend_qa.py'), ...args], { encoding: 'utf8' }))
@@ -76,23 +84,44 @@ test('alignment candidate support retains current overview and direct pane Reset
   const canonicalBefore = current.members[1].registration
   const rows = () => page.evaluate(() => (window as unknown as { alignmentApplications: Application[] }).alignmentApplications)
   const restorations = () => page.evaluate(() => (window as unknown as { alignmentRestorations: Restoration[] }).alignmentRestorations)
+  const pointerReleases = () => page.evaluate(() => (window as unknown as { alignmentPointerReleases: PointerRelease[] }).alignmentPointerReleases)
+  const panReceipts: unknown[] = []
   const viewFor = async (slideId: string) => {
     const last = (await rows()).findLast(row => row.sourceSlideId === slideId || row.slideId === slideId)!
     expect(last).toBeDefined()
     return last.sourceSlideId === slideId ? last.sourceViewport : last.viewport
   }
   const panTo = async (slideId: string, point: Point) => {
-    const view = await viewFor(slideId)
     const index = slideId === fixture.anchorId ? 0 : 1
     const canvas = page.locator('.comparison-pane').nth(index).locator('.openseadragon-canvas').first()
     await canvas.scrollIntoViewIfNeeded()
-    const bounds = (await canvas.boundingBox())!, x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2
-    const angle = view.rotation * Math.PI / 180, dx = (view.centerX - point[0]) * view.imageZoom, dy = (view.centerY - point[1]) * view.imageZoom
-    const before = (await rows()).length
-    await page.mouse.move(x, y); await page.mouse.down()
-    await page.mouse.move(x + dx * Math.cos(angle) - dy * Math.sin(angle), y + dx * Math.sin(angle) + dy * Math.cos(angle), { steps: 10 })
-    await page.waitForTimeout(250); await page.mouse.up(); await page.waitForTimeout(350)
-    await expect.poll(async () => (await rows()).length).toBeGreaterThan(before)
+    // Release every stroke inside the visible pane. Firefox cannot deliver an
+    // off-window mouse-up, leaving OSD capture to consume the next control click.
+    for (let stroke = 0; stroke < 12; stroke++) {
+      const view = await viewFor(slideId)
+      if (Math.hypot(view.centerX - point[0], view.centerY - point[1]) < 1) return
+      const bounds = (await canvas.boundingBox())!, viewport = page.viewportSize()!
+      const left = Math.max(0, bounds.x), right = Math.min(viewport.width, bounds.x + bounds.width)
+      const top = Math.max(0, bounds.y), bottom = Math.min(viewport.height, bounds.y + bounds.height)
+      expect(right - left).toBeGreaterThan(64); expect(bottom - top).toBeGreaterThan(64)
+      const x = (left + right) / 2, y = (top + bottom) / 2
+      const angle = view.rotation * Math.PI / 180, dx = (view.centerX - point[0]) * view.imageZoom, dy = (view.centerY - point[1]) * view.imageZoom
+      const screenX = dx * Math.cos(angle) - dy * Math.sin(angle), screenY = dx * Math.sin(angle) + dy * Math.cos(angle)
+      const fraction = Math.min(1, ((right - left) / 2 - 24) / Math.max(1, Math.abs(screenX)), ((bottom - top) / 2 - 24) / Math.max(1, Math.abs(screenY)))
+      const before = (await rows()).length, releasesBefore = (await pointerReleases()).length
+      await page.mouse.move(x, y); await page.mouse.down()
+      await page.mouse.move(x + screenX * fraction, y + screenY * fraction, { steps: 10 })
+      await page.waitForTimeout(250); await page.mouse.up(); await page.waitForTimeout(350)
+      await expect.poll(async () => (await rows()).length).toBeGreaterThan(before)
+      await expect.poll(async () => (await pointerReleases()).length).toBeGreaterThan(releasesBefore)
+      const release = (await pointerReleases()).at(-1)!
+      expect(release.captured).toBe(false)
+      expect(release.x).toBeGreaterThan(left); expect(release.x).toBeLessThan(right)
+      expect(release.y).toBeGreaterThan(top); expect(release.y).toBeLessThan(bottom)
+      panReceipts.push({ slideId, point, stroke, visibleBounds: [left, top, right, bottom], release })
+    }
+    const view = await viewFor(slideId)
+    expect(Math.hypot(view.centerX - point[0], view.centerY - point[1]), 'Bounded strokes reach the selected source point').toBeLessThan(1)
   }
   await page.goto(`/admin/comparisons/${id}`)
   await expect.poll(async () => (await rows()).length).toBeGreaterThan(0)
@@ -213,5 +242,5 @@ test('alignment candidate support retains current overview and direct pane Reset
   await expect(preview).toBeDisabled()
   await page.getByText('Advanced', { exact: true }).click()
   await page.screenshot({ path: testInfo.outputPath('candidate-source-invalidated.png'), fullPage: true })
-  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', resetReceipts, advancedKeyboardReceipts, supportReceipts, restoredFields, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
+  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', panReceipts, resetReceipts, advancedKeyboardReceipts, supportReceipts, restoredFields, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
 })
