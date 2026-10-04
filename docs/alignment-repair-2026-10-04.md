@@ -83,14 +83,17 @@ derived regional sources remain available to the actual DZI component path;
 generated tile-cache files are excluded from input identity. Their loader
 pointers, original bytes, rendering settings and DZI descriptors are bound and
 verified. Broken snapshots fail closed instead of falling back to other pixels.
-Preparation time, storage admission and process-lifetime memory are measured
-separately. Real specimen preparation is still pending at this document revision.
+Preparation time, storage admission and contained-process memory are measured
+separately. The corrected preparation completed on 2026-10-04; its terminal
+counts and provenance are recorded below. The comparative campaign remains held.
 
 Deduplication uses pixel content plus frame, calibration, mask and regional-source
 semantics. Every raw request retains a mapping to the resulting pair or an
-explicit identical-content self-pair exclusion. Historical 134/122 counts are
-not substituted for the new capture. Missing original files remain explicitly
-unverified. Physical-size metadata without known units stays uncalibrated;
+explicit identical-content self-pair exclusion. The new consistent capture
+independently reproduces 134 raw requests and 122 distinct ordered pairs, with
+no identical-content self-pair exclusions. All 134 requests retain their mapping.
+Physically missing sources and unverified acquisition stages remain distinct.
+Physical-size metadata without known units stays uncalibrated;
 verified original OpenSlide MPP properties can independently establish
 micrometers, as documented by the [OpenSlide API](https://openslide.org/api/python/).
 These development pairs have no independent landmarks and cannot qualify an
@@ -152,8 +155,9 @@ profile, and a fresh native 512-pixel ROI against the earlier pixel checksum.
 The loader pointer targets only the verified workspace copy. Original acquisition
 stage remains unverified. Admission is limited to the contained heavy refinement
 boundary and returned analysis dimensions at most 2048; larger regional requests
-fail closed. The existing thumbnail always supplies these candidates' immutable
-overview, avoiding a single-level whole-image overview decode. No production
+fail closed. For candidates without a complete copied pyramid, the existing
+thumbnail supplies the immutable overview, avoiding a single-level whole-image
+overview decode. No production
 reader or OME service decode limit is changed.
 
 Without explicit admission, complete copied DZI pyramids permit regional reads;
@@ -161,8 +165,10 @@ partial pyramids explicitly lack admitted regional coverage. Missing overview
 levels use a provenance-bound existing thumbnail rather than invented white
 pixels. Candidate bytes remain bound even when only derived pixels are used.
 Preparation records captured render mode, physically missing files, storage
-candidates, and unverified acquisition stages separately. Actual immutable
-copies and the development campaign remain pending the required source checks.
+candidates, and unverified acquisition stages separately. The accepted capture
+uses complete copied pyramids for all five candidates; the optional no-tiles
+candidate admission path was not needed. The development campaign remains held
+until the final source and settings freeze.
 
 
 
@@ -224,3 +230,57 @@ check; this reader evidence does not establish acquisition stage. The no-tiles
 heavy-candidate path retains its thumbnail overview and 2048 regional limit.
 Preparation storage admission includes the entire fresh derivative inventory,
 original/candidate copies, overview reservation and 8 GiB generated-cache budget.
+
+## Accepted immutable preparation
+
+The complete-pyramid repair at source
+`c7effc133e1b55e440f0db38dd12b4bf8623ba49` passed 104 focused tests: 22 immutable
+input/preparation, 34 benchmark, 23 sampling and 25 reporting tests. Ruff and
+the preparation script's mypy check passed. These fixtures cover copied-pyramid
+precedence, candidate proof binding, descriptor/tile staleness, preserved bound
+tiles during cache reset, geometry and report compatibility. They do not replace
+real source verification.
+
+The fresh supervised preparation completed in 231.750 seconds with one contained
+process under the 600-second and 7 GiB limits. It copied 7,801,237,010 source bytes
+and 503,519,793 derivative bytes across 13,969 derivative files. The resulting
+workspace occupied 8,383,882,677 bytes. Storage admission reserved 18,303,977,539
+bytes, including the 8 GiB generated-cache budget, within the 24 GiB preparation
+budget; the additional 4 GiB free-space reserve also passed. Sampled Windows Job
+working-set peak was 443,895,808 bytes; kernel-reported committed peak was
+420,597,760 bytes. Captured source/database stats and preparation source hashes
+were unchanged across this successful run. The earlier failed 39.063-second
+attempt and its partial output remain separate historical artifacts.
+
+All 21 snapshots have verified copied bytes and bound overview geometry/pixels.
+Sixteen use explicit verified OpenSlide-original pointers; five retain complete
+copied DZI inventories. The five copied storage candidates passed fresh checksum,
+header and native 512-pixel reader checks, but their original acquisition stage
+remains unverified. There were no physically missing candidate files in this
+capture. All 21 sources have positive per-axis calibration: 16 from verified
+original OpenSlide MPP properties and five from captured metadata declaring
+recognized micrometer units. Calibration does not establish anatomical accuracy.
+
+An independent root check validated all 21 descriptors, bound encoded bytes and
+decoded overview RGB pixels in 46.219 seconds; the largest overview side was
+3883 pixels. The raw immutable manifest SHA256 is
+`5b4a23af97ee9d172312205ff6649b7d1ce5ba22daf65b5b01ba0de287071e01`.
+The [sanitized preparation receipt](alignment-results/development-preparation-2026-10-04/preparation.json)
+contains aggregate counts, measured resource scope and metadata artifact hashes;
+private source paths, identities and pixels remain outside the tracked report.
+
+Prospective settings retain those exact 122 pairs and all raw-request mappings.
+The four independently safety-reviewed but unqualified screening recipes are
+`native-overview-v6`, `native-wsireg`, `native-valis` and `hisalign-0.2.1`:
+488 planned serial process-cold attempts, no fresh repeats, a total 600-second
+pair allowance and 7 GiB contained-memory boundary. The opt-in generated-cache
+reset preserves all five bound copied pyramids. Settings use established adapter
+defaults with explicit admitted VALIS resource paths/hashes; no case or landmark
+tuning occurred. Host filesystem caching and warm-worker timings remain
+unmeasured. Loaded runtime identity and the final source/build freeze are pending
+the terminal UI checks and root freeze. No expanded attempt has started.
+
+These 122 development pairs have zero independent ground-truth landmark sets.
+They can test bounded operational behavior across ordered source pairs, but
+cannot qualify Fast or Accurate accuracy winners, prove full-slide anatomical
+coverage, or substitute for an admitted disjoint final evaluation cohort.
