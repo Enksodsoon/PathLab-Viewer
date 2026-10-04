@@ -73,6 +73,28 @@ Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
   303,776 bytes (limit 307,200). Assessment learner delta is 1,869 bytes
   (limit 15,360), with teacher isolation passing. Private QA receipt SHA256:
   `d582d1fcf136f9282accb18e208a5fc2cb12d77909c0f707339af259f9e00f2c`.
+- [Fresh active-regional-label browser acceptance](alignment-results/ui-navigation-2026-10-04/active-regional-observations.json)
+  uses application `296af2b4`
+  and final scenario `a166af33`: 12/12 journeys passed across Chromium, Firefox,
+  WebKit and mobile Chromium, with zero retries, flaky outcomes or skips.
+  Each verifies nine supported regional phases and one outside-region overview
+  fallback: one/two-point preview, save/reload, cancellation restoration and
+  returning inside the bounds. Independent affine calculations agree with actual
+  OpenSeadragon coordinates to at most 1.1368683772161603e-13 pixels, below the
+  0.01-pixel tolerance. The literal manual label, unsaved-preview qualification
+  and control bounds pass; the manual label clears outside the region.
+  All layouts also pass eight real-worker stack openings and the large odd-size
+  slide fixture. Initial large-fixture application takes 2,407.860 / 3,678.004 /
+  3,487.307 / 2,308.396 ms respectively, including queue/preparation/API/page
+  application after seeding. These synthetic fixtures provide engineering
+  evidence, not anatomical accuracy or production latency qualification.
+  An earlier Firefox exact-text locator failed because the preview badge now
+  includes a distinct manual-adjustment subtitle. Its trace and preceding
+  Chromium passes remain historical; test-only `a166af33` matches the explicit
+  unsaved-preview prefix without changing coordinate tolerances or production
+  code. All four layouts reran against that exact scenario. Disposable services
+  and their edge listeners are gone; original app process identities/start times
+  are preserved.
 - Earlier full backend at `6481133`: 1,834 passed, 114 skipped, 85% line coverage
   in 983.55 seconds. PostgreSQL and platform/runtime-dependent skips remain
   explicit. Private receipts: `var/alignment-final-backend.xml` and
