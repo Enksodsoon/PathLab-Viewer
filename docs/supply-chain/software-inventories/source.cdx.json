@@ -2,11 +2,11 @@
   "bomFormat": "CycloneDX",
   "components": [
     {
-      "bom-ref": "dependency:container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "bom-ref": "dependency:container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648"
+          "content": "6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
         }
       ],
       "licenses": [
@@ -20,7 +20,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648"
+          "value": "container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
         },
         {
           "name": "pathlab:role",
@@ -44,11 +44,11 @@
       "version": "2.11.4-alpine"
     },
     {
-      "bom-ref": "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
+      "bom-ref": "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
+          "content": "c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2"
         }
       ],
       "licenses": [
@@ -62,7 +62,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
+          "value": "container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2"
         },
         {
           "name": "pathlab:role",
@@ -81,9 +81,9 @@
           "value": "[\"IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED\"]"
         }
       ],
-      "purl": "pkg:oci/node@26.8.1-alpine3.23",
+      "purl": "pkg:oci/node@26.10.0-alpine3.23",
       "type": "container",
-      "version": "26.8.1-alpine3.23"
+      "version": "26.10.0-alpine3.23"
     },
     {
       "bom-ref": "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
@@ -27275,8 +27275,8 @@
   "dependencies": [
     {
       "dependsOn": [
-        "dependency:container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
-        "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
+        "dependency:container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
+        "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
         "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
         "dependency:container:python@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b",
         "dependency:container:tusproject/tusd@sha256:9c61565fccd2689b052aa78e52d9558f309e98f6320960746f225d2fd73a35e3",
@@ -27891,15 +27891,15 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:07087c6421e5ab022f406d90fa7f271b1101ea47"
+      "ref": "pathlab:source:e537ac87a896add8194127197a88a73744269858"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648"
+      "ref": "dependency:container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
+      "ref": "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2"
     },
     {
       "dependsOn": [],
@@ -30356,15 +30356,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:07087c6421e5ab022f406d90fa7f271b1101ea47",
+      "bom-ref": "pathlab:source:e537ac87a896add8194127197a88a73744269858",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/07087c6421e5ab022f406d90fa7f271b1101ea47"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e537ac87a896add8194127197a88a73744269858"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/07087c6421e5ab022f406d90fa7f271b1101ea47"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e537ac87a896add8194127197a88a73744269858"
         }
       ],
       "licenses": [
@@ -30395,13 +30395,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@07087c6421e5ab022f406d90fa7f271b1101ea47",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@e537ac87a896add8194127197a88a73744269858",
       "type": "application",
-      "version": "07087c6421e5ab022f406d90fa7f271b1101ea47"
+      "version": "e537ac87a896add8194127197a88a73744269858"
     },
-    "timestamp": "2026-10-04T07:35:46Z"
+    "timestamp": "2026-10-04T07:52:53Z"
   },
-  "serialNumber": "urn:uuid:07087c64-21e5-4b02-af40-6d90fa7f271b",
+  "serialNumber": "urn:uuid:e537ac87-a896-4dd8-a941-27197a88a737",
   "specVersion": "1.6",
   "version": 1
 }

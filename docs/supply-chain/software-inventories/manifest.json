@@ -2,28 +2,28 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "d4f3141561a77655578c0d364cd08c3b54d3f19dfc884ce5b7a59c16f095f961",
-      "sizeBytes": 1462259
+      "sha256": "e1c36ec50a384f55e02bec8bedaac90e6420dcc3466e83c294dde4c084976385",
+      "sizeBytes": 1462260
     },
     {
       "path": "build.cdx.json",
-      "sha256": "df89a6ef699a3bbb6a3ea980da66dd8c7d023386af7da970b4607448c1cc9ddb",
-      "sizeBytes": 732028
+      "sha256": "e962a8778f89983251fb64461517e28cb84e01c3a1a522370ebb9db414bae9a6",
+      "sizeBytes": 732030
     },
     {
       "path": "build.spdx.json",
-      "sha256": "af31a6529b037883933f87a279a2e05f967ada0da9a3ead08b24966de7c3fd54",
-      "sizeBytes": 591700
+      "sha256": "edc26ef49e266f33d296a4bb65c6ae4a6840f952155194e40f1b624b8d599d9c",
+      "sizeBytes": 591702
     },
     {
       "path": "source.cdx.json",
-      "sha256": "cd013355b0033f05c6fffe1679793d31ceaae794f1bee966cc26f09592e45cce",
-      "sizeBytes": 774582
+      "sha256": "8a5b71baa4dc815e3c4b28f1434e2d17d86e50934369f89291a21d8b29af8fdc",
+      "sizeBytes": 774584
     },
     {
       "path": "source.spdx.json",
-      "sha256": "4cab0a5b85bdaf61950e24fd0da21cde5dd03b0172b4a8506e9934e155780e6a",
-      "sizeBytes": 625350
+      "sha256": "27dca79a465c855d0191ab739df6167410e8b00ca3f059035377c67b63b30d1f",
+      "sizeBytes": 625352
     }
   ],
   "coverage": {
@@ -31,7 +31,7 @@
     "assetRecords": 16,
     "buildComponents": 577,
     "currentShippedInputs": 177,
-    "dependencyRecordIdsSha256": "657fcd338981d46f67257a8d634726eee053d84fd171f7e6e96f2e2c4d90555b",
+    "dependencyRecordIdsSha256": "d0fafe054f2a7ce31e940d32979a89322665a03e7705cb5d066a3962564508c1",
     "dependencyRecords": 585,
     "sourceComponents": 615,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-04T07:35:46Z",
+  "generatedAt": "2026-10-04T07:52:53Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -99,10 +99,10 @@
       "sizeBytes": 1538
     },
     {
-      "gitBlob": "5f5448ba76b117f4e159814a83bfd00f553210ed",
+      "gitBlob": "4b2d68f698d3485636235c25e64f688c9c7f9dfd",
       "path": "deploy/Dockerfile.web",
-      "sha256": "bad4f2f0bea5f6744d01ce3844d991be6ef2717d57214f7e96991151b3db6385",
-      "sizeBytes": 925
+      "sha256": "6fe57433f4a19f961845e45324f25f45d7dcdbfa872e16421c52267b4511379b",
+      "sizeBytes": 926
     },
     {
       "gitBlob": "03f671a9b82ae0949f941515011c5d578fb596a7",
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "ab44e116772def84a1a902adce14d7d3a7049741",
+      "gitBlob": "edb79779fcfaebd75126d31dda45bd04f6c8112f",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "fee68bfc98e3e723bdaf0c290cc6399e2c3f45db976f30b086e778cd12a8a37f",
-      "sizeBytes": 829073
+      "sha256": "0688155e484967cc094f8a6212ca3bdd0f0ec5b666ef2e5b9aa93431f44d1f7c",
+      "sizeBytes": 829074
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -165,10 +165,10 @@
       "sizeBytes": 15900
     },
     {
-      "gitBlob": "c6aff4424b3dc8b04d7ad5a5124450ed0d97610c",
+      "gitBlob": "82f367bee52397807aee0021758e23068c2c3336",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "30838fa644cdaee7131f7c5b1ad08e5b622a8d56c6443a789cf98ab5720a30cb",
-      "sizeBytes": 37286
+      "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d",
+      "sizeBytes": 37287
     },
     {
       "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
@@ -1560,6 +1560,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "07087c6421e5ab022f406d90fa7f271b1101ea47",
-  "subjectTree": "2b15da16449c9c05962865648ea10d5750041ada"
+  "subjectCommit": "e537ac87a896add8194127197a88a73744269858",
+  "subjectTree": "ae00c4f6147fa44722f418f6bdb2dc6787eaae5c"
 }
