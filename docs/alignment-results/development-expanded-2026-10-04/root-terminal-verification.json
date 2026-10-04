@@ -1,0 +1,18 @@
+{
+  "schema": "pathlab.root-expanded-terminal-verification/1",
+  "status": "passed",
+  "rows": 488,
+  "orderedPairs": 122,
+  "acceptedEngineeringMaps": 90,
+  "rejectedAttempts": 398,
+  "rawReportSha256": "14761ec040069682aef75ff318e3dcc33aa690986ed1ae0cfce6ca48fe804c4e",
+  "publicProjectionSha256": "d837a220727095bd84da69304e076600bcfd84f9e08a4419c6529881e0cea1db",
+  "controllerTerminalSha256": "a7a34b58418c5f44156566dbc5e6b8c7bf7ecd98150237b7b5f9e3dd646ed507",
+  "checks": [
+    "terminal-bindings",
+    "exact-pair-recipe-denominators",
+    "unknown-ground-truth-metrics",
+    "finite-json",
+    "private-path-and-identity-exclusion"
+  ]
+}

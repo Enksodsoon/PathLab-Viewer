@@ -1,8 +1,10 @@
 # Alignment recipe campaign: 2026-10-03
 
 Status: frozen public screening and isolated four-browser application measurements
-are complete. Immutable development preparation completed; the expanded campaign
-awaits final UI verification and a separate repaired-source/settings freeze.
+are complete. Immutable development preparation and the frozen expanded cold
+campaign are complete. Post-campaign preview, Reset and evaluator regression
+repairs are in progress; their checks and any warm-process trials have separate
+provenance and do not replace the frozen campaign receipts.
 No recipe qualified as a Fast or Accurate winner.
 Prior screening receipts are
 exploratory because frontend verification ran concurrently. They do not establish
@@ -11,9 +13,48 @@ fair runtime comparisons or qualified winners.
 The public campaign reached terminal outcomes for 144 cold attempts and 144
 fresh-process repeats. A repeat launches a fresh process; it does not measure a
 warm worker. Fresh immutable development capture maps all 134 requested
-comparisons to 122 deduplicated ordered pairs, making 488 planned cold attempts
-across four selected recipes. These attempts have not started. Unavailable or
+comparisons to 122 deduplicated ordered pairs. All 488 cold attempts across four
+selected recipes completed in 250.490 minutes: 90 accepted engineering maps,
+396 structural/correspondence rejections and two bounded-image-ceiling rejections.
+No timeout, memory-limit or containment failure was recorded. These development
+pairs have no independent landmarks; anatomical accuracy and coverage remain
+unknown. Unavailable or
 resource-failed methods count as attempts, not successes.
+
+The expanded campaign froze source
+`410b2f48e1ae5834f01d2089b779fca22e2ee8bb` and manifest SHA256
+`076b210151c8c3dc1038abf7d8e723c8d6c17165be70f0d110f3d216f749ce7f`.
+The terminal receipt verified unchanged source/module hashes, original source
+and database statistics, runtime identity, and resource/license bytes. The
+controller exited successfully and its active lock was removed. Original raw
+report SHA256 is
+`14761ec040069682aef75ff318e3dcc33aa690986ed1ae0cfce6ca48fe804c4e`.
+Both qualified winner fields remain null.
+
+[Expanded cold observations](alignment-results/development-expanded-2026-10-04/observations.json)
+retain all 488 pair/recipe outcomes, versions, settings, stage provenance and
+resource/timing measurements. The sanitized projection SHA256 is
+`d837a220727095bd84da69304e076600bcfd84f9e08a4419c6529881e0cea1db`;
+[independent terminal verification](alignment-results/development-expanded-2026-10-04/root-terminal-verification.json)
+checks exact denominators, unknown ground-truth metrics, finite JSON and private
+path/identity exclusion. Ninety paired visual examples are retained privately;
+their existence does not constitute an anatomical review.
+
+| Recipe | Accepted maps / attempts | Accepted-map cold median / p95 |
+| --- | --- | --- |
+| Native overview | 29 / 122 | 3.172 / 33.828 s |
+| Native → wsireg | 21 / 122 | 31.750 / 52.063 s |
+| Native → VALIS | 21 / 122 | 45.656 / 252.266 s |
+| HISAlign | 19 / 122 | 39.750 / 102.658 s |
+
+These are process-cold, preparation-inclusive attempt timings with empty
+generated regional caches. Host filesystem cache state is unmeasured; queue
+and browser latency are not included. Rejection-heavy all-attempt medians are
+reported separately and must not be used as useful-map speed rankings.
+No independent landmarks or anatomical reviews were supplied for these pairs:
+coverage, micrometer/relative error and wrong-structure rates are unknown rather
+than zero. The 10-second foreground target and combined-method improvement are
+not established by these results.
 
 ## Frozen inputs and implementation
 
