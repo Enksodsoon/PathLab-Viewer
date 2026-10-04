@@ -116,19 +116,37 @@ def _image(path: Path, *, offset: int = 0) -> None:
     image.save(path)
 
 
+@pytest.mark.parametrize("requested_maximum", [None, 1024])
 def test_alignment_overview_prefers_bounded_pyramid_for_external_engines(
     tmp_path: Path,
     monkeypatch,
+    requested_maximum: int | None,
 ) -> None:
-    expected = Image.new("RGB", (4096, 1200), "red")
+    bound = requested_maximum or 4096
+    divisor = 8192 // bound
+    expected = Image.new("RGB", (bound, 2400 // divisor), "red")
+    geometry = {"sourceSize": [8192, 2400], "samplingScale": [divisor, divisor]}
+    expected.info["alignmentGeometry"] = geometry
     thumbnail = Image.new("RGB", (320, 100), "blue")
     thumbnail.save(tmp_path / "thumbnail.jpg")
-    monkeypatch.setattr("wsi_viewer.worker._load_dzi_overview", lambda _path: expected)
+    calls = []
 
-    loaded = _load_alignment_overview(tmp_path)
+    def bounded_pyramid(path: Path, *, maximum: int = 4096) -> Image.Image:
+        calls.append((path, maximum))
+        return expected
+
+    monkeypatch.setattr("wsi_viewer.worker._load_dzi_overview", bounded_pyramid)
+
+    loaded = (
+        _load_alignment_overview(tmp_path)
+        if requested_maximum is None
+        else _load_alignment_overview(tmp_path, maximum=requested_maximum)
+    )
 
     assert loaded is expected
-    assert loaded.size == (4096, 1200)
+    assert loaded.size == (bound, 2400 // divisor)
+    assert loaded.info["alignmentGeometry"] is geometry
+    assert calls == [(tmp_path, bound)]
 
 
 def test_native_child_routes_compatible_seed_to_patches_without_whole_pair(monkeypatch):
