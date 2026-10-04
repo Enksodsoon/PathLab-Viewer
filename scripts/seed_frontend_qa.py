@@ -121,6 +121,8 @@ def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
         if stack.reference_slide_id != anchor_id:
             raise ValueError("Unexpected QA reference")
         native = deepcopy((stack.registrations or {}).get(source_id))
+        if native and native.get("engine") != "native-overview-v6":
+            native = native.get("overviewFallback")
         if not native or native.get("engine") != "native-overview-v6":
             raise ValueError("An actual Native foreground map must exist first")
         cells = native.get("overviewTriangles") or []
