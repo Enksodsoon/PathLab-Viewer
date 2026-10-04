@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Browser shipped distribution classification](tickets/browser-shipped-distribution.md): bind two exact unshipped browser dependencies to fresh graphs and artifact bytes; preserve source notice blockers and admission decisions. Qualification/integration remains in progress.
+
 - [Shared viewer canvas keyboard ownership](tickets/shared-viewer-canvas-keyboard.md): repeated canvas arrows stay with image panning; navigation elsewhere remains available. [Additional handoff source coverage](ADDITIONAL_HANDOFF_RECONCILIATION.md) records eight additional source hashes and eleven aliases without altering the original register.
 
 - [Assessment save failure feedback](tickets/assessment-save-failure-feedback.md): distinguish failed save boundaries and retry temporary failures while retaining edits.
