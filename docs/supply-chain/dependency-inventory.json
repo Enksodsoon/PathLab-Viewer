@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T05:35:51.306442Z",
+  "generatedAt": "2026-10-04T07:13:08.030969Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -267,7 +267,7 @@
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b187196cc803df7f5f0e",
+      "artifact": "https://github.com/docker/setup-buildx-action/tree/f87e5991a6d7451dcb8d9637bfbc97413f497069",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -275,7 +275,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e",
+      "id": "github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
       "license": "Apache-2.0",
       "manifestRefs": [
         ".github/workflows"
@@ -286,12 +286,12 @@
       "optional": false,
       "purpose": "CI container build",
       "role": "build-only",
-      "source": "https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b187196cc803df7f5f0e",
-      "version": "37fe631027851001ddb9b187196cc803df7f5f0e"
+      "source": "https://github.com/docker/setup-buildx-action/tree/f87e5991a6d7451dcb8d9637bfbc97413f497069",
+      "version": "f87e5991a6d7451dcb8d9637bfbc97413f497069"
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a",
+      "artifact": "https://github.com/docker/setup-qemu-action/tree/99012661954931238ded8c8b007157a8430204e1",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -299,7 +299,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
+      "id": "github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
       "license": "Apache-2.0",
       "manifestRefs": [
         ".github/workflows"
@@ -310,12 +310,12 @@
       "optional": false,
       "purpose": "CI cross-platform emulation",
       "role": "build-only",
-      "source": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a",
-      "version": "1f40c72289eff860ee54a304f1438e3cff362e0a"
+      "source": "https://github.com/docker/setup-qemu-action/tree/99012661954931238ded8c8b007157a8430204e1",
+      "version": "99012661954931238ded8c8b007157a8430204e1"
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "artifact": "https://github.com/github/codeql-action/analyze/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -323,7 +323,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "id": "github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "license": "MIT",
       "manifestRefs": [
         ".github/workflows"
@@ -334,12 +334,12 @@
       "optional": false,
       "purpose": "CI security analysis execution",
       "role": "test-only",
-      "source": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
-      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "source": "https://github.com/github/codeql-action/analyze/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+      "version": "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "artifact": "https://github.com/github/codeql-action/init/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -347,7 +347,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "id": "github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "license": "MIT",
       "manifestRefs": [
         ".github/workflows"
@@ -358,12 +358,12 @@
       "optional": false,
       "purpose": "CI security analysis initialization",
       "role": "test-only",
-      "source": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
-      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "source": "https://github.com/github/codeql-action/init/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+      "version": "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/grafana/setup-k6-action/tree/db07bd9765aac508ef18982e52ab937fe633a065",
+      "artifact": "https://github.com/grafana/setup-k6-action/tree/43b9fc21641a76002687994433dd586f56e791b1",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -371,7 +371,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065",
+      "id": "github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1",
       "license": "Apache-2.0",
       "manifestRefs": [
         ".github/workflows"
@@ -382,12 +382,12 @@
       "optional": false,
       "purpose": "CI load-test tool provisioning",
       "role": "test-only",
-      "source": "https://github.com/grafana/setup-k6-action/tree/db07bd9765aac508ef18982e52ab937fe633a065",
-      "version": "db07bd9765aac508ef18982e52ab937fe633a065"
+      "source": "https://github.com/grafana/setup-k6-action/tree/43b9fc21641a76002687994433dd586f56e791b1",
+      "version": "43b9fc21641a76002687994433dd586f56e791b1"
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "artifact": "https://github.com/pnpm/action-setup/tree/ea17c68df8912ef543352723c149a84f56e3d413",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -395,7 +395,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "id": "github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
       "license": "MIT",
       "manifestRefs": [
         ".github/workflows"
@@ -406,32 +406,8 @@
       "optional": false,
       "purpose": "CI pnpm provisioning",
       "role": "build-only",
-      "source": "https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1",
-      "version": "b906affcce14559ad1aafd4ab0e942779e9f58b1"
-    },
-    {
-      "admission": "BLOCKED",
-      "artifact": "https://github.com/pnpm/action-setup/tree/f40ffcd9367d9f12939873eb1018b921a783ffaa",
-      "blockers": [
-        "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
-      ],
-      "checksum": "MISSING",
-      "checksumVerified": false,
-      "distribution": "hosted-CI-only",
-      "ecosystem": "github-action",
-      "id": "github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa",
-      "license": "MIT",
-      "manifestRefs": [
-        ".github/workflows"
-      ],
-      "metadataSha256": null,
-      "name": "pnpm/action-setup",
-      "noticeFiles": [],
-      "optional": false,
-      "purpose": "CI pnpm provisioning",
-      "role": "build-only",
-      "source": "https://github.com/pnpm/action-setup/tree/f40ffcd9367d9f12939873eb1018b921a783ffaa",
-      "version": "f40ffcd9367d9f12939873eb1018b921a783ffaa"
+      "source": "https://github.com/pnpm/action-setup/tree/ea17c68df8912ef543352723c149a84f56e3d413",
+      "version": "ea17c68df8912ef543352723c149a84f56e3d413"
     },
     {
       "admission": "BLOCKED",
@@ -17983,14 +17959,14 @@
       "sha256": "91465ba4b792c73057900edf45e3fe2c95d36b6e7772a2edc148d7d8af3644f7"
     },
     {
-      "gitBlob": "dbc9ff22999a29b6582644621119d31b8c6b3c46",
+      "gitBlob": "c6aff4424b3dc8b04d7ad5a5124450ed0d97610c",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "8d7903f892ff0ae818f7db8c6179f2777745f797a604722c62eb5bac137ba0bb"
+      "sha256": "30838fa644cdaee7131f7c5b1ad08e5b622a8d56c6443a789cf98ab5720a30cb"
     },
     {
-      "gitBlob": "3880cfd2db8f12efe3304d37241909659686ceb4",
+      "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "437d9c17d70941b62fc38bc8a5cd300221249170cc0b082bd61ef393d698879e"
+      "sha256": "964dc9bc5a54c99a360cb8127c16185245b30d025a3aff51927cf0b568a65b55"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -18858,6 +18834,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "3ca837bfaa0779cc152e3c0d1e7f57210279ba84",
-  "subjectTree": "9fdf840ee304cf5bb0340b7b256c745d373b1b26"
+  "subjectCommit": "f30eb628766fd9ef9f8763fca407899ef8a8583d",
+  "subjectTree": "894c16e90db6e294bd55c4e9cfe5cf527d40a145"
 }
