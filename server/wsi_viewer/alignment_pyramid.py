@@ -881,6 +881,9 @@ def read_region(
     """
     if not 256 <= maximum <= 4096:
         raise ValueError("Region limit must be between 256 and 4096")
+    from .alignment_inputs import require_snapshot_region_limit
+
+    require_snapshot_region_limit(path, maximum)
     root = ET.parse(path / "slide.dzi").getroot()
     size = next((child for child in root if child.tag.split("}")[-1] == "Size"), None)
     if size is None:

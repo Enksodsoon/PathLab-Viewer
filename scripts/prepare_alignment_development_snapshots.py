@@ -38,6 +38,133 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _bounded_probe(path: Path) -> tuple[Any, str]:
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 16 * 1024**2:
+        raise ValueError("candidate admission requires bounded regular probe receipts")
+    with path.open("rb") as stream:
+        raw = stream.read(16 * 1024**2 + 1)
+    if len(raw) > 16 * 1024**2:
+        raise ValueError("candidate admission receipt exceeds bound")
+    return json.loads(raw), hashlib.sha256(raw).hexdigest()
+
+
+def _candidate_admissions(
+    heavy_path: Path | None, header_path: Path | None
+) -> dict[str, dict[str, Any]]:
+    if heavy_path is None and header_path is None:
+        return {}
+    if heavy_path is None or header_path is None:
+        raise ValueError("candidate admission requires both probe stages")
+    heavy, heavy_sha = _bounded_probe(heavy_path)
+    headers, header_sha = _bounded_probe(header_path)
+    if (
+        not isinstance(heavy, dict)
+        or heavy.get("status") != "probe-complete"
+        or heavy.get("processContainment") != "windows-job-object"
+        or not isinstance(headers, list)
+        or not 0 < len(headers) <= 100
+        or not heavy.get("sourceHashesAtStart")
+        or heavy.get("sourceHashesAtStart") != heavy.get("sourceHashesAtTerminal")
+    ):
+        raise ValueError("candidate admission lacks complete contained terminal proof")
+    for key in ("peakMemoryBytes", "peakCommittedMemoryBytes", "committedMemoryLimitBytes"):
+        value = heavy.get(key)
+        if type(value) is not int or not 0 < value <= 7 * 1024**3:
+            raise ValueError("candidate admission exceeds verified heavy resource boundary")
+    if heavy["peakCommittedMemoryBytes"] > heavy["committedMemoryLimitBytes"]:
+        raise ValueError("candidate admission exceeded committed-memory bound")
+    seconds = heavy.get("wallSeconds")
+    if (
+        not isinstance(seconds, (int, float))
+        or isinstance(seconds, bool)
+        or not math.isfinite(seconds)
+        or not 0 <= seconds <= 600
+    ):
+        raise ValueError("candidate admission exceeds verified heavy time boundary")
+    by_sha = {row.get("sourceSha256"): row for row in headers if isinstance(row, dict)}
+    rows = heavy.get("regionalProof")
+    if not isinstance(rows, list) or not 0 < len(rows) <= 100:
+        raise ValueError("candidate admission lacks regional proof")
+    admitted = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("invalid candidate admission row")
+        sha = row.get("sourceSha256EarlierVerified")
+        header = by_sha.get(sha, {})
+        size, frame = row.get("trueSourceSize"), row.get("returnedFrame")
+        if (
+            not isinstance(sha, str)
+            or re.fullmatch(r"[0-9a-f]{64}", sha) is None
+            or not isinstance(size, list)
+            or len(size) != 2
+            or any(type(axis) is not int or axis <= 0 for axis in size)
+            or not isinstance(frame, list)
+            or len(frame) != 3
+            or frame[:2] != [0, 0]
+            or type(frame[2]) is not int
+            or frame[2] <= 0
+            or frame[2] & (frame[2] - 1)
+            or row.get("requestedSourceBounds") != [0, 0, *size]
+            or row.get("returnedSize") != [math.ceil(axis / frame[2]) for axis in size]
+            or max(row["returnedSize"]) > 2048
+            or [row.get(key) for key in ("tileSize", "overlap", "quality")] != [512, 1, 92]
+            or row.get("executionBoundary") != "diagnostic-heavy-contained-7GiB-not-foreground"
+            or header.get("databaseChecksumMatch") is not True
+            or header.get("sourceStatUnchanged") is not True
+            or header.get("openslideDimensions") != size
+            or header.get("openslideFormat") != "generic-tiff"
+            or header.get("openslideBoundedRead", {}).get("size") != [512, 512]
+            or not isinstance(header.get("openslideBoundedRead", {}).get("pixelSha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", header["openslideBoundedRead"]["pixelSha256"]) is None
+            or header.get("header", {}).get("isOme") is not True
+            or sha in admitted
+        ):
+            raise ValueError("candidate admission differs from verified bytes/frame/reader profile")
+        admitted[sha] = {
+            "sourceSize": size,
+            "heavyProbeSha256": heavy_sha,
+            "headerProbeSha256": header_sha,
+            "originalStageVerified": False,
+            "maximumAnalysisDimension": 2048,
+            "executionBoundary": "alignment-heavy-contained-7GiB-not-foreground",
+            "rendering": {"tileSize": 512, "overlap": 1, "quality": 92, "limitBounds": False},
+            "testedPyramidDivisor": frame[2],
+            "nativeRoiPixelSha256": header["openslideBoundedRead"]["pixelSha256"],
+        }
+    return admitted
+
+
+def _verify_candidate_reader(original: Path, expected_size: tuple[int, int]) -> dict[str, Any]:
+    """Reverify copied bytes with a native 512-pixel ROI; never decode an overview."""
+    openslide = importlib.import_module("openslide")
+    before = original.stat()
+    slide = openslide.OpenSlide(str(original))
+    try:
+        if (
+            tuple(slide.dimensions) != expected_size
+            or openslide.OpenSlide.detect_format(str(original)) != "generic-tiff"
+        ):
+            raise ValueError("copied candidate reader differs from admitted header")
+        pixels = slide.read_region(
+            (expected_size[0] // 2, expected_size[1] // 2), 0, (512, 512)
+        ).convert("RGB")
+        result = {
+            "sourceSize": list(slide.dimensions),
+            "nativeRoiSize": [512, 512],
+            "nativeRoiPixelSha256": hashlib.sha256(pixels.tobytes()).hexdigest(),
+        }
+    finally:
+        slide.close()
+    after = original.stat()
+    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+        after.st_size,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    ):
+        raise ValueError("copied candidate changed during bounded reader verification")
+    return result
+
+
 def _copy_verified(source: Path, target: Path) -> str:
     if source.is_symlink() or not source.is_file():
         raise ValueError("source copy requires a regular local file")
@@ -69,10 +196,13 @@ def capture(database: Path, output: Path) -> dict[str, Any]:
         source.backup(destination)
     with closing(sqlite3.connect(captured)) as connection:
         connection.row_factory = sqlite3.Row
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(slides)")}
+        render_column = "render_mode" if "render_mode" in columns else "NULL AS render_mode"
         slides = [
             dict(row)
             for row in connection.execute(
-                "SELECT id, sha256, slide_metadata, original_filename FROM slides ORDER BY id"
+                f"SELECT id, sha256, slide_metadata, original_filename, {render_column} "
+                "FROM slides ORDER BY id"
             )
         ]
         stacks = [
@@ -261,10 +391,13 @@ def prepare(
     *,
     storage_budget_bytes: int = 24 * 1024**3,
     tile_cache_budget_bytes: int = 8 * 1024**3,
+    storage_candidate_admission: Path | None = None,
+    storage_candidate_headers: Path | None = None,
 ) -> dict[str, Any]:
     from wsi_viewer.worker import _load_dzi_overview, _process_rss_bytes
 
     started = time.monotonic()
+    admissions = _candidate_admissions(storage_candidate_admission, storage_candidate_headers)
     captured = capture(database, output)
     needed = {
         request[key]
@@ -292,11 +425,13 @@ def prepare(
     if required > storage_budget_bytes or required + 4 * 1024**3 > shutil.disk_usage(output).free:
         raise ValueError("immutable snapshot storage preflight failed")
     sources: dict[str, dict[str, Any]] = {}
-    preparation = []
+    preparation: list[dict[str, Any]] = []
     for slide, directory, original, files, rendering, source_kind in plans:
         tick = time.monotonic()
         root = output / "sources" / slide["id"]
         root.mkdir(parents=True)
+        metadata = json.loads(slide["slide_metadata"])
+        size = (int(metadata["width"]), int(metadata["height"]))
         copied = []
         for path in files:
             name = path.relative_to(directory).as_posix()
@@ -367,15 +502,62 @@ def prepare(
                 },
                 "tileCacheLimitBytes": tile_cache_budget_bytes // max(1, len(plans)),
             }
+        elif source_kind == "storage-ome-candidate" and sha in admissions:
+            admission = admissions[sha]
+            tree = ET.parse(root / "slide.dzi").getroot()
+            dzi_size = next(node for node in tree if node.tag.rsplit("}", 1)[-1] == "Size")
+            if (
+                admission["sourceSize"] != list(size)
+                or original_info["databaseChecksumMatch"] is not True
+                or tree.attrib.get("TileSize") != "512"
+                or tree.attrib.get("Overlap") != "1"
+                or tree.attrib.get("Format") != "jpg"
+                or [int(dzi_size.attrib[axis]) for axis in ("Width", "Height")] != list(size)
+            ):
+                raise ValueError("candidate admission differs from copied source/DZI frame")
+            reader = _verify_candidate_reader(root / name, size)
+            if (
+                reader["nativeRoiPixelSha256"] != admission["nativeRoiPixelSha256"]
+                or tile_cache_budget_bytes <= 0
+            ):
+                raise ValueError(
+                    "candidate admission differs from bounded reader pixels/cache budget"
+                )
+            admission_value = {
+                **admission,
+                "copiedSourceSha256": sha,
+                "copiedReaderVerification": reader,
+            }
+            (root / "candidate-admission.json").write_text(
+                json.dumps(admission_value, indent=2), encoding="utf-8"
+            )
+            (root / ".openslide-source.json").write_text(
+                json.dumps(
+                    {"source": str((root / name).resolve()), "tileSize": 512, "quality": 92}
+                ),
+                encoding="utf-8",
+            )
+            region = {
+                "available": True,
+                "kind": "verified-openslide-candidate",
+                "file": name,
+                "sha256": sha,
+                "descriptorSha256": _hash_file(root / "slide.dzi"),
+                "rendering": admission["rendering"],
+                "admissionFile": "candidate-admission.json",
+                "admissionSha256": _hash_file(root / "candidate-admission.json"),
+                "maximumAnalysisDimension": 2048,
+                "executionBoundary": admission["executionBoundary"],
+                "tileCacheLimitBytes": tile_cache_budget_bytes // max(1, len(plans)),
+            }
         elif _complete_pyramid(root):
             region = {"available": True, "kind": "copied-dzi", "files": copied}
-        metadata = json.loads(slide["slide_metadata"])
-        size = (int(metadata["width"]), int(metadata["height"]))
         copy_seconds = time.monotonic() - tick
         overview_started = time.monotonic()
         try:
-            if source_kind != "explicit-openslide-pointer" and not _copied_overview_available(
-                root, size
+            if region["kind"] == "verified-openslide-candidate" or (
+                source_kind != "explicit-openslide-pointer"
+                and not _copied_overview_available(root, size)
             ):
                 raise FileNotFoundError("copied bounded overview level is incomplete")
             image = _load_dzi_overview(root, maximum=4096)
@@ -407,6 +589,7 @@ def prepare(
             "geometry": geometry,
             "regionSource": region,
             "originalSource": original_info,
+            "capturedRenderMode": slide["render_mode"],
             "calibration": {
                 "micronsPerPixel": list(mpp) if mpp else None,
                 "source": calibration_source,
@@ -490,6 +673,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--storage-budget-bytes", type=int, default=24 * 1024**3)
     parser.add_argument("--tile-cache-budget-bytes", type=int, default=8 * 1024**3)
+    parser.add_argument("--storage-candidate-admission", type=Path)
+    parser.add_argument("--storage-candidate-headers", type=Path)
     args = parser.parse_args()
     print(
         json.dumps(
@@ -499,6 +684,8 @@ def main() -> None:
                 args.output,
                 storage_budget_bytes=args.storage_budget_bytes,
                 tile_cache_budget_bytes=args.tile_cache_budget_bytes,
+                storage_candidate_admission=args.storage_candidate_admission,
+                storage_candidate_headers=args.storage_candidate_headers,
             )
         )
     )

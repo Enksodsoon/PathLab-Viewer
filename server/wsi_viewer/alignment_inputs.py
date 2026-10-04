@@ -114,7 +114,7 @@ def immutable_descriptor(
                 raise AlignmentRejected("invalid immutable regional tile inventory")
             verify_file(root, item.get("name"), item.get("sha256"))
     if region["available"]:
-        if region.get("kind") == "openslide-original":
+        if region.get("kind") in {"openslide-original", "verified-openslide-candidate"}:
             original = verify_file(root, region.get("file"), region.get("sha256"))
             verify_file(root, "slide.dzi", region.get("descriptorSha256"))
             pointer = _safe_file(root, ".openslide-source.json")
@@ -139,6 +139,46 @@ def immutable_descriptor(
                 or not 1 <= quality <= 100
             ):
                 raise AlignmentRejected("immutable regional rendering exceeds bounded tile profile")
+            if region["kind"] == "verified-openslide-candidate":
+                admission_path = verify_file(
+                    root,
+                    region.get("admissionFile"),
+                    region.get("admissionSha256"),
+                    maximum=MAX_DESCRIPTOR_BYTES,
+                )
+                with admission_path.open("rb") as stream:
+                    admission = json.loads(stream.read(MAX_DESCRIPTOR_BYTES + 1))
+                if (
+                    not isinstance(admission, dict)
+                    or region.get("executionBoundary")
+                    != "alignment-heavy-contained-7GiB-not-foreground"
+                    or region.get("maximumAnalysisDimension") != 2048
+                    or admission.get("maximumAnalysisDimension") != 2048
+                    or admission.get("executionBoundary") != region["executionBoundary"]
+                    or admission.get("copiedSourceSha256") != region["sha256"]
+                    or admission.get("sourceSize") != geometry["sourceSize"]
+                    or admission.get("rendering") != rendering
+                    or admission.get("originalStageVerified") is not False
+                    or any(
+                        not isinstance(admission.get(key), str)
+                        or re.fullmatch(r"[0-9a-f]{64}", admission[key]) is None
+                        for key in ("heavyProbeSha256", "headerProbeSha256", "nativeRoiPixelSha256")
+                    )
+                    or not isinstance(admission.get("copiedReaderVerification"), dict)
+                    or admission["copiedReaderVerification"].get("sourceSize")
+                    != geometry["sourceSize"]
+                    or admission["copiedReaderVerification"].get("nativeRoiSize") != [512, 512]
+                    or admission["copiedReaderVerification"].get("nativeRoiPixelSha256")
+                    != admission["nativeRoiPixelSha256"]
+                    or value.get("overviewSourceKind") != "thumbnail-fallback"
+                    or [tile_size, rendering.get("overlap"), quality] != [512, 1, 92]
+                    or not isinstance(value.get("originalSource"), dict)
+                    or value["originalSource"].get("verified") is not False
+                    or value["originalSource"].get("sha256") != region["sha256"]
+                ):
+                    raise AlignmentRejected(
+                        "immutable candidate differs from its heavy-only admission"
+                    )
         elif region.get("kind") == "copied-dzi":
             pass  # Its complete inventory was verified above.
         else:
@@ -156,6 +196,16 @@ def load_immutable_overview(root: Path) -> Image.Image:
     return image
 
 
+def require_snapshot_region_limit(root: Path, maximum: int) -> None:
+    if not (root / DESCRIPTOR_NAME).exists():
+        return
+    region = immutable_descriptor(root)["regionSource"]
+    if not region["available"]:
+        raise AlignmentRejected("immutable regional source unavailable")
+    if region.get("kind") == "verified-openslide-candidate" and maximum > 2048:
+        raise AlignmentRejected("immutable candidate exceeds admitted regional analysis bound")
+
+
 def require_snapshot_tile_capacity(root: Path, *, tile_bytes: int = 4 * 1024**2) -> None:
     if not (root / DESCRIPTOR_NAME).exists():
         return
@@ -164,7 +214,7 @@ def require_snapshot_tile_capacity(root: Path, *, tile_bytes: int = 4 * 1024**2)
     if not region["available"]:
         raise AlignmentRejected("immutable regional source unavailable")
     limit = region.get("tileCacheLimitBytes")
-    if region.get("kind") == "openslide-original":
+    if region.get("kind") in {"openslide-original", "verified-openslide-candidate"}:
         if type(limit) is not int or limit <= 0:
             raise AlignmentRejected("immutable regional cache budget unavailable")
         used = sum(

@@ -372,3 +372,198 @@ def test_snapshot_dedup_binds_candidate_content_when_only_overview_is_available(
     assert manifest["requestedOrderedPairs"] == 2
     assert manifest["deduplicatedOrderedPairs"] == (0 if same_candidate_bytes else 2)
     assert manifest["contentIdenticalSelfRequestsExcluded"] == (2 if same_candidate_bytes else 0)
+
+
+def _candidate_admission_fixture(tmp_path):
+    import importlib.util
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "scripts"
+        / "prepare_alignment_development_snapshots.py"
+    )
+    spec = importlib.util.spec_from_file_location("snapshot_admission", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    sha = hashlib.sha256(b"candidate").hexdigest()
+    header = [
+        {
+            "sourceSha256": sha,
+            "databaseChecksumMatch": True,
+            "sourceStatUnchanged": True,
+            "openslideFormat": "generic-tiff",
+            "openslideDimensions": [100, 99],
+            "openslideBoundedRead": {"size": [512, 512], "pixelSha256": "c" * 64},
+            "header": {"isOme": True, "tileWidth": 240, "tileHeight": 240},
+        }
+    ]
+    proof = {
+        "status": "probe-complete",
+        "processContainment": "windows-job-object",
+        "committedMemoryLimitBytes": 7 * 1024**3,
+        "peakMemoryBytes": 1000,
+        "peakCommittedMemoryBytes": 1000,
+        "wallSeconds": 1,
+        "sourceHashesAtStart": {"probe": "a" * 64},
+        "sourceHashesAtTerminal": {"probe": "a" * 64},
+        "regionalProof": [
+            {
+                "sourceSha256EarlierVerified": sha,
+                "trueSourceSize": [100, 99],
+                "requestedSourceBounds": [0, 0, 100, 99],
+                "returnedSize": [100, 99],
+                "returnedFrame": [0, 0, 1],
+                "tileSize": 512,
+                "overlap": 1,
+                "quality": 92,
+                "executionBoundary": "diagnostic-heavy-contained-7GiB-not-foreground",
+            }
+        ],
+    }
+    heavy_path, header_path = tmp_path / "heavy.json", tmp_path / "headers.json"
+    heavy_path.write_text(json.dumps(proof))
+    header_path.write_text(json.dumps(header))
+    return module, sha, proof, heavy_path, header_path
+
+
+def test_candidate_admission_binds_two_probe_stages_and_rejects_changed_geometry(tmp_path):
+    module, sha, proof, heavy, headers = _candidate_admission_fixture(tmp_path)
+    admitted = module._candidate_admissions(heavy, headers)
+    assert admitted[sha]["sourceSize"] == [100, 99]
+    assert admitted[sha]["heavyProbeSha256"] == hashlib.sha256(heavy.read_bytes()).hexdigest()
+    assert admitted[sha]["headerProbeSha256"] == hashlib.sha256(headers.read_bytes()).hexdigest()
+    assert admitted[sha]["originalStageVerified"] is False
+    proof["regionalProof"][0]["trueSourceSize"] = [101, 99]
+    heavy.write_text(json.dumps(proof))
+    with pytest.raises(ValueError, match="admission"):
+        module._candidate_admissions(heavy, headers)
+
+
+@pytest.mark.parametrize(
+    "change", ["missing-headers", "uncontained", "over-budget", "changed-source"]
+)
+def test_candidate_admission_requires_complete_bounded_terminal_proof(tmp_path, change):
+    module, _, proof, heavy, headers = _candidate_admission_fixture(tmp_path)
+    if change == "missing-headers":
+        headers = None
+    elif change == "uncontained":
+        proof["processContainment"] = "root-only"
+    elif change == "over-budget":
+        proof["peakCommittedMemoryBytes"] = 8 * 1024**3
+    else:
+        proof["sourceHashesAtTerminal"]["probe"] = "b" * 64
+    heavy.write_text(json.dumps(proof))
+    with pytest.raises(ValueError, match="admission"):
+        module._candidate_admissions(heavy, headers)
+
+
+@pytest.mark.parametrize(
+    "fault", [None, "database-sha", "dzi-size", "dzi-profile", "native-pixels"]
+)
+def test_admitted_storage_candidate_keeps_thumbnail_and_bound_private_reader(
+    tmp_path, monkeypatch, fault
+):
+    import sqlite3
+
+    from wsi_viewer.alignment_inputs import immutable_descriptor, require_snapshot_region_limit
+
+    module, sha, _, heavy, headers = _candidate_admission_fixture(tmp_path)
+    data, database = tmp_path / "data", tmp_path / "input.sqlite3"
+    monkeypatch.setattr(
+        worker,
+        "_load_dzi_overview",
+        lambda *a, **k: pytest.fail("single-level candidate must never decode overview"),
+    )
+    calls = []
+
+    def verify(path, size):
+        calls.append((path, size))
+        assert path.read_bytes() == b"candidate"
+        return {
+            "sourceSize": list(size),
+            "nativeRoiSize": [512, 512],
+            "nativeRoiPixelSha256": ("d" if fault == "native-pixels" else "c") * 64,
+        }
+
+    monkeypatch.setattr(module, "_verify_candidate_reader", verify)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "create table slides(id text, sha256 text, slide_metadata text, "
+            "original_filename text, render_mode text)"
+        )
+        connection.execute("create table comparison_sets(id text, member_slide_ids text)")
+        for name in ("a", "b"):
+            root = data / "private" / name
+            root.mkdir(parents=True)
+            (root / "slide.dzi").write_text(
+                f'<Image TileSize="{256 if fault == "dzi-profile" else 512}" '
+                'Overlap="1" Format="jpg">'
+                f'<Size Width="{101 if fault == "dzi-size" else 100}" Height="99"/></Image>'
+            )
+            Image.new("RGB", (50, 49), (140, 80, 120)).save(root / "thumbnail.jpg")
+            candidate = data / "originals" / name / "source.ome.tif"
+            candidate.parent.mkdir(parents=True)
+            candidate.write_bytes(b"candidate")
+            connection.execute(
+                "insert into slides values(?,?,?,?,?)",
+                (
+                    name,
+                    "b" * 64 if fault == "database-sha" else sha,
+                    json.dumps(
+                        {
+                            "width": 100,
+                            "height": 99,
+                            "physicalSizeX": 0.5,
+                            "physicalSizeY": 0.75,
+                            "physicalSizeUnit": "um",
+                        }
+                    ),
+                    "acquisition.svs",
+                    "static_dzi",
+                ),
+            )
+        connection.execute(
+            "insert into comparison_sets values(?,?)", ("stack", json.dumps(["a", "b"]))
+        )
+    output = tmp_path / "snapshots"
+    if fault is not None:
+        with pytest.raises(ValueError, match="candidate admission differs"):
+            module.prepare(
+                database,
+                data,
+                output,
+                tile_cache_budget_bytes=8 * 1024**2,
+                storage_candidate_admission=heavy,
+                storage_candidate_headers=headers,
+            )
+        return
+    result = module.prepare(
+        database,
+        data,
+        output,
+        tile_cache_budget_bytes=8 * 1024**2,
+        storage_candidate_admission=heavy,
+        storage_candidate_headers=headers,
+    )
+    assert len(calls) == 2 and result["originalVerifiedCount"] == 0
+    assert result["storageCandidateCount"] == 2
+    root = output / "sources" / "a"
+    value = immutable_descriptor(root)
+    assert value["overviewSourceKind"] == "thumbnail-fallback"
+    assert value["capturedRenderMode"] == "static_dzi"
+    assert value["regionSource"]["kind"] == "verified-openslide-candidate"
+    assert value["originalSource"]["verified"] is False
+    assert value["calibration"]["micronsPerPixel"] == [0.5, 0.75]
+    assert value["geometry"]["samplingScale"] == [2, 99 / 49]
+    pointer = json.loads((root / ".openslide-source.json").read_text())
+    assert pointer["source"] == str((root / "stored-candidate.ome.tif").resolve())
+    assert pointer["tileSize"] == 512
+    assert worker._load_alignment_overview(root).size == (50, 49)
+    require_snapshot_region_limit(root, 2048)
+    with pytest.raises(AlignmentRejected, match="analysis bound"):
+        require_snapshot_region_limit(root, 4096)
+    admission = root / "candidate-admission.json"
+    admission.write_bytes(b"changed")
+    with pytest.raises(AlignmentRejected, match="digest mismatch"):
+        immutable_descriptor(root)

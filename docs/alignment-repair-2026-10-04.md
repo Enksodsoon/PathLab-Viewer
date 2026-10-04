@@ -120,20 +120,50 @@ unchanged.
 
 
 Storage `source.ome.tif` candidates follow a different preparation path from
-explicit OpenSlide pointers. Their complete existing DZI inventory and 512-pixel
-tile geometry are preserved. Copied candidate-byte checksums and agreement with
-the captured database checksum are recorded separately from original acquisition
-stage verification; checksum agreement alone does not establish that stage. The
-preparer synthesizes no OpenSlide pointer and performs no OpenSlide header read
-for such candidates. Complete copied DZI pyramids permit regional reads; partial
-pyramids explicitly lack admitted regional coverage. If the selected overview
-level is incomplete, a provenance-bound existing thumbnail supplies the overview
-instead of inventing white pixels for missing tiles. Candidate bytes remain bound
-to the private immutable descriptor even when only derived pixels are used.
-Preparation receipts separate physically missing candidates, storage candidates
-and unverified original stages. Actual candidate format/reader/header checks are
-still pending resource-slot release; synthetic fixtures do not establish genuine
-OME reader support.
+explicit OpenSlide pointers. Their existing DZI inventory and 512-pixel tile
+geometry are preserved. Copied byte checksums and agreement with the captured
+database checksum remain separate from original acquisition-stage verification.
+Checksum agreement does not establish that stage.
+
+Read-only checks of all five candidates found single-level, 240-pixel JPEG tiled
+OME files recognized by OpenSlide as generic TIFF. Their full file hashes matched
+the database and their dimensions matched the declared frames. The existing OME
+index builder and bounded native JPEG/512-pixel OpenSlide reads succeeded.
+OpenSlide MPP properties were absent; declared OME metadata with recognized units
+supplies calibration separately. This header/index substage recorded stable
+source stats, but its final queue-delivery harness failed after writing the
+artifact; its terminal memory receipt is unavailable. That harness failure is
+preserved, rather than reported as a successful supervised registration.
+
+A separate terminal, contained reader diagnostic used the existing regional
+reader for all five full image bounds with returned dimensions at most 2048 and
+exact power-of-two divisor 16. It took 77.938 seconds; sampled Job working-set
+peak was 947,109,888 bytes and kernel committed peak was 925,663,232 bytes under
+the 7,516,192,768-byte bound. These are reader diagnostics, not engine registration
+or anatomical accuracy results. This full-bounds substage did not independently
+capture before/after original-file stat evidence. A small returned low-resolution
+tile can decode a much larger level-zero rectangle; these findings do not admit
+such files under the 512 MiB foreground boundary.
+
+Preparation can explicitly admit a `verified-openslide-candidate` regional source
+using both private probe artifact hashes. It rechecks the copied byte checksum
+against the database and probe, exact dimensions, the 512/overlap-1/quality-92
+profile, and a fresh native 512-pixel ROI against the earlier pixel checksum.
+The loader pointer targets only the verified workspace copy. Original acquisition
+stage remains unverified. Admission is limited to the contained heavy refinement
+boundary and returned analysis dimensions at most 2048; larger regional requests
+fail closed. The existing thumbnail always supplies these candidates' immutable
+overview, avoiding a single-level whole-image overview decode. No production
+reader or OME service decode limit is changed.
+
+Without explicit admission, complete copied DZI pyramids permit regional reads;
+partial pyramids explicitly lack admitted regional coverage. Missing overview
+levels use a provenance-bound existing thumbnail rather than invented white
+pixels. Candidate bytes remain bound even when only derived pixels are used.
+Preparation records captured render mode, physically missing files, storage
+candidates, and unverified acquisition stages separately. Actual immutable
+copies and the development campaign remain pending the required source checks.
+
 
 
 Deduplication also includes the verified copied-source byte SHA256 and source
