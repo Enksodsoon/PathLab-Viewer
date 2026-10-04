@@ -459,7 +459,7 @@ def test_candidate_admission_requires_complete_bounded_terminal_proof(tmp_path, 
 
 
 @pytest.mark.parametrize(
-    "fault", [None, "database-sha", "dzi-size", "dzi-profile", "native-pixels"]
+    "fault", [None, "complete-pyramid", "database-sha", "dzi-size", "dzi-profile", "native-pixels"]
 )
 def test_admitted_storage_candidate_keeps_thumbnail_and_bound_private_reader(
     tmp_path, monkeypatch, fault
@@ -470,11 +470,12 @@ def test_admitted_storage_candidate_keeps_thumbnail_and_bound_private_reader(
 
     module, sha, _, heavy, headers = _candidate_admission_fixture(tmp_path)
     data, database = tmp_path / "data", tmp_path / "input.sqlite3"
-    monkeypatch.setattr(
-        worker,
-        "_load_dzi_overview",
-        lambda *a, **k: pytest.fail("single-level candidate must never decode overview"),
-    )
+    if fault != "complete-pyramid":
+        monkeypatch.setattr(
+            worker,
+            "_load_dzi_overview",
+            lambda *a, **k: pytest.fail("single-level candidate must never decode overview"),
+        )
     calls = []
 
     def verify(path, size):
@@ -502,6 +503,16 @@ def test_admitted_storage_candidate_keeps_thumbnail_and_bound_private_reader(
                 f'<Size Width="{101 if fault == "dzi-size" else 100}" Height="99"/></Image>'
             )
             Image.new("RGB", (50, 49), (140, 80, 120)).save(root / "thumbnail.jpg")
+            if fault == "complete-pyramid":
+                for level in range(8):
+                    tile = root / "slide_files" / str(level) / "0_0.jpg"
+                    tile.parent.mkdir(parents=True)
+                    divisor = 2 ** (7 - level)
+                    Image.new(
+                        "RGB",
+                        ((100 + divisor - 1) // divisor, (99 + divisor - 1) // divisor),
+                        (80, 140, 120),
+                    ).save(tile)
             candidate = data / "originals" / name / "source.ome.tif"
             candidate.parent.mkdir(parents=True)
             candidate.write_bytes(b"candidate")
@@ -527,7 +538,7 @@ def test_admitted_storage_candidate_keeps_thumbnail_and_bound_private_reader(
             "insert into comparison_sets values(?,?)", ("stack", json.dumps(["a", "b"]))
         )
     output = tmp_path / "snapshots"
-    if fault is not None:
+    if fault not in (None, "complete-pyramid"):
         with pytest.raises(ValueError, match="candidate admission differs"):
             module.prepare(
                 database,
@@ -550,6 +561,34 @@ def test_admitted_storage_candidate_keeps_thumbnail_and_bound_private_reader(
     assert result["storageCandidateCount"] == 2
     root = output / "sources" / "a"
     value = immutable_descriptor(root)
+    if fault == "complete-pyramid":
+        from wsi_viewer.alignment_cache import reset_generated_regional_cache
+
+        assert value["regionSource"]["kind"] == "copied-dzi"
+        assert len(value["regionSource"]["files"]) == 10
+        assert result["preparation"][0]["regionalSourceKind"] == "copied-dzi"
+        assert result["preparation"][0]["copiedDerivativeFileCount"] == 10
+        assert result["preparation"][0]["copiedSourceBytes"] == len(b"candidate")
+        assert value["overviewSourceKind"] == "dzi-pyramid"
+        assert value["originalSource"]["verified"] is False
+        assert (
+            value["originalSource"]["boundedReaderVerification"]["nativeRoiPixelSha256"] == "c" * 64
+        )
+        assert not (root / ".openslide-source.json").exists()
+        reset = reset_generated_regional_cache([root], output)
+        assert reset["removedFileCount"] == 0 and reset["sourceKindCounts"] == {"copied-dzi": 1}
+        tile = root / "slide_files" / "7" / "0_0.jpg"
+        assert tile.is_file() and worker._load_alignment_overview(root).size == (100, 99)
+        descriptor = root / "slide.dzi"
+        original_descriptor = descriptor.read_bytes()
+        descriptor.write_bytes(b"changed copied frame")
+        with pytest.raises(AlignmentRejected, match="digest mismatch"):
+            worker._load_alignment_overview(root)
+        descriptor.write_bytes(original_descriptor)
+        tile.write_bytes(b"changed copied tile")
+        with pytest.raises(AlignmentRejected, match="digest mismatch"):
+            worker._load_alignment_overview(root)
+        return
     assert value["overviewSourceKind"] == "thumbnail-fallback"
     assert value["capturedRenderMode"] == "static_dzi"
     assert value["regionSource"]["kind"] == "verified-openslide-candidate"

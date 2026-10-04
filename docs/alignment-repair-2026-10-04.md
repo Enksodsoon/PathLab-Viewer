@@ -203,3 +203,24 @@ resource-time failure without launching a child and retains the planned pair in
 the denominator. Core runtime includes startup, execution and mandatory contained
 teardown; separate execution/cleanup durations are unmeasured (`null`), and
 mandatory terminal cleanup may extend wall time past the execution allowance.
+
+## Corrected actual candidate inventory
+
+The first immutable preparation attempt stopped at 39.063 seconds before finishing
+its first source. Source bytes, declared dimensions and the 512/overlap-1/JPEG
+profile agreed with the probes; admission failed because the copied source already
+contained a complete DZI pyramid. The earlier planning count of two derivative
+files resulted from filtering the inventory and did not establish an empty live
+pyramid. The failed receipt, log, source hashes and partial workspace copy remain
+preserved as historical evidence.
+
+A complete fresh inventory found 3785, 3658, 2108, 2280 and 2096 tile files in the
+five candidate sources. Preparation now gives complete copied pyramids precedence:
+all copied tile bytes and their DZI frame are bound, the bounded copied-pyramid
+overview is used, and no generated OpenSlide pointer replaces that inventory.
+Cold-cache reset preserves these bound tiles. Candidate source copies still must
+match the database and probe hashes and pass the fresh header/native-512-pixel
+check; this reader evidence does not establish acquisition stage. The no-tiles
+heavy-candidate path retains its thumbnail overview and 2048 regional limit.
+Preparation storage admission includes the entire fresh derivative inventory,
+original/candidate copies, overview reservation and 8 GiB generated-cache budget.

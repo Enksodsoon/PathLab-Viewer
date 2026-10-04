@@ -471,6 +471,36 @@ def prepare(
             }
             if source_kind == "storage-ome-candidate":
                 original_info["reason"] = "stored-candidate-original-stage-unverified"
+        candidate_verification: dict[str, Any] | None = None
+        if source_kind == "storage-ome-candidate" and admissions:
+            if sha not in admissions:
+                raise ValueError("candidate admission has no verified copied byte identity")
+            admission = admissions[sha]
+            tree = ET.parse(root / "slide.dzi").getroot()
+            dzi_size = next(node for node in tree if node.tag.rsplit("}", 1)[-1] == "Size")
+            if (
+                admission["sourceSize"] != list(size)
+                or original_info["databaseChecksumMatch"] is not True
+                or tree.attrib.get("TileSize") != "512"
+                or tree.attrib.get("Overlap") != "1"
+                or tree.attrib.get("Format") != "jpg"
+                or [int(dzi_size.attrib[axis]) for axis in ("Width", "Height")] != list(size)
+            ):
+                raise ValueError("candidate admission differs from copied source/DZI frame")
+            reader = _verify_candidate_reader(root / name, size)
+            if reader["nativeRoiPixelSha256"] != admission["nativeRoiPixelSha256"]:
+                raise ValueError("candidate admission differs from bounded reader pixels")
+            candidate_verification = {
+                **admission,
+                "copiedSourceSha256": sha,
+                "copiedReaderVerification": reader,
+            }
+            original_info["boundedReaderVerification"] = {
+                **reader,
+                "heavyProbeSha256": admission["heavyProbeSha256"],
+                "headerProbeSha256": admission["headerProbeSha256"],
+                "originalStageVerified": False,
+            }
         if source_kind == "explicit-openslide-pointer":
             tile_size, quality = (
                 int(rendering.get("tileSize", 1024)),
@@ -502,35 +532,19 @@ def prepare(
                 },
                 "tileCacheLimitBytes": tile_cache_budget_bytes // max(1, len(plans)),
             }
-        elif source_kind == "storage-ome-candidate" and sha in admissions:
+        elif _complete_pyramid(root):
+            region = {"available": True, "kind": "copied-dzi", "files": copied}
+        elif candidate_verification is not None:
             admission = admissions[sha]
-            tree = ET.parse(root / "slide.dzi").getroot()
-            dzi_size = next(node for node in tree if node.tag.rsplit("}", 1)[-1] == "Size")
             if (
-                admission["sourceSize"] != list(size)
-                or original_info["databaseChecksumMatch"] is not True
-                or tree.attrib.get("TileSize") != "512"
-                or tree.attrib.get("Overlap") != "1"
-                or tree.attrib.get("Format") != "jpg"
-                or [int(dzi_size.attrib[axis]) for axis in ("Width", "Height")] != list(size)
-                or any(item["name"].startswith("slide_files/") for item in copied)
-            ):
-                raise ValueError("candidate admission differs from copied source/DZI frame")
-            reader = _verify_candidate_reader(root / name, size)
-            if (
-                reader["nativeRoiPixelSha256"] != admission["nativeRoiPixelSha256"]
+                any(item["name"].startswith("slide_files/") for item in copied)
                 or tile_cache_budget_bytes <= 0
             ):
                 raise ValueError(
-                    "candidate admission differs from bounded reader pixels/cache budget"
+                    "candidate admission cannot replace a partial copied tile inventory"
                 )
-            admission_value = {
-                **admission,
-                "copiedSourceSha256": sha,
-                "copiedReaderVerification": reader,
-            }
             (root / "candidate-admission.json").write_text(
-                json.dumps(admission_value, indent=2), encoding="utf-8"
+                json.dumps(candidate_verification, indent=2), encoding="utf-8"
             )
             (root / ".openslide-source.json").write_text(
                 json.dumps(
@@ -551,8 +565,6 @@ def prepare(
                 "executionBoundary": admission["executionBoundary"],
                 "tileCacheLimitBytes": tile_cache_budget_bytes // max(1, len(plans)),
             }
-        elif _complete_pyramid(root):
-            region = {"available": True, "kind": "copied-dzi", "files": copied}
         copy_seconds = time.monotonic() - tick
         overview_started = time.monotonic()
         try:
@@ -637,6 +649,14 @@ def prepare(
                 "originalCandidatePresent": original is not None,
                 "originalCandidateKind": source_kind,
                 "regionalSourceAvailable": region["available"],
+                "regionalSourceKind": region["kind"],
+                "copiedDerivativeFileCount": len(copied),
+                "copiedDerivativeBytes": sum(
+                    (root / item["name"]).stat().st_size for item in copied
+                ),
+                "copiedSourceBytes": (root / original_info["file"]).stat().st_size
+                if original is not None
+                else 0,
                 "workerLifetimePeakRssBytes": _process_rss_bytes(os.getpid(), peak=True),
                 "memoryMeasurementScope": "snapshot-preparation-process-lifetime-high-water",
             }
