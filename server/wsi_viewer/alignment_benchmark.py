@@ -520,6 +520,7 @@ def run_benchmark(
             "memoryBytes": memory_bytes,
             "repeatRuns": 0,
             "hostFilesystemCacheState": "unmeasured",
+            "budgetPolicy": "requested-total-minus-admission-and-reset/1",
         }
     output = output.resolve()
     _private_output(output)
@@ -529,8 +530,15 @@ def run_benchmark(
     availability = engine_availability()
     rows = []
     for pair_index, pair in enumerate(manifest["pairs"]):
-        inputs = [_input_digest(pair[side]) for side in ("reference", "moving")]
+        inputs = (
+            [_input_digest(pair[side]) for side in ("reference", "moving")]
+            if execution_protocol is None
+            else []
+        )
         for requested in recipes:
+            admission_started = time.monotonic() if execution_protocol is not None else None
+            if execution_protocol is not None:
+                inputs = [_input_digest(pair[side]) for side in ("reference", "moving")]
             recipe = ENGINE_ALIASES.get(requested, requested)
             if recipe not in SUPPORTED_ENGINES:
                 raise ValueError(f"unsupported recipe {requested}")
@@ -557,7 +565,10 @@ def run_benchmark(
                 if receipt.get("digest") != key:
                     raise ValueError("cache digest does not match request")
             else:
-                cache_preparation = None
+                admission_seconds = (
+                    time.monotonic() - admission_started if admission_started is not None else 0.0
+                )
+                cache_preparation: dict[str, Any] | None = None
                 if execution_protocol is not None:
                     cache_preparation = {
                         "policy": execution_protocol["policy"],
@@ -578,6 +589,12 @@ def run_benchmark(
                             immutable_input_root,
                         )
                 started = time.monotonic()
+                granted_budget = min(600, timeout_seconds)
+                if cache_preparation is not None:
+                    granted_budget = max(
+                        0,
+                        int(granted_budget - admission_seconds - cache_preparation["wallSeconds"]),
+                    )
                 registration: dict[str, Any] = {}
                 stage_events: list[dict[str, Any]] = []
                 outcome = "ok"
@@ -586,6 +603,16 @@ def run_benchmark(
                 if not availability.get(recipe, {}).get("available") or not resources_available:
                     outcome = "unavailable"
                     reason_code = resource_reason or "optional-runtime-unavailable"
+                elif granted_budget <= 0:
+                    outcome = "rejected"
+                    reason_code = "pair-time-budget-exhausted-before-child"
+                    _private_diagnostic(
+                        output,
+                        key,
+                        "AlignmentRejected",
+                        "registration exceeded pair timeout during input admission/cache reset "
+                        "before child launch",
+                    )
                 else:
                     try:
                         registration = _run_alignment_bounded(
@@ -596,7 +623,7 @@ def run_benchmark(
                             engine_name=recipe,
                             engine_settings=settings,
                             artifact_dir=output / "artifacts" / key,
-                            timeout_seconds=min(600, timeout_seconds),
+                            timeout_seconds=granted_budget,
                             memory_bytes=memory_bytes,
                             progress=_progress_recorder(stage_events, started),
                         )
@@ -662,7 +689,7 @@ def run_benchmark(
                 if cache_preparation is not None:
                     core_seconds = receipt["coldRuntimeSeconds"]
                     total_seconds = (
-                        core_seconds + cache_preparation["wallSeconds"]
+                        core_seconds + admission_seconds + cache_preparation["wallSeconds"]
                         if core_seconds is not None
                         else None
                     )
@@ -672,6 +699,12 @@ def run_benchmark(
                         runtimeCoreSeconds=core_seconds,
                         endToEndPreparationAndRuntimeSeconds=total_seconds,
                         coldRuntimeSeconds=total_seconds,
+                        inputAdmissionSeconds=admission_seconds,
+                        grantedChildBudgetSeconds=granted_budget,
+                        requestedTotalBudgetSeconds=min(600, timeout_seconds),
+                        runtimeCoreScope="supervised-child-startup-execution-and-mandatory-containment-cleanup",
+                        containmentCleanupSeconds=None,
+                        supervisedChildExecutionSeconds=None,
                     )
                 temporary.write_text(json.dumps(receipt, sort_keys=True), encoding="utf-8")
                 temporary.replace(cache)

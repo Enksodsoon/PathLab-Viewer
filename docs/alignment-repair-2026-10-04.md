@@ -194,3 +194,12 @@ reuse does not reset inputs. The default option remains off for frozen public
 compatibility. The precise scope is process-cold with empty generated regional
 cache; host filesystem caching is unmeasured and warm-model timing remains null.
 Fatal containment loss stops the campaign before another reset or recipe.
+
+The cold protocol subtracts measured input-admission and cache-reset time from
+the requested total recipe allowance before child execution. The child grant is
+rounded down to whole seconds and recorded separately; requested method settings
+retain their stable maximum of 600 seconds. Exhausted allowance produces a
+resource-time failure without launching a child and retains the planned pair in
+the denominator. Core runtime includes startup, execution and mandatory contained
+teardown; separate execution/cleanup durations are unmeasured (`null`), and
+mandatory terminal cleanup may extend wall time past the execution allowance.

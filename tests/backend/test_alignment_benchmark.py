@@ -724,7 +724,7 @@ def test_cold_cache_protocol_invalidates_old_receipt_and_resume_does_not_reset(
     row = report["rows"][0]
     assert row["digest"] != old["rows"][0]["digest"]
     assert row["cachePreparation"]["removedBytes"] == 123
-    assert row["coldRuntimeSeconds"] == row["runtimeCoreSeconds"] + 7
+    assert row["coldRuntimeSeconds"] == row["runtimeCoreSeconds"] + row["inputAdmissionSeconds"] + 7
     assert row["endToEndPreparationAndRuntimeSeconds"] == row["coldRuntimeSeconds"]
     assert len(resets) == 1 and len(calls) == 2
     resumed = bench.run_benchmark(
@@ -825,3 +825,54 @@ def test_cold_cache_protocol_fatal_containment_loss_cannot_start_next_recipe(tmp
             immutable_input_root=tmp_path,
         )
     assert len(resets) == 1
+
+
+@pytest.mark.parametrize("reset_seconds", [1.25, 600.0])
+def test_cache_preparation_consumes_total_recipe_execution_budget(
+    tmp_path, monkeypatch, reset_seconds
+):
+    from wsi_viewer import alignment_benchmark as bench
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        **{s: {"path": str(tmp_path / s), "size": [10, 10]} for s in ("reference", "moving")},
+    }
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"native-overview-v6": {"available": True}}
+    )
+    monkeypatch.setattr(
+        bench,
+        "reset_generated_regional_cache",
+        lambda *a: {
+            "wallSeconds": reset_seconds,
+            "removedFileCount": 0,
+            "removedBytes": 0,
+            "sourceKindCounts": {},
+        },
+    )
+    calls = []
+    monkeypatch.setattr(
+        bench, "_run_alignment_bounded", lambda *a, **kw: calls.append(kw) or {"status": "rejected"}
+    )
+    report = bench.run_benchmark(
+        {"pairs": [pair]},
+        tmp_path / "out",
+        ["native"],
+        reset_immutable_regional_cache=True,
+        immutable_input_root=tmp_path,
+    )
+    row = report["rows"][0]
+    if reset_seconds < 600:
+        assert 0 < calls[0]["timeout_seconds"] <= 598.75
+        assert calls[0]["engine_settings"]["timeoutSeconds"] == 600
+        assert row["grantedChildBudgetSeconds"] == calls[0]["timeout_seconds"]
+    else:
+        assert calls == []
+        assert row["outcome"] == "rejected"
+        assert row["reasonCode"] == "pair-time-budget-exhausted-before-child"
+        assert report["recipes"]["native-overview-v6"]["positivePairs"] == 1
+    assert row["containmentCleanupSeconds"] is None

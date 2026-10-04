@@ -65,8 +65,6 @@ def public_cache_preparation(value):
     return result
 
 
-
-
 def classify(root, digest, outcome, attempt="cold"):
     if outcome == "ok":
         return "accepted-map"
@@ -389,6 +387,14 @@ def summarize(report, root, *, manifest_sha256=None, memory_scope="unrecorded"):
                             receipt.get("cachePreparation")
                         ),
                         "runtimeCoreSeconds": receipt.get("runtimeCoreSeconds"),
+                        "inputAdmissionSeconds": receipt.get("inputAdmissionSeconds"),
+                        "grantedChildBudgetSeconds": receipt.get("grantedChildBudgetSeconds"),
+                        "requestedTotalBudgetSeconds": receipt.get("requestedTotalBudgetSeconds"),
+                        "containmentCleanupSeconds": None,
+                        "supervisedChildExecutionSeconds": None,
+                        "runtimeCoreScope": (
+                            "supervised-child-startup-execution-and-mandatory-containment-cleanup"
+                        ),
                         "endToEndPreparationAndRuntimeSeconds": receipt.get(
                             "endToEndPreparationAndRuntimeSeconds"
                         ),
