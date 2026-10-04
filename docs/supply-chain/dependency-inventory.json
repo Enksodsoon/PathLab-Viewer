@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T07:23:00.815289Z",
+  "generatedAt": "2026-10-04T07:30:14.320754Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -18185,9 +18185,9 @@
       "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
     },
     {
-      "gitBlob": "3ef1d26cafc90001bc9525fe43d7f090080e42f7",
+      "gitBlob": "18d3af004dfaeefc0bcffbc9c92d39483f7ed781",
       "path": "docs/supply-chain/notice-material/public-legal-email-lines.json",
-      "sha256": "3628a88e91d64e6d81a053ae0df28310686dd10a306d6b8c11f665d6dc3ef62b"
+      "sha256": "619e0cc4f079e70885010d5baa3229c58474e441561d3c142537080f836a54ae"
     },
     {
       "gitBlob": "6a60e8c225c9baca25907f87c74b428e5d85de0c",
@@ -19140,6 +19140,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "cc7752ea0117685ea488b56a158c257fa3c8eafc",
-  "subjectTree": "9b53f7074b4db49c097b654deda883cea3e5e2a0"
+  "subjectCommit": "7aa6a2cbd5d34f8f2725893ea90d3d8a9e096211",
+  "subjectTree": "e8abd4d857e9ef4eeacf276e8cab0c287e294827"
 }
