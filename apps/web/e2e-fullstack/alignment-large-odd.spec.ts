@@ -38,7 +38,7 @@ test('alignment large odd DZI preserves foreground sampling frame and real forwa
     expect(geometry).toMatchObject({ kind: 'dzi-pyramid', sourceSize: [5003, 4009], analysisSize: [626, 502], coordinateFrameSize: [5008, 4016], samplingScale: [8, 8], pyramidDivisor: 8, selectedLevel: 10 })
   }
   await page.goto(`/admin/comparisons/${id}`)
-  await expect(page.getByText('Approximate sync', { exact: true })).toBeVisible()
+  await expect(page.locator('.comparison-pane').nth(1).getByText('Approximate sync', { exact: true })).toBeVisible()
   await expect(page.locator('.comparison-setup-menu')).not.toHaveAttribute('open', '')
   const applications = () => page.evaluate(() => (window as unknown as { alignmentApplications: Application[] }).alignmentApplications)
   await expect.poll(async () => (await applications()).length).toBeGreaterThan(0)
@@ -79,7 +79,7 @@ test('alignment large odd DZI preserves foreground sampling frame and real forwa
   expect(loadedTiles).toBeGreaterThan(0)
   await expect(page.getByText('Slide tiles could not be loaded.', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Unavailable', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('Approximate sync', { exact: true })).toBeVisible()
+  for (const pane of await page.locator('.comparison-pane').all()) await expect(pane.getByText('Approximate sync', { exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('alignment-large-odd-original-pixels.png'), fullPage: true })
   await testInfo.attach('large-odd-foreground-receipt', { body: JSON.stringify({ scope: 'Synthetic original 5003x4009 DZI pixels and actual worker/API/OSD. The 10-second engineering check includes queue, preparation and initial viewport application, excludes fixture construction, and is not production latency or anatomical qualification.', foreground, browserObservedMilliseconds, loadedTiles, directions, advancedOpened: false }), contentType: 'application/json' })
 })
