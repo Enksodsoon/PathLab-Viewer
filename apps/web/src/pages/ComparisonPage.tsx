@@ -48,6 +48,8 @@ type CorrectionState = {
   regionId?: string
   sourceVersion?: string
   targetVersion?: string
+  basisVersion?: string
+  previewNeedsRefresh?: boolean
 }
 
 
@@ -613,7 +615,7 @@ export function ComparisonPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [comparison, correction, resetView])
   const submitCorrection = async (previewOnly: boolean) => {
-    if (!comparison || !correction) return
+    if (!comparison || !correction || (!previewOnly && correction.previewNeedsRefresh)) return
     setCorrectionBusy(true); setCorrectionError('')
     try {
       if (publicId) return
@@ -625,6 +627,7 @@ export function ComparisonPage() {
         regionId: correction.regionId,
         sourceVersion: correction.sourceVersion,
         targetVersion: correction.targetVersion,
+        basisVersion: correction.basisVersion,
         movingPoints: correction.points.map(point => point.moving),
         referencePoints: correction.points.map(point => point.reference),
       }) : await correctComparisonSet(comparison.id, correction.movingId, {
@@ -638,7 +641,8 @@ export function ComparisonPage() {
       if (previewOnly) setCorrection({ ...correction, preview: true, previewVersion: result.version,
         regionId: result.regionalCorrections?.[0]?.regionId,
         sourceVersion: result.regionalCorrections?.[0]?.sourceVersion,
-        targetVersion: result.regionalCorrections?.[0]?.targetVersion })
+        targetVersion: result.regionalCorrections?.[0]?.targetVersion,
+        basisVersion: result.regionalCorrections?.[0]?.basisVersion, previewNeedsRefresh: false })
       else {
         restoreNavigationAfterCorrection.current = !correction.regional
         setPanes(correction.originalPanes)
@@ -651,8 +655,15 @@ export function ComparisonPage() {
       }
     } catch (error) {
       const code = error instanceof ApiError ? error.code : ''
+      if (correction.regional && ['REGION_PREVIEW_CHANGED', 'REGION_PREVIEW_REQUIRED'].includes(code)) {
+        setCorrection({ ...correction, previewNeedsRefresh: true })
+      }
       setCorrectionError(error instanceof ApiError && error.status === 401
         ? 'Your session expired. Sign in to PathLab in another tab, then retry here. Do not reload this tab or the recorded points will be lost.'
+        : code === 'REGION_PREVIEW_CHANGED'
+          ? 'The alignment changed after this preview. Preview the correction again before saving. Your points are still recorded.'
+        : code === 'REGION_PREVIEW_REQUIRED'
+          ? 'Preview the correction again before saving. Your points are still recorded.'
         : error instanceof ApiError && error.status === 409
           ? 'This set changed. Cancel and reload before saving new landmarks.'
           : code === 'LANDMARK_OUTSIDE_SLIDE'
@@ -871,7 +882,7 @@ export function ComparisonPage() {
     {correction ? <section className="comparison-correction" aria-label="Landmark correction">
       <strong>{correction.preview ? 'Correction preview' : correction.regional ? 'Adjust this tissue region' : 'Mark corresponding tissue'}</strong>
       <p>{correction.regional ? 'Pan each slide until the same tissue structure is under both crosshairs. Record one pair for an offset, or two separated pairs for rotation and scale. This approximate correction applies only inside the captured region.' : 'Left pane is the reference. Record at least three corresponding points spread across the tissue. Avoid blank glass.'}</p>
-      {correction.regional ? <><label>Align to<select aria-label="Correction reference slide" disabled={correctionBusy || correction.preview} value={correction.referenceId} onChange={event => { const referenceId = event.target.value; setCorrection({ ...correction, referenceId, points: [], preview: false, regionId: undefined, previewVersion: undefined, sourceVersion: undefined, targetVersion: undefined }); setPanes([referenceId, correction.movingId]) }}>{comparison.members.filter(member => member.slideId !== correction.movingId && member.tileSource && (correction.originalPanes.includes(member.slideId) || member.slideId === comparison.referenceSlideId)).map(member => <option key={member.slideId} value={member.slideId}>{member.displayName}</option>)}</select></label><span className="comparison-region-bounds">Captured region (pixels): {correction.sourceBounds?.map(value => Math.round(value)).join(', ')}</span></> : null}
+      {correction.regional ? <><label>Align to<select aria-label="Correction reference slide" disabled={correctionBusy || correction.preview} value={correction.referenceId} onChange={event => { const referenceId = event.target.value; setCorrection({ ...correction, referenceId, points: [], preview: false, regionId: undefined, previewVersion: undefined, sourceVersion: undefined, targetVersion: undefined, basisVersion: undefined, previewNeedsRefresh: false }); setPanes([referenceId, correction.movingId]) }}>{comparison.members.filter(member => member.slideId !== correction.movingId && member.tileSource && (correction.originalPanes.includes(member.slideId) || member.slideId === comparison.referenceSlideId)).map(member => <option key={member.slideId} value={member.slideId}>{member.displayName}</option>)}</select></label><span className="comparison-region-bounds">Captured region (pixels): {correction.sourceBounds?.map(value => Math.round(value)).join(', ')}</span></> : null}
       <span>{correction.points.length} point pairs</span>
       <button type="button" disabled={correctionBusy || correction.preview || correction.points.length >= (correction.regional ? 2 : 20)} onClick={() => {
         const reference = handles.current.get(correction.referenceId)?.getImageViewport(); const moving = handles.current.get(correction.movingId)?.getImageViewport()
@@ -882,9 +893,9 @@ export function ComparisonPage() {
           setCorrection({ ...correction, points: [...correction.points, { reference: [reference.centerX, reference.centerY], moving: [moving.centerX, moving.centerY] }] })
         }
       }}>Record point pair</button>
-      <button type="button" disabled={correctionBusy || !correction.points.length} onClick={() => { setComparison(correction.original); setCorrection({ ...correction, points: correction.points.slice(0, -1), preview: false }); setLinked(false); setAlignmentMode('independent') }}>Undo last pair</button>
+      <button type="button" disabled={correctionBusy || !correction.points.length} onClick={() => { setComparison(correction.original); setCorrection({ ...correction, points: correction.points.slice(0, -1), preview: false, basisVersion: undefined, previewNeedsRefresh: false }); setLinked(false); setAlignmentMode('independent') }}>Undo last pair</button>
       <button type="button" disabled={correctionBusy || correction.points.length < (correction.regional ? 1 : 3)} onClick={() => void submitCorrection(true)}>Preview correction</button>
-      <button type="button" disabled={correctionBusy || !correction.preview} onClick={() => void submitCorrection(false)}>Save correction</button>
+      <button type="button" disabled={correctionBusy || !correction.preview || correction.previewNeedsRefresh} onClick={() => void submitCorrection(false)}>Save correction</button>
       <button type="button" disabled={correctionBusy} onClick={cancelCorrection}>Cancel correction</button>
       {correction.preview ? <p>Unsaved approximate preview. Inspect corresponding tissue before saving. Cancel restores the previous navigation field.</p> : null}
       {correctionError ? <p role="alert">{correctionError}</p> : null}

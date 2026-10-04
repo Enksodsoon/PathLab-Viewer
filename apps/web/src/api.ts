@@ -816,6 +816,7 @@ export async function correctComparisonRegion(id: string, payload: {
   regionId?: string
   sourceVersion?: string
   targetVersion?: string
+  basisVersion?: string
 }): Promise<ComparisonSet> {
   return json<ComparisonSet>(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/region-corrections`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),

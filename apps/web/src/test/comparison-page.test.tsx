@@ -123,7 +123,7 @@ it('freezes the region preview through polling and saves using its returned vers
     if (String(input).endsWith('/region-corrections')) {
       const payload = JSON.parse(String(init?.body)); posted.push(payload)
       value.version = payload.operation === 'preview' ? 7 : 8
-      value.regionalCorrections = [{ id: 'revision', regionId: 'captured-region', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest', sourceSlideId: payload.sourceSlideId, targetSlideId: payload.targetSlideId, sourceBounds: payload.sourceBounds, registration: { status: 'approximate', provenance: 'manual-region', movingToReference: [[1, 0, 0], [0, 1, 0]], triangles: value.members[1].registration.triangles } }]
+      value.regionalCorrections = [{ id: 'revision', regionId: 'captured-region', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest', basisVersion: 'opaque-preview-basis', sourceSlideId: payload.sourceSlideId, targetSlideId: payload.targetSlideId, sourceBounds: payload.sourceBounds, registration: { status: 'approximate', provenance: 'manual-region', movingToReference: [[1, 0, 0], [0, 1, 0]], triangles: value.members[1].registration.triangles } }]
       value.regionalCorrections.push({ ...value.regionalCorrections[0], id: 'old-revision', regionId: 'old-region' })
       value.status = payload.operation === 'preview' ? 'running' : 'ready'
       value.name = payload.operation === 'preview' ? 'Preview field' : 'Saved field'
@@ -150,8 +150,8 @@ it('freezes the region preview through polling and saves using its returned vers
   expect(posted).toHaveLength(3)
   expect(posted[0].sourceBounds).toEqual([10, 20, 800, 500])
   expect(posted[0].sourceVersion).toBeUndefined()
-  expect(posted[1]).toMatchObject({ operation: 'preview', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest' })
-  expect(posted[2]).toMatchObject({ operation: 'save', version: 7, regionId: 'captured-region', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest', sourceSlideId: 'slide-2', targetSlideId: 'slide-1', movingPoints: [[210, 330]], referencePoints: [[210, 330]] })
+  expect(posted[1]).toMatchObject({ operation: 'preview', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest', basisVersion: 'opaque-preview-basis' })
+  expect(posted[2]).toMatchObject({ operation: 'save', version: 7, regionId: 'captured-region', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest', basisVersion: 'opaque-preview-basis', sourceSlideId: 'slide-2', targetSlideId: 'slide-1', movingPoints: [[210, 330]], referencePoints: [[210, 330]] })
 })
 
 it.each([{ scale: 1, zoomMode: 'physical', zoom: 2 }, { scale: 2, zoomMode: 'physical', zoom: 2 }, { scale: 2, zoomMode: 'tissue', zoom: 4 }])('links a supported saved region with scale $scale and $zoomMode zoom when automatic registration rejected that slide', async ({ scale, zoomMode, zoom }) => {
@@ -891,4 +891,50 @@ it('matches horizontal physical scale using both axes and the mapped target rota
   await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
   await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', expect.objectContaining({ imageZoom: 2, rotation: 180 })))
   expect(screen.getAllByText('Approximate physical scale · horizontal only')).toHaveLength(2)
+})
+
+
+it('retains points after same-version canonical publication and requires a fresh preview basis before saving', async () => {
+  viewportHarness.bounds = [10, 20, 800, 500]
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  const posted: Array<Record<string, unknown>> = []
+  let basis = 'opaque-initial-basis'
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const value = await (await originalFetch(input, init)).json()
+    if (value.members) value.members[1].registration.movingToReference = basis === 'opaque-initial-basis' ? [[1, 0, 20], [0, 1, 30]] : [[1.2, 0, -10], [0, 1.2, 0]]
+    if (String(input).endsWith('/region-corrections')) {
+      const payload = JSON.parse(String(init?.body)); posted.push(payload)
+      if (payload.operation === 'save' && payload.basisVersion !== basis) return new Response(JSON.stringify({ detail: { code: 'REGION_PREVIEW_CHANGED' } }), { status: 409 })
+      value.name = payload.operation === 'preview' ? 'Bound preview' : 'Bound save'
+      value.version = payload.operation === 'preview' ? 1 : 2
+      value.regionalCorrections = [{ id: 'revision', regionId: 'same-region', sourceSlideId: payload.sourceSlideId, targetSlideId: payload.targetSlideId, sourceVersion: 'same-source', targetVersion: 'same-target', basisVersion: basis, sourceBounds: payload.sourceBounds, registration: { status: 'approximate', provenance: 'manual-region', movingToReference: value.members[1].registration.movingToReference, triangles: value.members[1].registration.triangles } }]
+    }
+    return new Response(JSON.stringify(value), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  await user.click(screen.getByRole('button', { name: 'Record point pair' }))
+  await user.click(screen.getByRole('button', { name: 'Preview correction' }))
+  await screen.findByText('Bound preview')
+  basis = 'opaque-published-basis' // Canonical linear map changed; set version and source snapshots did not.
+  await user.click(screen.getByRole('button', { name: 'Save correction' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Preview the correction again before saving')
+  expect(screen.getByText('1 point pairs')).toBeVisible()
+  expect(screen.getByText('Captured region (pixels): 10, 20, 800, 500')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Save correction' })).toBeDisabled()
+  expect(posted.filter(row => row.operation === 'save')).toHaveLength(1)
+  expect(posted[1]).toMatchObject({ version: 1, basisVersion: 'opaque-initial-basis', sourceVersion: 'same-source', targetVersion: 'same-target' })
+  await user.click(screen.getByRole('button', { name: 'Preview correction' }))
+  expect(screen.getByRole('button', { name: 'Save correction' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Save correction' }))
+  expect(await screen.findByText('Bound save')).toBeVisible()
+  expect(posted).toHaveLength(4)
+  expect(posted[3]).toMatchObject({ basisVersion: 'opaque-published-basis', version: 1, sourceVersion: 'same-source', targetVersion: 'same-target' })
+  expect(posted[0].regionId).toBeUndefined()
+  for (const row of posted.slice(1)) expect(row.regionId).toBe('same-region')
+  for (const row of posted) expect(row).toMatchObject({ sourceBounds: [10, 20, 800, 500], movingPoints: [[210, 330]], referencePoints: [[210, 330]] })
 })

@@ -318,6 +318,7 @@ export interface ComparisonSet {
     targetSlideId: string
     sourceVersion: string
     targetVersion: string
+    basisVersion?: string
     sourceBounds: [number, number, number, number]
     registration: SlideRegistration
     createdAt: string
