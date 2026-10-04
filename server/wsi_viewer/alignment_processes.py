@@ -56,6 +56,29 @@ class LinuxAlignmentGroup:
                 members[pid] = started
         return members
 
+    def _member_active(self, pid: int, started: int) -> bool:
+        try:
+            state, _, session, current = _identity(pid)
+        except FileNotFoundError:
+            return False
+        return state != "Z" and session == self.pid and current == started
+
+    def resident_bytes(self) -> int:
+        """Sample owned RSS without silently omitting an unreadable live member."""
+        total = 0
+        for pid, started in self.members().items():
+            try:
+                pages = int(Path(f"/proc/{pid}/statm").read_text().split()[1])
+                if pages < 0:
+                    raise ValueError("negative resident page count")
+            except (OSError, IndexError, ValueError) as error:
+                if not self._member_active(pid, started):
+                    continue
+                raise OSError("live registration member RSS unavailable") from error
+            if self._member_active(pid, started):
+                total += pages * int(cast(Any, os).sysconf("SC_PAGE_SIZE"))
+        return total
+
     def _signal(self, number: int) -> None:
         for pid, started in self.members().items():
             try:

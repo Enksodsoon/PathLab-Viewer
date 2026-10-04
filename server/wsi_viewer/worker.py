@@ -1140,7 +1140,7 @@ def _run_alignment_bounded(
                 current_memory_bytes = int(resource_metrics["peakMemoryBytes"])
             else:
                 current_memory_bytes = (
-                    sum(_process_rss_bytes(pid) for pid in linux_group.members())
+                    linux_group.resident_bytes()
                     if linux_group is not None
                     else _process_tree_rss_bytes(process.pid or 0)
                 )

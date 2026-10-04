@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import multiprocessing
 import os
@@ -13,9 +14,23 @@ import tempfile
 import time
 from contextlib import suppress
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 from wsi_viewer.alignment_processes import LinuxAlignmentGroup  # noqa: E402
+
+
+def _optional_rss_reader():
+    # Extract unchanged optional telemetry without importing any WSI libraries.
+    # This is a helper-level baseline contrast, not an actual worker runtime.
+    source = Path(__file__).resolve().parents[1] / "server/wsi_viewer/worker.py"
+    node = next(
+        node for node in ast.parse(source.read_text()).body
+        if isinstance(node, ast.FunctionDef) and node.name == "_process_rss_bytes"
+    )
+    namespace = {"Path": Path, "sys": sys, "os": os}
+    exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), "exec"), namespace)
+    return namespace["_process_rss_bytes"]
 
 
 def _target(directory: str, mode: str, gate: object) -> None:
@@ -48,14 +63,21 @@ def main() -> None:
     if not sys.platform.startswith("linux"):
         raise SystemExit("Linux runtime required; this host cannot establish Linux proof")
     receipts = []
+    optional_rss = _optional_rss_reader()
     context = multiprocessing.get_context("spawn")
     unrelated = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
     try:
-        for mode in ("normal", "root-exit", "timeout", "cancel"):
+        for mode in (
+            "normal", "root-exit", "timeout", "cancel",
+            "rss-live-unreadable", "rss-after-loss", "rss-exit-race",
+        ):
             with tempfile.TemporaryDirectory(prefix="alignment-containment-") as directory:
                 path = Path(directory)
                 gate = context.Event()
-                process = context.Process(target=_target, args=(directory, mode, gate))
+                target_mode = {"rss-after-loss": "normal", "rss-exit-race": "root-exit"}.get(
+                    mode, mode
+                )
+                process = context.Process(target=_target, args=(directory, target_mode, gate))
                 group = None
                 descriptors = []
                 try:
@@ -74,9 +96,44 @@ def main() -> None:
                     assert os.getsid(descendants[1]) == process.pid
                     assert set(descendants).issubset(group.members())
                     (path / "handles-ready").touch()
-                    if mode in {"normal", "root-exit"}:
+                    rss_proof = {}
+                    if mode == "rss-live-unreadable":
+                        member = descendants[0]
+                        before = group.members()[member]
+                        real_read = Path.read_text
+
+                        def read(value, *args, _member=member, _read=real_read, **kwargs):
+                            if value == Path(f"/proc/{_member}/statm"):
+                                raise PermissionError("injected live RSS loss")
+                            return _read(value, *args, **kwargs)
+
+                        with patch.object(Path, "read_text", read):
+                            assert optional_rss(member) == 0
+                            try:
+                                group.resident_bytes()
+                            except OSError as error:
+                                assert "RSS unavailable" in str(error)
+                            else:
+                                raise AssertionError("live unreadable RSS was silently omitted")
+                            assert group.members()[member] == before
+                        rss_proof = {
+                            "sameOwnedLiveIdentity": True,
+                            "optionalTelemetryReturnsZero": True,
+                            "enforcementRejected": True,
+                        }
+                    if target_mode in {"normal", "root-exit"}:
                         process.join(5)
                         assert not process.is_alive()
+                    if mode == "rss-exit-race":
+                        # A real root exited after the earlier membership snapshot.
+                        captured = {**group.members(), process.pid: group.start_time}
+                        with patch.object(group, "members", return_value=captured):
+                            assert group.resident_bytes() > 0
+                        assert optional_rss(process.pid) == 0
+                        rss_proof = {"confirmedExitIsBenign": True}
+                    if mode == "rss-after-loss":
+                        assert group.resident_bytes() > 0
+                        rss_proof = {"secondAdmissionAfterProvedCleanup": True}
                     elif mode == "timeout":
                         time.sleep(0.2)
                     group.close()
@@ -94,6 +151,7 @@ def main() -> None:
                             "descendantsTerminal": 2,
                             "termResistantNewProcessGroup": True,
                             "unrelatedProcessUnaffected": True,
+                            **rss_proof,
                         }
                     )
                 finally:

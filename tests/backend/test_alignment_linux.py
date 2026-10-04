@@ -113,3 +113,68 @@ def test_term_resistant_descendants_end_even_after_root_exit(tmp_path, monkeypat
             os.close(descriptor)
         unrelated.terminate()
         unrelated.wait(timeout=5)
+
+
+def test_live_rss_loss_rejects_and_cleanup_permits_second_child(tmp_path, monkeypatch):
+    monkeypatch.setattr(worker, "_alignment_child", _resistant_child)
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+    descriptors = []
+    denied_pid = [None]
+    inject_failure = [True]
+    real_read = Path.read_text
+
+    def read(path, *args, **kwargs):
+        if denied_pid[0] is not None and path == Path(f"/proc/{denied_pid[0]}/statm"):
+            # The member's actual stat identity remains readable and live.
+            raise PermissionError("test live owned RSS unavailable")
+        return real_read(path, *args, **kwargs)
+
+    def heartbeat():
+        if (tmp_path / "grand-ready").exists() and not descriptors:
+            descendants = json.loads((tmp_path / "tree.json").read_text())
+            descriptors.extend(os.pidfd_open(pid) for pid in descendants)
+            if inject_failure[0]:
+                denied_pid[0] = descendants[0]
+            (tmp_path / "handles-ready").touch()
+
+    monkeypatch.setattr(Path, "read_text", read)
+    options = dict(timeout_seconds=8, memory_bytes=2 * 1024**3)
+    try:
+        with pytest.raises(AlignmentRejected, match="accounting failed.*RSS unavailable"):
+            worker._run_alignment_bounded(
+                tmp_path, tmp_path, (10, 10), (10, 10),
+                engine_settings={"mode": "normal"}, heartbeat=heartbeat, **options,
+            )
+        import select
+
+        assert len(descriptors) == 2
+        for descriptor in descriptors:
+            poller = select.poll()
+            poller.register(descriptor, select.POLLIN)
+            assert poller.poll(1000), "unreadable member survived cleanup"
+        assert unrelated.poll() is None
+        denied_pid[0] = None
+        inject_failure[0] = False
+        for name in ("grand-ready", "tree.json", "handles-ready"):
+            (tmp_path / name).unlink()
+        for descriptor in descriptors:
+            os.close(descriptor)
+        descriptors.clear()
+        result = worker._run_alignment_bounded(
+            tmp_path, tmp_path, (10, 10), (10, 10),
+            engine_settings={"mode": "normal"}, heartbeat=heartbeat, **options,
+        )
+        assert result["status"] == "approximate"
+        assert len(descriptors) == 2
+        for descriptor in descriptors:
+            poller = select.poll()
+            poller.register(descriptor, select.POLLIN)
+            assert poller.poll(1000), "second invocation descendants survived"
+        assert unrelated.poll() is None
+    finally:
+        for descriptor in descriptors:
+            with suppress(ProcessLookupError):
+                signal.pidfd_send_signal(descriptor, signal.SIGKILL)
+            os.close(descriptor)
+        unrelated.terminate()
+        unrelated.wait(timeout=5)
