@@ -110,6 +110,9 @@ class RegionCorrectionRequest(BaseModel):
     target_version: str | None = Field(
         default=None, alias="targetVersion", min_length=1, max_length=128
     )
+    basis_version: str | None = Field(
+        default=None, alias="basisVersion", min_length=1, max_length=128
+    )
     region_id: str | None = Field(default=None, alias="regionId", min_length=1, max_length=36)
     source_bounds: list[float] | None = Field(
         default=None, alias="sourceBounds", min_length=4, max_length=4
@@ -436,6 +439,10 @@ def _regional_corrections(
                 "targetVersion": row.target_version,
                 "sourceBounds": row.source_bounds,
                 "registration": row.registration,
+                **(
+                    {"basisVersion": row.registration["evidence"]["basisVersion"]}
+                    if (row.registration.get("evidence") or {}).get("basisVersion") else {}
+                ),
                 "createdAt": _utc_iso(row.created_at),
             }
         )
@@ -1334,6 +1341,11 @@ def register_alignment_routes(
                 payload.source_version is None or payload.target_version is None
             ):
                 raise _error("REGION_SOURCE_VERSIONS_REQUIRED")
+            if (
+                payload.operation == "save" and len(payload.moving_points) == 1
+                and payload.basis_version is None
+            ):
+                raise _error("REGION_PREVIEW_REQUIRED")
             if (payload.source_version is not None and payload.source_version != source_digest) or (
                 payload.target_version is not None and payload.target_version != target_digest
             ):
@@ -1399,6 +1411,11 @@ def register_alignment_routes(
                 raise _error(str(exc)) from exc
             except (OSError, ValueError, KeyError):
                 raise _error("LANDMARK_IMAGE_UNAVAILABLE", 503) from None
+            if (
+                payload.operation == "save" and len(payload.moving_points) == 1
+                and payload.basis_version != registration["evidence"].get("basisVersion")
+            ):
+                raise _error("REGION_PREVIEW_CHANGED", 409)
             source_bounds = payload.source_bounds
         now = datetime.now(UTC)
         revision_id = str(uuid.uuid4())
@@ -1418,6 +1435,10 @@ def register_alignment_routes(
                     "targetVersion": target_digest,
                     "sourceBounds": source_bounds,
                     "registration": registration,
+                    **(
+                        {"basisVersion": registration["evidence"]["basisVersion"]}
+                        if registration["evidence"].get("basisVersion") else {}
+                    ),
                     "createdAt": _utc_iso(now),
                 },
             )

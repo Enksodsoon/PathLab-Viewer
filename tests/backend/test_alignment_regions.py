@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -44,6 +46,18 @@ def _request(version, **overrides):
             {
                 "sourceVersion": content_geometry_version("sha-2", frame_metadata),
                 "targetVersion": content_geometry_version("sha-1", frame_metadata),
+                "basisVersion": "alignment-basis:"
+                + hashlib.sha256(
+                    json.dumps(
+                        {
+                            "schema": "alignment-basis/1",
+                            "basis": "physical-calibration",
+                            "linear": [[1.0, 0.0], [0.0, 1.0]],
+                        },
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode()
+                ).hexdigest(),
             }
             if overrides.get("operation") == "save"
             else {}

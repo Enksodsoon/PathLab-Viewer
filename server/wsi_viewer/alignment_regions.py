@@ -231,6 +231,15 @@ def build_region_registration(
     transform = np.column_stack([linear, reference[0] - linear @ moving[0]])
     if not np.isfinite(transform).all() or abs(np.linalg.det(linear)) < 1e-8:
         raise RegionRejected("LANDMARKS_DEGENERATE")
+    basis_version = None
+    if len(moving) == 1:
+        encoded_basis = json.dumps(
+            {"schema": "alignment-basis/1", "basis": basis, "linear": linear.tolist()},
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode()
+        basis_version = "alignment-basis:" + hashlib.sha256(encoded_basis).hexdigest()
     corners = np.asarray(
         [[left, top], [left + width, top], [left + width, top + height], [left, top + height]]
     )
@@ -295,6 +304,7 @@ def build_region_registration(
             "basis": basis,
             "calibrated": bool(calibrated),
             "anatomicallyQualified": False,
+            **({"basisVersion": basis_version} if basis_version is not None else {}),
         },
     }
     for point in moving:
