@@ -7,7 +7,8 @@ USER root
 
 # VALIS is isolated in an optional image because several pinned native wheels
 # are not published for Linux ARM64. This build is the explicit OCI admission
-# gate: a failure leaves HISAlign usable and VALIS disabled.
+# gate: incompatible dependencies or unavailable wheels reject this optional
+# image, leaving the base image unchanged. HISAlign remains license-excluded.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential cmake ninja-build openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/*
@@ -38,14 +39,16 @@ PY
 # The tagged source ships a platform-aware uv.lock, including a Linux ARM64
 # resolution. Exporting it frozen prevents the image build from silently
 # selecting newer transitive packages. Hashes from the lock are retained in
-# the generated requirements file and enforced by pip.
+# the generated requirements file and enforced by pip. The inherited backend
+# constraints also prevent frozen VALIS dependencies from replacing base pins.
 RUN pip install --no-cache-dir "uv==${UV_VERSION}" \
     && install -d /opt/valis \
     && tar -xzf /tmp/valis.tar.gz --strip-components=1 -C /opt/valis \
     && cd /opt/valis \
     && uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file /tmp/valis-requirements.lock \
-    && pip install --no-cache-dir --require-hashes -r /tmp/valis-requirements.lock \
+    && pip install --no-cache-dir --require-hashes --constraint /app/deploy/backend-requirements.txt -r /tmp/valis-requirements.lock \
     && pip install --no-cache-dir --no-deps /opt/valis \
+    && pip check \
     && rm -f /tmp/valis.tar.gz /tmp/valis-requirements.lock \
     && python -c "from valis import registration; assert registration.Valis"
 
