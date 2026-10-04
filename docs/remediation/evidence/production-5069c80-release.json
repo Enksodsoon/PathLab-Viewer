@@ -1,0 +1,103 @@
+{
+  "schema": "pathlab.production-remediation-release/1",
+  "sha": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+  "checkedAt": "2026-10-04T04:55:59.546787+00:00",
+  "deploymentRun": 37177663993,
+  "deploymentConclusion": "success",
+  "deploymentExactSHAEvidence": "Terminal protected log reports success after live checkout SHA and service health assertions.",
+  "ciRun": 37175468040,
+  "securityRun": 37175468076,
+  "qualification": {
+    "subject": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+    "run": 37175468040,
+    "all32NewCasesExecuted": true,
+    "browserPassed": 285,
+    "browserSkipped": 3,
+    "browserReportedRuntime": "14.2m",
+    "matrixStepSeconds": 855.0,
+    "matrixBudgetSeconds": 960,
+    "budgetPreserved": true,
+    "fullstackProductionTouched": false,
+    "scope": "Terminal official CI log and step metadata; full-stack case statistics require its separate retained report.",
+    "qualificationAttempt": 2,
+    "originalAttempt1": {
+      "browserPassed": 284,
+      "browserSkipped": 3,
+      "browserFailed": 1,
+      "failure": "Existing mobile annotation readiness deadline before drawing assertions",
+      "log": "var/main-5069c80-attempt1-ci.log",
+      "retained": true
+    },
+    "unchangedFocusedReplay": {
+      "passed": 20,
+      "seconds": 45.0
+    },
+    "assertionsAndTimeoutsUnchanged": true,
+    "fullstackEvidence": {
+      "executedAttempt": 1,
+      "carriedForwardByGitHub": true,
+      "expected": 30,
+      "skipped": 1,
+      "unexpected": 0,
+      "flaky": 0,
+      "durationSeconds": 929.104887,
+      "report": "var/main-5069c80-fullstack-artifact/fullstack.json"
+    }
+  },
+  "restore": {
+    "archiveRoots": [
+      "delivery",
+      "originals",
+      "private",
+      "public"
+    ],
+    "fileBytes": 3286131731,
+    "fileCount": 106325,
+    "filesIntegrity": "restored",
+    "databaseIntegrity": "restored",
+    "schemaRevision": "20260907_0037",
+    "tableCount": 69
+  },
+  "health": {
+    "checkedAt": "2026-10-04T04:55:45.114220+00:00",
+    "requestedReleaseSubject": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+    "scope": "Anonymous health and actual assessment authorization boundary; exact deployed SHA requires independent terminal workflow evidence. No credentials or response bodies recorded.",
+    "results": [
+      {
+        "path": "/livez",
+        "status": 200,
+        "expected": 200,
+        "elapsedSeconds": 0.14
+      },
+      {
+        "path": "/readyz",
+        "status": 200,
+        "expected": 200,
+        "elapsedSeconds": 0.141
+      },
+      {
+        "path": "/api/v2/admin/assessment/drafts",
+        "status": 401,
+        "expected": 401,
+        "elapsedSeconds": 0.094
+      }
+    ],
+    "passed": true
+  },
+  "featureSettings": {
+    "classroom": true,
+    "annotations": false,
+    "adminAnnotationCanary": true,
+    "study": "existing disabled gate retained"
+  },
+  "nativeVerification": "PENDING: fresh signed-in return and persistence checks required; previous-release checks are separate.",
+  "campaignComplete": false,
+  "remaining": [
+    "Fresh signed-in released native return and persistence checks",
+    "Specific synthetic Practice/learner and paused-upload Cancel confirmations",
+    "Human native production folder drag observation",
+    "Reported secret provenance/rotation and actual OneDrive sync/sharing facts",
+    "176 accountable software admissions and two exact unshipped source notice gaps",
+    "Distinct-identity production competing admission qualification"
+  ]
+}

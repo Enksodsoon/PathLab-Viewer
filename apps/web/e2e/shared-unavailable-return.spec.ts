@@ -6,19 +6,31 @@ for (const target of ['folder', 'collection'] as const) {
       await page.setViewportSize(viewport)
       await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: viewport.width >= 900 ? 'dark' : 'light' })
       let reads = 0
+      let retryPending = false
+      let releaseRetry!: () => void
+      const retryResponse = new Promise<void>((resolve) => { releaseRetry = resolve })
       await page.route('**/api/**', async (route) => {
         const publicRead = /\/api\/v2\/public\/(folders|collections)\//.test(route.request().url())
         if (publicRead) reads += 1
+        if (publicRead && retryPending) await retryResponse
         await route.fulfill({ status: publicRead ? 404 : 401, contentType: 'application/json', body: JSON.stringify({ detail: { code: publicRead ? 'NOT_FOUND' : 'AUTHENTICATION_REQUIRED' } }) })
       })
       const path = `${target === 'folder' ? '/f/' : '/c/'}unavailable-qa`
       await page.goto(path)
       await expect(page.getByRole('heading', { name: 'This shared library is unavailable' })).toBeVisible()
       const initialReads = reads
-      await page.getByRole('button', { name: 'Try again' }).click()
-      await expect.poll(() => reads).toBe(initialReads + 1)
-      await expect(page.getByRole('heading', { name: 'This shared library is unavailable' })).toBeVisible()
       const exit = page.getByRole('link', { name: 'Go to library' })
+      retryPending = true
+      try {
+        await page.getByRole('button', { name: 'Try again' }).click()
+        await expect.poll(() => reads).toBe(initialReads + 1)
+        // Cross the loading boundary before accepting the new unavailable view.
+        await expect(page.getByText('Opening shared library…', { exact: true })).toBeVisible()
+        await expect(exit).toHaveCount(0)
+      } finally {
+        releaseRetry()
+      }
+      await expect(page.getByRole('heading', { name: 'This shared library is unavailable' })).toBeVisible()
       await expect(exit).toBeVisible()
       const box = await exit.boundingBox()
       expect(box).not.toBeNull()

@@ -1,7 +1,9 @@
 # Assessment save acknowledgments and optional recovery storage
 
 Labels: wayfinder:decision
-Status: confirmed; candidate under qualification
+Status: confirmed; repaired and deployed; current-release native qualification pending
+
+Historical status at candidate qualification: confirmed; candidate under qualification
 
 ## Evidence and decision
 
@@ -26,3 +28,8 @@ Complete local frontend run passes535tests across82files in539.23seconds. This r
 ## Required full-stack fixture repair
 
 At44ed2de, CI37137449081 passed eight required contexts but failed fullstack: a generated share public ID began with a hyphen, and the fixture subprocess passed it as an option to argparse. A deterministic direct Node-to-Python red reproduces unrecognized arguments. Pass the end-of-options delimiter before the subject. The same actual caller then reaches the disposable database lookup and rejects a missing synthetic share. The added full-stack regression asserts that lookup error rather than random token selection. No share generator, authorization boundary, capacity control or application API changes. Changed-file lint passes; fresh complete exact-head gates and renewed review remain required. Ignored receipts: var/pr299-fullstack-failure.log, var/fixture-hyphen-red.log and var/fixture-hyphen-green.log.
+
+
+## Verified delivery disposition
+
+[Protected deployment37141936233](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37141936233) reached terminal success at exact746df1a194558581699adfeaf45b3861897ab9af. The deployed commit is an ancestor of current production5069c80e6d5ecff079ab806fd7fb084f1d3119a2; this corrects the stale candidate/delivery-pending label. Prior reproductions, qualification failures and scope limits above are historical evidence and remain intact. [Current release receipt](../evidence/production-5069c80-release.json) records exact-SHA delivery, restore and health. Fresh authenticated verification on that release remains pending; no new production concurrency, storage-denial or response-loss injection is claimed. Original954source entries/29aggregate subclaims,45campaign keys and revised60claims are unchanged.

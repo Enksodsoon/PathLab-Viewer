@@ -82,7 +82,7 @@ Production9ea88b9 is verified through protected release37150191318, actual resto
 [Atomic assessment revision admission](tickets/assessment-revision-admission.md) and [lost acknowledgment recovery](tickets/assessment-lost-acknowledgment.md) are delivered together at verified production c570116. [Remaining campaign closure](tickets/remaining-campaign-closure.md) retains direct production drag observation, specific synthetic action confirmations, external security facts and strict accountable software admission. Earlier pending-delivery entries above describe historical checkpoints. The approved full destination remains unchanged.
 
 
-## Current verified production c37cf81
+## Historical native-qualified production c37cf81
 
 PR307 merged c37cf81 after all nine reviewed-head gates. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts; the unchanged Library-sort observation, focused45-case suite and20replays are retained separately from the successful same-SHA failed-job rerun. Protected deployment37164136683 succeeded with actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh health200/200 and anonymous drafts401 passed. Native explicit Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved; Library return loaded authenticated content. [Release receipt](evidence/production-c37cf81-release.json) records scope and limitations. Original findings and external closure requirements remain visible.
 
@@ -97,3 +97,12 @@ PR307 merged c37cf81 after all nine reviewed-head gates. Fresh main CI3716237638
 ## Shared-return hosted coverage integration
 
 [Hosted matrix integration](tickets/shared-return-ci-matrix.md) records the explicit CI file-list omission discovered in the terminal PR310 log. Local32 new cases pass; existing hosted253 cases passed. Add the fixture without raising the16-minute budget, refresh provenance and require actual hosted coverage before protected delivery. Application source is unchanged; production remains c37cf81.
+
+
+## Production5069c80 release checkpoint
+
+PR310 repaired unavailable folder/collection return; PR311 added its omitted fixture to hosted CI. Both reviewed heads passed all nine gates before normal protected merges. Fresh main CI37175468040 attempt2 and Security37175468076 passed all nine latest exact-SHA checks. Browser285passed/3skipped includes all32 new cases; matrix855seconds stayed within960seconds. Retain attempt1's existing mobile annotation readiness failure before drawing assertions, unchanged20 focused replays and the one same-SHA failed-job retry. Assertions and timeouts were unchanged. Full-stack executed on attempt1 and GitHub carried its successful result forward:30expected/1skipped/0unexpected/0flaky,929.105seconds,productionTouched=false.
+
+[Protected deployment37177663993](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37177663993) succeeded at exact5069c80e6d5ecff079ab806fd7fb084f1d3119a2. Its actual restore reported69tables/106325files/3286131731bytes/schema20260907_0037 and restored database/file integrity. Fresh04:55:45UTC livez/readyz200 and anonymous assessment drafts401 passed. Classroom=true, general annotations=false and admin annotation canary=true inputs were preserved; Study retains its existing disabled gate. [Release receipt](evidence/production-5069c80-release.json) and [exact-main gates](evidence/main-5069c80-required-checks.json) record scope.
+
+Fresh released native verification remains pending. The private assessment tab showed Administrator sign in; Windows input stopped because the helper could not confidently identify the current browser URL. Earlier c37cf81 native persistence checks remain separate. No new publication, learner submission, Cancel or access change was automated. Original954source entries/29aggregate subclaims/45campaign findings and all versioned aliases remain unchanged. Specific native action confirmations, human production drag observation, external secret provenance/rotation and OneDrive facts,176accountable software admissions/two exact unshipped source notice gaps and distinct-identity production admission qualification keep the full campaign open.
