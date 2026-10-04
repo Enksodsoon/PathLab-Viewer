@@ -128,3 +128,129 @@ def test_approximate_observations_cannot_hide_ready_map_error_gate():
     assert result["medianErrorUm"] == 0
     assert result["coverage"] == 0.8
     assert result["qualified"] is False
+
+
+def _tiered_registration():
+    return {
+        "status": "ready",
+        "sourceVersion": "moving-bytes",
+        "anchorVersion": "reference-bytes",
+        "anchorSlideId": "reference",
+        "triangles": [{"moving": [[0, 0], [2, 0], [0, 2]], "reference": [[5, 7], [7, 7], [5, 9]]}],
+        "overviewTriangles": [
+            {"moving": [[0, 0], [40, 0], [0, 40]], "reference": [[5, 7], [45, 7], [5, 47]]}
+        ],
+    }
+
+
+def test_ready_local_miss_uses_own_overview_per_point_without_ready_relabel():
+    registration = _tiered_registration()
+    report = evaluate_landmarks(
+        [
+            _record(movingPoint=[0.5, 0.5], referencePoint=[5.5, 7.5], registration=registration),
+            _record(movingPoint=[10, 10], referencePoint=[15, 17], registration=registration),
+        ],
+        measure_approximate=True,
+    )
+    assert report["observedLandmarks"] == 2
+    assert report["coverage"] == 0.5
+    assert report["approximateLandmarks"] == 1
+    assert report["supportTierCounts"] == {"ready-local": 1, "own-overview": 1}
+    assert report["qualified"] is False
+    assert registration["status"] == "ready"
+
+
+def test_local_support_has_priority_over_disagreeing_overview():
+    registration = _tiered_registration()
+    registration["overviewTriangles"][0]["reference"] = [[100, 100], [140, 100], [100, 140]]
+    report = evaluate_landmarks(
+        [_record(movingPoint=[0.5, 0.5], referencePoint=[5.5, 7.5], registration=registration)],
+        measure_approximate=True,
+    )
+    assert report["medianErrorUm"] == 0
+    assert report["supportTierCounts"] == {"ready-local": 1}
+
+
+def test_bound_native_overview_fallback_is_scored_after_own_cell_miss():
+    registration = _tiered_registration()
+    fallback = {**registration, "status": "approximate", "triangles": []}
+    registration["overviewTriangles"] = []
+    registration["overviewFallback"] = fallback
+    report = evaluate_landmarks(
+        [_record(movingPoint=[10, 10], referencePoint=[15, 17], registration=registration)],
+        measure_approximate=True,
+    )
+    assert report["observedLandmarks"] == 1
+    assert report["approximateLandmarks"] == 1
+    assert report["coverage"] == 0
+    assert report["supportTierCounts"] == {"overview-fallback": 1}
+    assert report["qualified"] is False
+
+
+def test_strict_evaluation_refuses_own_overview_and_bound_fallback():
+    registration = _tiered_registration()
+    registration["overviewFallback"] = {**registration, "status": "approximate"}
+    report = evaluate_landmarks(
+        [_record(movingPoint=[10, 10], referencePoint=[15, 17], registration=registration)]
+    )
+    assert report["observedLandmarks"] == 0
+    assert report["unsupportedLandmarks"] == 1
+    assert report["supportTierCounts"] == {}
+
+
+@pytest.mark.parametrize("mismatch", ["sourceVersion", "anchorVersion", "anchorSlideId"])
+def test_fallback_with_different_source_binding_is_not_scored(mismatch):
+    registration = _tiered_registration()
+    fallback = {**registration, "status": "approximate", mismatch: "other"}
+    registration["overviewTriangles"] = []
+    registration["overviewFallback"] = fallback
+    report = evaluate_landmarks(
+        [_record(movingPoint=[10, 10], referencePoint=[15, 17], registration=registration)],
+        measure_approximate=True,
+    )
+    assert report["observedLandmarks"] == 0
+    assert report["qualified"] is False
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_nonfinite_cell_cannot_produce_an_observed_landmark(bad):
+    registration = _tiered_registration()
+    registration["triangles"][0]["moving"][1][0] = bad
+    registration["overviewTriangles"] = []
+    report = evaluate_landmarks(
+        [_record(movingPoint=[0.5, 0.5], referencePoint=[5.5, 7.5], registration=registration)],
+        measure_approximate=True,
+    )
+    assert report["observedLandmarks"] == 0
+    assert report["qualified"] is False
+
+
+def test_reflected_cell_is_not_usable_navigation_evidence():
+    registration = _tiered_registration()
+    registration["triangles"][0]["reference"] = [[5, 7], [3, 7], [5, 9]]
+    registration["overviewTriangles"] = []
+    report = evaluate_landmarks(
+        [_record(movingPoint=[0.5, 0.5], referencePoint=[4.5, 7.5], registration=registration)],
+        measure_approximate=True,
+    )
+    assert report["observedLandmarks"] == 0
+    assert report["qualified"] is False
+
+
+def test_fallback_coordinate_reference_identity_must_agree():
+    registration = _tiered_registration()
+    registration["coordinateReferenceId"] = "reference-frame"
+    fallback = {**registration, "status": "approximate", "coordinateReferenceId": "other-frame"}
+    registration["overviewTriangles"] = []
+    registration["overviewFallback"] = fallback
+    report = evaluate_landmarks(
+        [_record(movingPoint=[10, 10], referencePoint=[15, 17], registration=registration)],
+        measure_approximate=True,
+    )
+    assert report["observedLandmarks"] == 0
+
+
+def test_affine_only_map_never_extrapolates_landmark_support():
+    registration = {"status": "ready", "movingToReference": [[1, 0, 10], [0, 1, 20]]}
+    report = evaluate_landmarks([_record(registration=registration)], measure_approximate=True)
+    assert report["observedLandmarks"] == 0

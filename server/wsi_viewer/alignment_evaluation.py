@@ -1,10 +1,85 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 import numpy as np
 
-from .alignment import AlignmentRejected, map_registration_point
+from .alignment import AlignmentRejected
+
+SUPPORT_MAPPING_POLICY = "pointwise-supported-cells/2"
+
+
+def _map_cells(cells: Any, point: np.ndarray) -> np.ndarray | None:
+    """Use explicit finite, invertible cells only; never affine extrapolation."""
+    if not isinstance(cells, list):
+        return None
+    for cell in cells:
+        try:
+            source = np.asarray(cell["moving"], dtype=float)
+            target = np.asarray(cell["reference"], dtype=float)
+            if any(
+                value.shape != (3, 2) or not np.isfinite(value).all() for value in (source, target)
+            ):
+                continue
+            matrix = np.vstack([source.T, np.ones(3)])
+            target_matrix = np.vstack([target.T, np.ones(3)])
+            source_det = float(np.linalg.det(matrix))
+            target_det = float(np.linalg.det(target_matrix))
+            if abs(source_det) <= 1e-12 or target_det / source_det <= 1e-12:
+                continue
+            weights = np.linalg.solve(matrix, [*point, 1.0])
+            if np.isfinite(weights).all() and float(np.min(weights)) >= -1e-7:
+                mapped = weights @ target
+                if np.isfinite(mapped).all():
+                    return mapped
+        except (KeyError, TypeError, ValueError, np.linalg.LinAlgError):
+            continue
+    return None
+
+
+def map_supported_landmark(
+    registration: dict[str, Any], point: np.ndarray, *, measure_approximate: bool = False
+) -> tuple[np.ndarray, str]:
+    """Match viewer tier priority inside explicit cells, excluding viewport gap snaps.
+
+    Coarse observations never count as ready-local evidence. A fallback must bind
+    the same source bytes, anchor bytes and anchor identity; optional frame tokens
+    must also agree. No nested fallback or affine-only mapping is admitted.
+    """
+    if registration.get("status") == "ready":
+        mapped = _map_cells(registration.get("triangles"), point)
+        if mapped is not None:
+            return mapped, "ready-local"
+    if measure_approximate and registration.get("status") in ("ready", "approximate"):
+        mapped = _map_cells(registration.get("overviewTriangles"), point)
+        if mapped is not None:
+            return mapped, "own-overview"
+        fallback = registration.get("overviewFallback")
+        binding_keys = ("sourceVersion", "anchorVersion", "anchorSlideId")
+        frame_keys = (
+            "sourceFrameVersion",
+            "anchorFrameVersion",
+            "sourceSnapshotVersion",
+            "anchorSnapshotVersion",
+            "coordinateReferenceId",
+        )
+        if (
+            isinstance(fallback, dict)
+            and fallback.get("status") in ("ready", "approximate")
+            and all(
+                registration.get(key) is not None and fallback.get(key) == registration[key]
+                for key in binding_keys
+            )
+            and all(
+                key not in registration or fallback.get(key) == registration[key]
+                for key in frame_keys
+            )
+        ):
+            mapped = _map_cells(fallback.get("overviewTriangles"), point)
+            if mapped is not None:
+                return mapped, "overview-fallback"
+    raise AlignmentRejected("point is outside explicit supported registration cells")
 
 
 def evaluate_landmarks(
@@ -17,6 +92,7 @@ def evaluate_landmarks(
     approximate = 0
     invalid = 0
     unsupported = 0
+    tiers: Counter[str] = Counter()
     for record in eligible:
         try:
             if type(record.get("wrongStructure")) is not bool:
@@ -45,20 +121,10 @@ def evaluate_landmarks(
             registration = record["registration"]
             if not isinstance(registration, dict):
                 raise ValueError("Missing registration")
-            is_approximate = registration.get("status") == "approximate"
-            cells = registration.get("triangles") or (
-                registration.get("overviewTriangles")
-                if measure_approximate and is_approximate
-                else []
+            mapped, tier = map_supported_landmark(
+                registration, moving, measure_approximate=measure_approximate
             )
-            if (
-                registration.get("status") not in ("ready", "approximate")
-                or (is_approximate and not measure_approximate)
-                or not cells
-            ):
-                unsupported += 1
-                continue
-            mapped = np.asarray(map_registration_point({"triangles": cells}, *moving))
+            is_approximate = tier != "ready-local"
             if calibration is None:
                 size = np.asarray(record["referenceSize"], dtype=float)
                 if size.shape != (2,) or not np.isfinite(size).all() or np.any(size <= 0):
@@ -75,6 +141,7 @@ def evaluate_landmarks(
                 if not is_approximate:
                     accepted_errors.append(error)
             approximate += int(is_approximate)
+            tiers[tier] += 1
         except AlignmentRejected:
             unsupported += 1
         except (KeyError, TypeError, ValueError, IndexError):
@@ -98,6 +165,9 @@ def evaluate_landmarks(
     return {
         "eligibleLandmarks": len(eligible),
         "measurementMethod": "mapped-source-coordinates",
+        "supportMappingPolicy": SUPPORT_MAPPING_POLICY,
+        "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+        "supportTierCounts": dict(tiers),
         "invalidLandmarks": invalid,
         "unsupportedLandmarks": unsupported,
         "evaluatedLandmarks": len(errors),

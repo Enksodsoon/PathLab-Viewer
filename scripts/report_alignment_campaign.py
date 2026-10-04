@@ -16,7 +16,7 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
-from wsi_viewer.alignment import AlignmentRejected, map_registration_point
+from wsi_viewer.alignment import AlignmentRejected
 from wsi_viewer.alignment_benchmark import _pair_settings, _safe_resource_metrics
 from wsi_viewer.alignment_engines import (
     ENGINE_ALIASES,
@@ -24,7 +24,11 @@ from wsi_viewer.alignment_engines import (
     MAX_INITIALIZER_ARTIFACT_BYTES,
     RECIPE_STAGES,
 )
-from wsi_viewer.alignment_evaluation import evaluate_landmarks
+from wsi_viewer.alignment_evaluation import (
+    SUPPORT_MAPPING_POLICY,
+    evaluate_landmarks,
+    map_supported_landmark,
+)
 
 
 def public_cache_preparation(value):
@@ -627,6 +631,7 @@ def paired_landmark_comparison(left, right, landmarks):
             "errorsByUnit": None,
         }
     groups = {}
+    tiers = {"left": {}, "right": {}}
     invalid = 0
     for record in landmarks:
         if record.get("eligible") is not True:
@@ -657,23 +662,20 @@ def paired_landmark_comparison(left, right, landmarks):
                 unit, {"left": [], "right": [], "onlyLeft": 0, "onlyRight": 0, "neither": 0}
             )
 
-            def error(registration, moving=moving, reference=reference, scale=scale):
-                approximate = registration.get("status") == "approximate"
-                cells = registration.get("triangles") or (
-                    registration.get("overviewTriangles") if approximate else []
-                )
-                if registration.get("status") not in ("ready", "approximate") or not cells:
-                    return None
+            def error(registration, side, moving=moving, reference=reference, scale=scale):
                 try:
-                    mapped = np.asarray(map_registration_point({"triangles": cells}, *moving))
+                    mapped, tier = map_supported_landmark(
+                        registration, moving, measure_approximate=True
+                    )
                 except AlignmentRejected:
                     return None
                 value = float(np.linalg.norm((mapped - reference) * scale))
                 if not np.isfinite(value):
                     raise ValueError("nonfinite saved-map coordinates")
+                tiers[side][tier] = tiers[side].get(tier, 0) + 1
                 return value
 
-            left_error, right_error = error(left), error(right)
+            left_error, right_error = error(left, "left"), error(right, "right")
             if left_error is not None and right_error is not None:
                 group["left"].append(left_error)
                 group["right"].append(right_error)
@@ -727,6 +729,8 @@ def paired_landmark_comparison(left, right, landmarks):
         "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
         "fitPerformed": False,
         "qualificationEvidence": False,
+        "supportMappingPolicy": SUPPORT_MAPPING_POLICY,
+        "supportTierCounts": tiers,
     }
 
 

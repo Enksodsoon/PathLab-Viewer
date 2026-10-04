@@ -514,6 +514,20 @@ def test_no_common_support_keeps_paired_error_measurements_null(campaign_report)
     assert values["rightP95ErrorOnCommonSet"] is None
 
 
+def test_common_support_uses_pointwise_local_then_overview(campaign_report):
+    left = _supported_map([[[0, 0], [10, 0], [0, 10]]], 1)
+    left["status"] = "ready"
+    left["triangles"] = _supported_map([[[0, 0], [3, 0], [0, 3]]], 2)["overviewTriangles"]
+    right = _supported_map([[[0, 0], [10, 0], [0, 10]]], 3)
+    result = campaign_report.paired_landmark_comparison(left, right, _paired_landmarks())
+    assert result["commonSupportedLandmarks"] == 3
+    assert result["supportMappingPolicy"] == "pointwise-supported-cells/2"
+    assert result["supportTierCounts"] == {
+        "left": {"ready-local": 1, "own-overview": 2},
+        "right": {"own-overview": 3},
+    }
+
+
 def test_missing_map_or_independent_landmarks_is_unmeasured(campaign_report):
     map_value = _supported_map([[[0, 0], [10, 0], [0, 10]]], 1)
     for left, right, records in [

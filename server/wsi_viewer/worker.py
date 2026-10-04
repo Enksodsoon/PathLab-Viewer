@@ -626,6 +626,31 @@ def _alignment_child(
         os.setsid()
     if startup_gate is not None and not startup_gate.wait(30):
         return
+    _alignment_invocation(
+        reference_derivative,
+        moving_derivative,
+        reference_full_size,
+        moving_full_size,
+        engine_name,
+        engine_settings,
+        artifact_dir,
+        output,
+        seed_registration,
+    )
+
+
+def _alignment_invocation(
+    reference_derivative: str,
+    moving_derivative: str,
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+    engine_name: str,
+    engine_settings: dict[str, Any] | None,
+    artifact_dir: str | None,
+    output: Any,
+    seed_registration: dict[str, Any] | None = None,
+) -> None:
+    """One engine invocation after the enclosing child's containment barrier."""
     try:
         cv2.setNumThreads(1)
         cv2.setRNGSeed(0)
@@ -1044,17 +1069,25 @@ def _run_alignment_bounded(
     memory_bytes: int,
     heartbeat: Callable[[], None] | None = None,
     progress: Callable[[dict[str, Any]], None] | None = None,
+    _child_target: Callable[..., None] | None = None,
+    _absolute_deadline: float | None = None,
 ) -> dict[str, Any]:
     timeout_seconds = min(600, timeout_seconds)
     if timeout_seconds <= 0:
         raise AlignmentRejected("registration exceeded the pair timeout")
     if heartbeat:
         heartbeat()
+    started = time.monotonic()
+    deadline = started + timeout_seconds
+    if _absolute_deadline is not None:
+        deadline = min(deadline, _absolute_deadline)
+    if deadline <= started:
+        raise AlignmentRejected("registration exceeded the pair timeout before process startup")
     context = multiprocessing.get_context("spawn")
     startup_gate = context.Event() if sys.platform.startswith(("win", "linux")) else None
     output = context.Queue(maxsize=1)
     process = context.Process(
-        target=_alignment_child,
+        target=_child_target or _alignment_child,
         args=(
             str(reference_derivative),
             str(moving_derivative),
@@ -1070,7 +1103,6 @@ def _run_alignment_bounded(
         daemon=True,
     )
     process.start()
-    started = time.monotonic()
     last_heartbeat = started
     peak_memory_bytes = 0
     windows_job = None
@@ -1100,7 +1132,7 @@ def _run_alignment_bounded(
             if heartbeat and time.monotonic() - last_heartbeat >= 0.5:
                 heartbeat()
                 last_heartbeat = time.monotonic()
-            if time.monotonic() - started > timeout_seconds:
+            if time.monotonic() >= deadline:
                 _terminate_process_tree(process, linux_group)
                 raise AlignmentRejected("registration exceeded the pair timeout")
             if windows_job is not None:
@@ -1311,10 +1343,13 @@ def _preview_alignment(
                 )
                 effective_settings[f"{side}Geometry"] = geometry
                 coordinate_size = tuple(geometry["coordinateFrameSize"])
-                geometry_key += ":" + hashlib.sha256(
-                    json.dumps(geometry, sort_keys=True, separators=(",", ":")).encode()
-                    + overview.tobytes()
-                ).hexdigest()
+                geometry_key += (
+                    ":"
+                    + hashlib.sha256(
+                        json.dumps(geometry, sort_keys=True, separators=(",", ":")).encode()
+                        + overview.tobytes()
+                    ).hexdigest()
+                )
             key = f"{layout.root.resolve()}:{slide.sha256}:{geometry_key}"
             value, hit = _preparation_cache.prepare(key, overview or load, coordinate_size)
             preparation_seconds += time.monotonic() - tick

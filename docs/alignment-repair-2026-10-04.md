@@ -269,18 +269,70 @@ The [sanitized preparation receipt](alignment-results/development-preparation-20
 contains aggregate counts, measured resource scope and metadata artifact hashes;
 private source paths, identities and pixels remain outside the tracked report.
 
-Prospective settings retain those exact 122 pairs and all raw-request mappings.
+The completed expansion retained those exact 122 pairs and all raw-request mappings.
 The four independently safety-reviewed but unqualified screening recipes are
 `native-overview-v6`, `native-wsireg`, `native-valis` and `hisalign-0.2.1`:
-488 planned serial process-cold attempts, no fresh repeats, a total 600-second
+488 serial process-cold attempts, no fresh repeats, a total 600-second
 pair allowance and 7 GiB contained-memory boundary. The opt-in generated-cache
 reset preserves all five bound copied pyramids. Settings use established adapter
 defaults with explicit admitted VALIS resource paths/hashes; no case or landmark
 tuning occurred. Host filesystem caching and warm-worker timings remain
-unmeasured. Loaded runtime identity and the final source/build freeze are pending
-the terminal UI checks and root freeze. No expanded attempt has started.
+unmeasured. Source freeze `410b2f48e1ae5834f01d2089b779fca22e2ee8bb`,
+loaded runtime/resource admission and terminal source-stat checks are recorded
+separately from the public screening freeze. All 488 attempts finished in
+15,029.422 seconds: 90 accepted engineering maps and 398 rejected attempts.
+All-attempt latency includes early rejections; accepted-map latency is reported
+separately in the [sanitized expansion report](alignment-results/development-expanded-2026-10-04/observations.json).
 
 These 122 development pairs have zero independent ground-truth landmark sets.
 They can test bounded operational behavior across ordered source pairs, but
 cannot qualify Fast or Accurate accuracy winners, prove full-slide anatomical
 coverage, or substitute for an admitted disjoint final evaluation cohort.
+
+The landmark evaluator previously selected the local mesh globally, overlooking
+points supported by a ready map's own overview. Policy
+`pointwise-supported-cells/2` now tries ready-local cells, own overview cells and
+an explicitly source/anchor/frame-bound overview fallback for each point. Strict
+evaluation excludes both coarse tiers. Finite, invertible, orientation-preserving
+cells are required; affine-only navigation and viewport-dependent gap snapping
+are outside this conservative accuracy measurement scope. Coarse observations
+do not contribute to the ready-local qualification denominator, and map status
+is never changed by evaluation.
+
+Separate posthoc analysis of the 144 preserved public cold receipts uses the
+original frozen fit-free landmarks and records actual evaluator/reporter/script
+bytes plus startup Git HEAD and dirty source state. It verifies receipt metadata,
+saved-map and initializer hashes and unchanged original artifacts. Analysis SHA
+`0b061f47c011593f40799a886926706b5343933b90ec33c5d824a1bc1c46c055`
+adds coarse supported observations: Native→VALIS changes from 175 to 262 of 947
+eligible landmarks and VALIS from 84 to 130. Native remains 360. These are
+posthoc measurements on the same development specimens, with relative errors;
+the original published scores remain preserved and no calibrated winner is
+qualified. Map-specific anatomical review is not inferred from landmark flags.
+
+The separate warm protocol plans all 16 frozen public pairs and nine recipes:
+144 serial contained children, two invocations per child and 288 explicit
+invocation outcomes. Both calls share one absolute 600-second deadline and
+7 GiB boundary, including spawn, source-byte admission and image preparation.
+Frozen input digests are revalidated inside containment before each invocation.
+The requested method settings remain stable; remaining budget is execution
+telemetry. Atomic first-result and execution-phase receipts survive a second-call
+timeout, while fatal containment loss stops the controller. Cached completed
+receipts resume by source/runtime/input/settings/protocol identity; interrupted
+attempt artifacts remain private and are counted separately.
+
+The second call is labeled `warm-python-repeat`: decoded-image retention, model
+retention and host filesystem cache state are unverified. The protocol does not
+reinterpret earlier fresh-process repeats as warm-worker evidence. Genuine
+registration trials remain pending a separately reviewed source/settings/runtime
+freeze and scheduled resource slot.
+
+Per-recipe actual candidate queue and browser-application timings are feasible
+followups but remain unmeasured; saved-map lookups and worker/browser fixture
+journeys establish engineering behavior only. Automated correction interactions
+can measure an automation task's elapsed time and point count, but cannot supply
+human correction effort or anatomical accuracy. Human effort requires actual
+reviewed measurements. Final held-out qualification still needs admitted,
+disjoint, calibrated image pairs with complete independent reference landmarks:
+accessible ACROBAT images lack established public target landmarks, while the
+listed HyReCo files require an account and have not been admitted.
