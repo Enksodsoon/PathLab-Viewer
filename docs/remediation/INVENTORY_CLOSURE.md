@@ -368,3 +368,8 @@ and validator both enumerate new notice-file membership and canonical Git blobs;
 adding/removing notice material invalidates old input membership, not merely hashes.
 Actual packaging qualification should then inspect this regenerated full-text file
 in fresh web, backend/container and Python build artifacts.
+
+
+## Browser distribution qualification followup
+
+The historical five-delta instructions above describe the earlier notice-material checkpoint. Current classification is tracked in [browser shipped distribution](tickets/browser-shipped-distribution.md). Actual immutable compiler graphs and125emitted assets prove guid-typescript1.0.9 and eastasianwidth0.2.0 absent from the current compiled browser. Source records and exact notice blockers remain unchanged. Current generated coverage retains all612source components and selects176unreviewed shipped inputs; strict admission remainsBLOCKED. All full notice bytes and source/asset/toolchain identifier membership are unchanged. Protected hosted verification remains pending.
