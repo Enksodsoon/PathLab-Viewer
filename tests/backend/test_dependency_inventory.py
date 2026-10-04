@@ -13,7 +13,7 @@ from scripts import generate_dependency_inventory as generator
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "985260f402f8d2447fb229e07736eb9239dc66e5"
+SUBJECT = "e22cbb81bb9d0f20a3d821171ec46572de97bbf3"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
