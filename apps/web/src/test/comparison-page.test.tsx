@@ -938,3 +938,44 @@ it('retains points after same-version canonical publication and requires a fresh
   for (const row of posted.slice(1)) expect(row.regionId).toBe('same-region')
   for (const row of posted) expect(row).toMatchObject({ sourceBounds: [10, 20, 800, 500], movingPoints: [[210, 330]], referencePoints: [[210, 330]] })
 })
+
+
+it('labels only an applied supported regional path and clears it for overview fallback or unsupported fields', async () => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const value = await (await originalFetch(input, init)).json()
+    if (value.members) {
+      value.members = value.members.slice(0, 2)
+      value.members[1].registration = { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 0], [0, 1, 0]], overviewTriangles: [{ moving: [[0, 0], [100, 0], [0, 100]], reference: [[0, 0], [100, 0], [0, 100]] }] }
+      value.regionalCorrections = [{ id: 'revision', regionId: 'saved-region', sourceSlideId: 'slide-2', targetSlideId: 'slide-1', sourceBounds: [100, 100, 300, 400], registration: { status: 'approximate', provenance: 'manual-region', movingToReference: [[1, 0, 50], [0, 1, 20]], triangles: [{ moving: [[100, 100], [400, 100], [100, 500]], reference: [[150, 120], [450, 120], [150, 520]] }] } }]
+    }
+    return new Response(JSON.stringify(value), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  const appliedEvent = vi.fn()
+  window.addEventListener('pathlab:alignment-applied', appliedEvent)
+  try {
+    const user = userEvent.setup()
+    render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+    await screen.findByText('Multi-stain set')
+    expect(screen.queryByText('Manually adjusted approximation')).not.toBeInTheDocument()
+    for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+    await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+    const regionalApplication = viewportHarness.applied.mock.calls.filter(([tile]) => tile === '/tiles/2.dzi').at(-1)![1]
+    expect(regionalApplication.centerX).toBeCloseTo(160, 8)
+    expect(regionalApplication.centerY).toBeCloseTo(310, 8)
+    expect(screen.getAllByText('Manually adjusted approximation')).toHaveLength(2)
+    expect(appliedEvent.mock.calls.at(-1)![0].detail).toMatchObject({ slideId: 'slide-2', regional: true })
+    viewportHarness.current = { ...viewportHarness.current, centerX: 30, centerY: 30 }
+    await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+    expect(screen.queryByText('Manually adjusted approximation')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Approximate sync').length).toBeGreaterThan(0)
+    expect(appliedEvent.mock.calls.at(-1)![0].detail).toMatchObject({ regional: false })
+    viewportHarness.current = { ...viewportHarness.current, centerX: 900, centerY: 700 }
+    const applicationsBefore = appliedEvent.mock.calls.length
+    await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+    expect(screen.queryByText('Manually adjusted approximation')).not.toBeInTheDocument()
+    expect(screen.getByText('Unavailable', { exact: true })).toBeVisible()
+    expect(appliedEvent.mock.calls).toHaveLength(applicationsBefore)
+  } finally { window.removeEventListener('pathlab:alignment-applied', appliedEvent) }
+})

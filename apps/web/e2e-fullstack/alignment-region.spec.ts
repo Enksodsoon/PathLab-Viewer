@@ -2,6 +2,10 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { expect, test } from './qa-test'
 import { signIn } from '../e2e-live/capacity-helpers'
+import { mapStackPoint, type Point } from '../src/alignment'
+import type { ComparisonSet } from '../src/types'
+
+type Application = { sourceSlideId: string; slideId: string; regional: boolean; approximate: boolean; sourceViewport: { centerX: number; centerY: number; imageZoom: number; rotation: number }; viewport: { centerX: number; centerY: number; imageZoom: number; rotation: number } }
 
 test('alignment region correction uses real tissue, hidden-reference panes, revision save and two-point cancel', async ({ page }, testInfo) => {
   let loadedTiles = 0
@@ -45,7 +49,7 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await expect(page.getByLabel('Slide shown in pane 1')).toHaveCSS('appearance', 'none')
   await expect(page.getByLabel('Slide shown in pane 1')).toHaveCSS('background-color', 'rgb(45, 43, 39)')
   await expect(page.getByLabel('Slide shown in pane 1')).toHaveCSS('color', 'rgb(255, 255, 255)')
-  const applications = () => page.evaluate(() => (window as unknown as { alignmentApplications: Array<{ slideId: string; sourceViewport: { centerX: number; centerY: number; imageZoom: number }; viewport: { centerX: number; centerY: number }; approximate: boolean }> }).alignmentApplications)
+  const applications = () => page.evaluate(() => (window as unknown as { alignmentApplications: Application[] }).alignmentApplications)
   await expect.poll(async () => (await applications()).length).toBeGreaterThan(0)
   const last = (await applications()).at(-1)!
   expect(last.sourceViewport.centerX).toBeGreaterThan(60)
@@ -72,6 +76,47 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
     expect(field.centerX).toBeLessThan(330)
     expect(field.centerY).toBeGreaterThan(120)
     expect(field.centerY).toBeLessThan(300)
+  }
+  const manualPathReceipts: unknown[] = []
+  const assertManualPath = async (set: ComparisonSet, phase: string, minimumApplications = 0) => {
+    await expect.poll(async () => { const rows = await applications(); return rows.length > minimumApplications && rows.at(-1)?.regional }).toBe(true)
+    const applied = (await applications()).at(-1)!, region = set.regionalCorrections![0]
+    expect([region.sourceSlideId, region.targetSlideId]).toContain(applied.sourceSlideId)
+    const [[a, b, tx], [c, d, ty]] = region.registration.movingToReference!
+    const x = applied.sourceViewport.centerX, y = applied.sourceViewport.centerY
+    const forward = applied.sourceSlideId === region.sourceSlideId, determinant = a * d - b * c
+    const expected = forward ? [a * x + b * y + tx, c * x + d * y + ty] : [(d * (x - tx) - b * (y - ty)) / determinant, (-c * (x - tx) + a * (y - ty)) / determinant]
+    expect(applied.slideId).toBe(forward ? region.targetSlideId : region.sourceSlideId)
+    const sourcePoint = forward ? [x, y] : expected, [left, top, width, height] = region.sourceBounds
+    expect(sourcePoint[0]).toBeGreaterThanOrEqual(left); expect(sourcePoint[0]).toBeLessThanOrEqual(left + width)
+    expect(sourcePoint[1]).toBeGreaterThanOrEqual(top); expect(sourcePoint[1]).toBeLessThanOrEqual(top + height)
+    const residual = [Math.abs(applied.viewport.centerX - expected[0]), Math.abs(applied.viewport.centerY - expected[1])]
+    expect(Math.max(...residual)).toBeLessThan(0.01)
+    expect(applied.approximate).toBe(true)
+    for (const pane of await page.locator('.comparison-pane').all()) {
+      const label = pane.getByText('Manually adjusted approximation', { exact: true })
+      await expect(label).toBeVisible()
+      const labelBounds = (await label.boundingBox())!, paneBounds = (await pane.boundingBox())!, headerBounds = (await pane.locator('header').boundingBox())!
+      expect(labelBounds.x).toBeGreaterThanOrEqual(paneBounds.x)
+      expect(labelBounds.x + labelBounds.width).toBeLessThanOrEqual(paneBounds.x + paneBounds.width)
+      expect(labelBounds.y).toBeGreaterThanOrEqual(headerBounds.y + headerBounds.height)
+    }
+    await expect(page.locator('.comparison-setup-menu')).not.toHaveAttribute('open', '')
+    manualPathReceipts.push({ phase, applied, expected, residual, supportedCapturedRegion: true, bothManualLabelsVisible: true, labelsClearOfControls: true })
+  }
+  const panSourceTo = async (sourceId: string, point: Point) => {
+    const rows = await applications(), last = rows.findLast(row => row.sourceSlideId === sourceId || row.slideId === sourceId)!
+    const view = last.sourceSlideId === sourceId ? last.sourceViewport : last.viewport
+    const selects = await page.getByLabel(/Slide shown in pane/).all(), paneIndex = (await Promise.all(selects.map(select => select.inputValue()))).indexOf(sourceId)
+    expect(paneIndex).toBeGreaterThanOrEqual(0)
+    const canvas = page.locator('.comparison-pane').nth(paneIndex).locator('.openseadragon-canvas').first()
+    await canvas.scrollIntoViewIfNeeded()
+    const bounds = (await canvas.boundingBox())!, x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2
+    const radians = view.rotation * Math.PI / 180, dx = (view.centerX - point[0]) * view.imageZoom, dy = (view.centerY - point[1]) * view.imageZoom
+    await page.mouse.move(x, y); await page.mouse.down()
+    await page.mouse.move(x + dx * Math.cos(radians) - dy * Math.sin(radians), y + dx * Math.sin(radians) + dy * Math.cos(radians), { steps: 8 })
+    await page.waitForTimeout(250); await page.mouse.up(); await page.waitForTimeout(350)
+    await expect.poll(async () => (await applications()).length).toBeGreaterThan(rows.length)
   }
   await driveToInterior()
   // Assert rendered original pixels as well as successful tile responses.
@@ -107,6 +152,7 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await expect(page.getByRole('alert')).toBeVisible()
   await expect(page.getByText('1 point pairs', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Preview correction' })).toBeEnabled()
+  const beforeOnePreview = (await applications()).length
   const previewResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'Preview correction' }).click()
   const preview = await previewResponse
@@ -116,7 +162,9 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   expect(previewSet.regionalCorrections[0].registration.status).toBe('approximate')
   expect(previewSet.regionalCorrections[0].basisVersion).toEqual(expect.any(String))
   await expect(page.getByText('Unsaved correction preview', { exact: true })).toBeVisible()
+  await assertManualPath(previewSet, 'one-point-preview', beforeOnePreview)
   await page.screenshot({ path: testInfo.outputPath('alignment-region-preview.png'), fullPage: true })
+  const beforeOneSave = (await applications()).length
   const saveResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'Save correction' }).click()
   const savedResponse = await saveResponse
@@ -126,8 +174,10 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   expect(savedSet.version).toBe(previewSet.version + 1)
   expect(savedSet.regionalCorrections[0].regionId).toBe(previewSet.regionalCorrections[0].regionId)
   await expect(page.getByText('Region correction saved.', { exact: false })).toBeVisible()
+  await assertManualPath(savedSet, 'one-point-save', beforeOneSave)
   await page.reload()
   await expect.poll(async () => (await applications()).length).toBeGreaterThan(0)
+  await assertManualPath(savedSet, 'one-point-reload')
   await driveToInterior()
   await page.getByRole('button', { name: 'Adjust region' }).click()
   const recordTwoPoints = async () => {
@@ -152,16 +202,19 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   const twoPoint = await twoPointResponse
   expect(twoPoint.ok(), await twoPoint.text()).toBe(true)
   expect(twoPoint.request().postDataJSON().movingPoints).toHaveLength(2)
+  await assertManualPath(await twoPoint.json(), 'two-point-preview-before-cancel')
   await page.getByRole('button', { name: 'Cancel correction' }).click()
   const afterCancel = await (await page.request.get(endpoint)).json()
   expect(afterCancel.version).toBe(savedSet.version)
   expect(afterCancel.regionalCorrections).toHaveLength(1)
+  await assertManualPath(afterCancel, 'cancel-restored-saved-region')
   await page.getByRole('button', { name: 'Adjust region' }).click()
   await recordTwoPoints()
   const secondPreviewResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'Preview correction' }).click()
   const secondPreview = await secondPreviewResponse
   expect(secondPreview.ok(), await secondPreview.text()).toBe(true)
+  await assertManualPath(await secondPreview.json(), 'two-point-preview-before-save')
   const secondSaveResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'Save correction' }).click()
   const secondSave = await secondSaveResponse
@@ -170,14 +223,36 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   expect(twiceSaved.version).toBe(savedSet.version + 1)
   expect(twiceSaved.regionalCorrections).toHaveLength(2)
   expect(secondSave.request().postDataJSON().movingPoints).toHaveLength(2)
+  await assertManualPath(twiceSaved, 'two-point-save')
   await page.reload()
   await expect.poll(async () => (await applications()).length).toBeGreaterThan(0)
   const reloadedSet = await (await page.request.get(endpoint)).json()
   expect(reloadedSet.version).toBe(twiceSaved.version)
   expect(reloadedSet.regionalCorrections).toHaveLength(2)
+  await assertManualPath(reloadedSet, 'two-point-reload')
   await expect(page.locator('.comparison-setup-menu')).not.toHaveAttribute('open', '')
   await page.screenshot({ path: testInfo.outputPath('alignment-two-point-saved.png'), fullPage: true })
-  await testInfo.attach('guided-correction-receipt', { body: JSON.stringify({ scope: 'Disposable synthetic tissue derivative, actual OSD and backend region API; no anatomical qualification.', loadedTiles, hiddenReference: true, slidesKeyboardSelection: true, syncKeyboardRoundtrip: true, advancedOpenedDuringGuidedCorrection: false, onePointSavedReloaded: true, twoPointPreviewCancelled: true, twoPointSavedReloaded: true, injectedTransientPreviewFailureRetainedPoints: previewFailureInjected, assertionRetries: testInfo.retry }), contentType: 'application/json' })
+  const sourceId = reloadedSet.regionalCorrections[0].sourceSlideId
+  const outsideCandidates: Point[] = []
+  for (let y = 60; y <= 400; y += 20) for (let x = 60; x <= 560; x += 20) {
+    const outsideEveryRegion = reloadedSet.regionalCorrections.every((region: NonNullable<ComparisonSet['regionalCorrections']>[number]) => { const [left, top, width, height] = region.sourceBounds; return x < left || y < top || x > left + width || y > top + height })
+    if (outsideEveryRegion && mapStackPoint([x, y], sourceId, reloadedSet.regionalCorrections[0].targetSlideId, reloadedSet.referenceSlideId, reloadedSet.members, 'best', 0)) outsideCandidates.push([x, y])
+  }
+  expect(outsideCandidates.length).toBeGreaterThan(0)
+  const current = (await applications()).at(-1)!, sourceView = current.sourceSlideId === sourceId ? current.sourceViewport : current.viewport
+  outsideCandidates.sort((a, b) => Math.hypot(a[0] - sourceView.centerX, a[1] - sourceView.centerY) - Math.hypot(b[0] - sourceView.centerX, b[1] - sourceView.centerY))
+  await panSourceTo(sourceId, outsideCandidates[0])
+  const outsideApplied = (await applications()).at(-1)!
+  expect(outsideApplied.sourceSlideId).toBe(sourceId); expect(outsideApplied.regional).toBe(false)
+  await expect(page.getByText('Manually adjusted approximation', { exact: true })).toHaveCount(0)
+  await expect(page.locator('.comparison-pane').filter({ has: page.getByText('Approximate sync', { exact: true }) })).toHaveCount(2)
+  await page.screenshot({ path: testInfo.outputPath('alignment-outside-region-overview.png'), fullPage: true })
+  manualPathReceipts.push({ phase: 'outside-all-regions-overview', applied: outsideApplied, manualLabelsAbsent: true })
+  const movingCell = reloadedSet.regionalCorrections[0].registration.triangles[0].moving as Point[]
+  await panSourceTo(sourceId, [movingCell.reduce((sum, point) => sum + point[0], 0) / 3, movingCell.reduce((sum, point) => sum + point[1], 0) / 3])
+  await assertManualPath(reloadedSet, 'returned-to-supported-region')
+  await testInfo.attach('manual-path-receipt', { body: JSON.stringify({ scope: 'Actual regional API affine and independent forward/inverse affine oracle against real OSD readback; synthetic navigation only.', coordinateTolerancePixels: 0.01, observations: manualPathReceipts }), contentType: 'application/json' })
+  await testInfo.attach('guided-correction-receipt' , { body: JSON.stringify({ scope: 'Disposable synthetic tissue derivative, actual OSD and backend region API; no anatomical qualification.', loadedTiles, hiddenReference: true, slidesKeyboardSelection: true, syncKeyboardRoundtrip: true, advancedOpenedDuringGuidedCorrection: false, onePointSavedReloaded: true, twoPointPreviewCancelled: true, twoPointSavedReloaded: true, injectedTransientPreviewFailureRetainedPoints: previewFailureInjected, assertionRetries: testInfo.retry }), contentType: 'application/json' })
   await page.getByText('Advanced', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Active pane inspector' })).toBeVisible()
   await page.getByText('Display', { exact: true }).click()

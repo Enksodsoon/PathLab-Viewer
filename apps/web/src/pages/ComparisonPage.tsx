@@ -202,6 +202,7 @@ export function ComparisonPage() {
   const [linked, setLinked] = useState(true)
   const [unlinkedPanes, setUnlinkedPanes] = useState<Set<string>>(() => new Set())
   const [approximatePanes, setApproximatePanes] = useState<Set<string>>(() => new Set())
+  const [regionalPanes, setRegionalPanes] = useState<Set<string>>(() => new Set())
   const [physicalScaleLimitedPanes, setPhysicalScaleLimitedPanes] = useState<Set<string>>(() => new Set())
   const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('matched')
   const [zoomMode, setZoomMode] = useState<ZoomMode>('physical')
@@ -437,8 +438,9 @@ export function ComparisonPage() {
       .find((member) => member.slideId === targetId)?.registration?.anchorSlideId === source.slideId)
     const hasRegion = (id: string) => comparison.regionalCorrections?.some(region => region.sourceSlideId === id || region.targetSlideId === id)
     if (source.slideId !== comparison.referenceSlideId && !sourceIsLocalAnchor) {
-      if (!hasRegion(source.slideId) && source.registration && ['rejected', 'stale', 'needs_refinement'].includes(source.registration.status)) return
+      if (!hasRegion(source.slideId) && source.registration && ['rejected', 'stale', 'needs_refinement'].includes(source.registration.status)) { setRegionalPanes(new Set()); return }
       if (!source.registration && !hasRegion(source.slideId)) {
+        setRegionalPanes(new Set())
         setSuspendedPanes(new Set(panes))
         setNavigationNotice(`Synchronization unavailable because ${source.displayName} has no correspondence map and remains independent.`)
         return
@@ -447,6 +449,7 @@ export function ComparisonPage() {
     const suspended: string[] = []
     const approximate: string[] = []
     const approximateIds = new Set<string>()
+    const regionalIds = new Set<string>()
     const suspendedIds = new Set<string>()
     const physicalScaleLimitedIds = new Set<string>()
     for (const targetId of panes) {
@@ -469,7 +472,7 @@ export function ComparisonPage() {
         suspendedIds.add(targetId)
         continue
       }
-      if (mapped.approximate) { approximate.push(target.displayName); approximateIds.add(targetId) }
+      if (mapped.approximate) { if (!mapped.regional) approximate.push(target.displayName); approximateIds.add(targetId) }
       const targetRotation = normalizeRotation(snapshot.rotation + mapped.rotation)
       const sourceCalibration = normalizedMicronsPerPixel(source.metadata)
       const targetCalibration = normalizedMicronsPerPixel(target.metadata)
@@ -495,8 +498,9 @@ export function ComparisonPage() {
       if (targetHandle) {
         const appliedStart = performance.now()
         targetHandle.setImageViewport(targetViewport, transactionId)
+        if (mapped.regional) { regionalIds.add(source.slideId); regionalIds.add(targetId) }
         window.dispatchEvent(new CustomEvent('pathlab:alignment-applied', { detail: {
-            slideId: targetId, approximate: mapped.approximate,
+            slideId: targetId, sourceSlideId: source.slideId, approximate: mapped.approximate, regional: mapped.regional === true,
             stackAcceptedAt: target.registration?.evidence?.stackAcceptedAt,
             previewPublishedAt: target.registration?.evidence?.previewPublishedAt,
             browserAppliedAt: new Date().toISOString(),
@@ -509,11 +513,12 @@ export function ComparisonPage() {
     setPhysicalScaleLimitedPanes(physicalScaleLimitedIds)
     setSuspendedPanes(suspendedIds)
     setApproximatePanes(approximateIds)
+    setRegionalPanes(regionalIds)
     setNavigationNotice(suspended.length
       ? `No verified correspondence is available at this field for ${suspended.join(', ')}. Those panes remain at their last verified position.`
       : approximate.length
         ? `Using approximate overview synchronization for ${[...new Set(approximate)].join(', ')}. Exact local correspondence is unavailable for these slides.`
-        : '')
+        : regionalIds.size ? 'Using a manually adjusted approximation inside the captured tissue region.' : '')
   }, [alignmentMode, comparison, linked, panes, unlinkedPanes, zoomMode])
   const alignOpenedPanes = useCallback(() => {
     if (!comparison || !linked) return
@@ -923,10 +928,11 @@ export function ComparisonPage() {
         const adjustments = display[slideId] ?? { brightness: 1, contrast: 1, gamma: 1 }
         const paneLinked = linked && !unlinkedPanes.has(slideId) && aligned
         const approximate = member.registration?.status === 'approximate' || approximatePanes.has(slideId) || comparison.regionalCorrections?.some(region => region.sourceSlideId === slideId || region.targetSlideId === slideId)
+        const regional = regionalPanes.has(slideId)
         const correctionPreview = correction?.preview && slideId === correction.movingId
         const suspended = paneLinked && suspendedPanes.has(slideId)
         return <section className="comparison-pane" data-active={paneIndex === activePane} data-hidden={maximizedPane !== null && maximizedPane !== paneIndex} key={`${paneIndex}-${slideId}`} onPointerDown={() => setActivePane(paneIndex)}>
-          <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><div className="comparison-pane-select"><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><CaretDown weight="bold" aria-hidden="true" /></div><span aria-live="polite" className={suspended || !paneLinked || !aligned ? 'alignment-unavailable' : approximate || correctionPreview ? 'alignment-approximate' : 'alignment-ready'}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : !aligned ? 'Not aligned' : correctionPreview ? 'Unsaved correction preview' : approximate ? 'Approximate sync' : alignmentLabel}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
+          <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><div className="comparison-pane-select"><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><CaretDown weight="bold" aria-hidden="true" /></div><span aria-live="polite" className={`${suspended || !paneLinked || !aligned ? 'alignment-unavailable' : approximate || correctionPreview || regional ? 'alignment-approximate' : 'alignment-ready'}${regional && paneLinked && !suspended ? ' alignment-regional' : ''}`}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : !aligned ? 'Not aligned' : correctionPreview ? <>Unsaved correction preview{regional ? <small>Manually adjusted approximation</small> : null}</> : regional ? 'Manually adjusted approximation' : approximate ? 'Approximate sync' : alignmentLabel}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
             if (!paneLinked) {
               alignmentPreferenceExplicit.current = true
               setLinked(true)
