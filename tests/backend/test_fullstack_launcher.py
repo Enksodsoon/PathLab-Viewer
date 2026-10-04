@@ -1,4 +1,5 @@
 import ctypes
+import json
 import os
 import subprocess
 import sys
@@ -7,6 +8,7 @@ import time
 from http.client import BadStatusLine
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -221,6 +223,136 @@ def test_windows_job_assignment_precedes_command_release(tmp_path, monkeypatch):
         assert checked and marker.read_text() == "started"
     finally:
         manager.close()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows venv redirector containment")
+def test_delayed_windows_assignment_contains_real_wrapper_and_command(tmp_path, monkeypatch):
+    """Keep handles while alive; cleanup never reopens recorded PIDs after exit."""
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
+    kernel.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+    kernel.TerminateProcess.restype = wintypes.BOOL
+    kernel.IsProcessInJob.argtypes = [
+        wintypes.HANDLE, wintypes.HANDLE, ctypes.POINTER(wintypes.BOOL),
+    ]
+    kernel.IsProcessInJob.restype = wintypes.BOOL
+    kernel.GetSystemTimeAsFileTime.argtypes = [ctypes.POINTER(wintypes.FILETIME)]
+    kernel.GetProcessTimes.argtypes = [wintypes.HANDLE, *([ctypes.POINTER(wintypes.FILETIME)] * 4)]
+    kernel.GetProcessTimes.restype = wintypes.BOOL
+
+    def ticks(value):
+        return (value.dwHighDateTime << 32) | value.dwLowDateTime
+
+    before = wintypes.FILETIME()
+    kernel.GetSystemTimeAsFileTime(ctypes.byref(before))
+    original_assign = WindowsJob.assign
+
+    def delayed_assign(self, process):
+        # Let the venv redirector launch its base interpreter before admission.
+        time.sleep(0.5)
+        original_assign(self, process)
+
+    monkeypatch.setattr(WindowsJob, "assign", delayed_assign)
+    marker = tmp_path / "owned-handshake.json"
+    nonce = uuid4().hex
+    base = getattr(sys, "_base_executable", sys.executable)
+    command = (
+        "import json,os,pathlib,sys,time; "
+        "p=pathlib.Path(sys.argv[1]); q=p.with_suffix('.pending'); q.write_text(json.dumps("
+        "{'nonce':sys.argv[2],'child':os.getpid(),'wrapper':os.getppid()})); "
+        "q.replace(p); time.sleep(60)"
+    )
+    unrelated = subprocess.Popen([base, "-c", "import time; time.sleep(60)"])
+    manager = ProcessManager(tmp_path, isolated_environment(tmp_path))
+    handles = []
+    try:
+        owned = manager.start("delayed-barrier", [base, "-c", command, str(marker), nonce])
+        deadline = time.monotonic() + 10
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        handshake = json.loads(marker.read_text())
+        assert handshake["nonce"] == nonce
+        assert owned.job is not None
+        membership = []
+        for name in ("child", "wrapper"):
+            handle = kernel.OpenProcess(0x100401, False, handshake[name])
+            assert handle, ctypes.WinError(ctypes.get_last_error())
+            handles.append(handle)
+            created, exited, system, user = [wintypes.FILETIME() for _ in range(4)]
+            assert kernel.GetProcessTimes(
+                handle, ctypes.byref(created), ctypes.byref(exited),
+                ctypes.byref(system), ctypes.byref(user),
+            )
+            assert ticks(created) >= ticks(before)
+            assert kernel.WaitForSingleObject(handle, 0) == 258
+            member = wintypes.BOOL()
+            assert kernel.IsProcessInJob(handle, owned.job.handle, ctypes.byref(member))
+            membership.append(bool(member.value))
+        (tmp_path / "delayed-assignment-proof.json").write_text(json.dumps({
+            "testRuntimeIsVenv": sys.executable != base,
+            "commandAndWrapperInOwnedJob": membership,
+            "unrelatedStillAlive": unrelated.poll() is None,
+        }))
+        assert membership == [True, True]
+        manager.close()
+        assert all(kernel.WaitForSingleObject(handle, 0) == 0 for handle in handles)
+        assert unrelated.poll() is None
+    finally:
+        try:
+            manager.close()
+        finally:
+            for handle in handles:
+                try:
+                    if kernel.WaitForSingleObject(handle, 0) == 258:
+                        assert kernel.TerminateProcess(handle, 1)
+                    assert kernel.WaitForSingleObject(handle, 5000) == 0
+                finally:
+                    kernel.CloseHandle(handle)
+            if unrelated.poll() is None:
+                unrelated.terminate()
+            unrelated.wait(timeout=5)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows direct venv bootstrap identity")
+def test_windows_direct_bootstrap_preserves_wrapper_and_command_venv_context(tmp_path, monkeypatch):
+    from importlib.metadata import version
+
+    from scripts import run_fullstack_tests as launcher
+
+    monkeypatch.setattr(
+        launcher, "COMMAND_WRAPPER", launcher.COMMAND_WRAPPER.replace(
+            "payload = json.loads(sys.stdin.buffer.readline())",
+            "payload = json.loads(sys.stdin.buffer.readline())\n"
+            "print(json.dumps({'kind':'wrapper','executable':sys.executable,"
+            "'prefix':sys.prefix}),flush=True)",
+        ),
+    )
+    manager = ProcessManager(tmp_path, isolated_environment(tmp_path))
+    try:
+        manager.run(
+            "venv-context", [
+                sys.executable, "-c",
+                "import json,sys; from importlib.metadata import version; "
+                "print(json.dumps({'kind':'command','executable':sys.executable,"
+                "'prefix':sys.prefix,'dependencyVersion':version('fastapi')}))",
+            ], timeout=10,
+        )
+    finally:
+        manager.close()
+    records = [
+        json.loads(line) for line in (tmp_path / "venv-context.log").read_text().splitlines()
+    ]
+    assert [record["kind"] for record in records] == ["wrapper", "command"]
+    assert all(Path(record["executable"]) == Path(sys.executable) for record in records)
+    assert all(Path(record["prefix"]) == Path(sys.prefix) for record in records)
+    assert records[1]["dependencyVersion"] == version("fastapi")
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows Job Object assignment failure")

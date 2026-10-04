@@ -300,14 +300,23 @@ class ProcessManager:
         log = (self.directory / f"{name}.log").open("wb")
         self.logs[name] = log
         job = WindowsJob() if os.name == "nt" else None
+        executable = sys.executable
+        wrapper_env = self.env
+        if os.name == "nt":
+            base_executable = getattr(sys, "_base_executable", None) or executable
+            if os.path.normcase(base_executable) != os.path.normcase(executable):
+                # A venv redirector can launch Python before its PID is assigned
+                # to the job. Bootstrap Python directly, retaining venv identity.
+                executable = base_executable
+                wrapper_env = {**self.env, "__PYVENV_LAUNCHER__": sys.executable}
         try:
             process = subprocess.Popen(
-                [sys.executable, "-c", COMMAND_WRAPPER],
+                [executable, "-c", COMMAND_WRAPPER],
                 stdin=subprocess.PIPE,
                 stdout=log,
                 stderr=log,
                 cwd=self.directory,
-                env=self.env,
+                env=wrapper_env,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 start_new_session=os.name != "nt",
             )
