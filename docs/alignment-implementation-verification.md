@@ -4,8 +4,10 @@ Integration reconciliation: maintained main
 `316d6fc997a2243166e6b43d6e4f11c0e4ed5f7e` was merged locally through
 `9c677e8fc3306a454f66916d4f5bf691d66d36b3`. The merged inputs retain maintained
 FastAPI, psycopg and TIFF pins, the alignment OpenCV dependency and the bounded
-SQLAlchemy constraint. Supply-chain inventories require regeneration from these
-merged inputs; neither the merge nor earlier receipts establish final QA.
+SQLAlchemy constraint. Dependency and software inventories were regenerated
+from the merged inputs and validated: 586 dependency records, 617 source
+components and 179 shipped dependency inputs, with release admission blocked.
+Neither the merge nor earlier receipts establish final QA.
 Maintained TIFF 2026.9.20 requires NumPy >=2.1, incompatible with the frozen
 research runtime's NumPy 1.26.4. A separate owned maintained API/QA runtime is
 ready with a clean `pip check`; the numerical research profile remains
@@ -82,6 +84,27 @@ cannot remain active. The candidate inspection remains unsaved.
 
 ## Verification receipts
 
+- Maintained backend at clean `30d1f199`: 2,019 passed, 115 skipped and one
+  failure in 1,254.38 seconds, with 85% coverage and 236 warnings. The only
+  failure was the maintained inventory test's stale 177 shipped-input assertion;
+  independently audited membership has 179. OpenCV is newly bundled and existing
+  tzdata now also appears in the backend lock; neither change removes source
+  admission blockers. The corrected assertion passes its focused rerun. This
+  failed full run is retained as `var/alignment-maintained-final-backend.log`
+  and `.xml`; a fresh green full run remains required.
+  All 1,422 tracked source-file hashes, runtime versions and Python binary hashes
+  were byte-identical at startup and terminal; receipt SHA-256:
+  `12ca7333ef24954bfa6d0a1f42417f2ed1f1e3f4c53785b65fd80267ff69a797`.
+- The merged frontend's final production/legal build and both fresh-main bundle
+  budgets passed. Annotation initial delta is 3,055/5,120 gzip bytes and lazy code
+  303,776/307,200 raw bytes. Assessment learner delta is 1,871/15,360 gzip bytes
+  against exact `316d6fc` (165,495 current versus 163,624 baseline). All three
+  legal copies match their source bytes; actual packaged distribution verifies
+  against its compiled graph receipt. The first baseline package-manager location
+  check aborted before compilation; it is retained separately from the subsequent
+  successful build using byte-verified dependency definitions. Final private
+  frontend receipt SHA-256:
+  `47fd4ba8dbd0d6e5111e6e5e4c6ce028c1ea5c06f4f1a36a1a2a48858e0fce61`.
 - Merged frontend: 731 tests across 93 files passed in 168.14 seconds, with no
   failures or skips. Full ESLint and TypeScript passed; all 345 captured web,
   package and lock files stayed unchanged. The new compiled browser receipt
