@@ -79,6 +79,117 @@ def test_fresh_candidate_projects_verified_tokens_without_mutating_rows_or_canon
             assert database.get(ComparisonSet, stack["id"]).registrations == {"slide-2": saved}
 
 
+@pytest.mark.parametrize("side", ["source", "anchor"])
+def test_old_manifest_tokens_reject_real_case_change_without_comparison_revision(tmp_path, side):
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        response = client.post(
+            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            json={"slideIds": ["slide-1", "slide-2"], "caseId": "case-A"},
+        )
+        assert response.status_code == 200, response.text
+        stack, url = _stack(client, headers)
+        candidate_id, registration, _ = _bound_candidate(client, stack)
+        with session_factory(client.app.state.settings)() as database:
+            database.get(ComparisonSet, stack["id"]).registrations = {
+                "slide-2": _native(registration),
+            }
+            regional_tokens = {
+                name: slide_version(database.get(Slide, name)) for name in ("slide-1", "slide-2")
+            }
+            source_versions = dict(database.get(ComparisonSet, stack["id"]).source_versions)
+            database.commit()
+        old_manifest = _manifest(client, url)
+        old_comparison = client.get(url).json()
+        assert old_manifest["currentPair"] is True
+        old_members = {member["slideId"]: member for member in old_comparison["members"]}
+        assert old_members["slide-2"]["nativeOverviewFallback"] is not None
+        changed_id = "slide-2" if side == "source" else "slide-1"
+        response = client.post(
+            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            json={"slideIds": [changed_id], "caseId": "case-B"},
+        )
+        assert response.status_code == 200, response.text
+        fresh = client.get(url).json()
+        members = {member["slideId"]: member for member in fresh["members"]}
+        assert fresh["version"] == old_comparison["version"] == stack["version"]
+        assert members["slide-2"]["nativeOverviewFallback"] is None
+        assert members["slide-2"]["registration"]["status"] == "rejected"
+        assert _manifest(client, url)["currentPair"] is False
+        with session_factory(client.app.state.settings)() as database:
+            assert database.get(ComparisonSet, stack["id"]).source_versions == source_versions
+            assert database.get(Slide, "slide-1").sha256 == "sha-1"
+            assert database.get(Slide, "slide-2").sha256 == "sha-2"
+            row = database.get(ComparisonRegistrationCandidate, candidate_id)
+            assert row.registration == registration
+            assert {
+                name: slide_version(database.get(Slide, name)) for name in regional_tokens
+            } == regional_tokens
+        token_field = "sourceSnapshotVersion" if side == "source" else "anchorSnapshotVersion"
+        assert old_manifest[token_field] != members[changed_id]["alignmentSourceVersion"]
+
+
+@pytest.mark.parametrize("side", ["source", "anchor"])
+@pytest.mark.parametrize("change", ["unready", "trashed"])
+def test_old_manifest_tokens_reject_changed_member_eligibility(tmp_path, side, change):
+    from wsi_viewer.domain import SlideState
+
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack, url = _stack(client, headers)
+        candidate_id, original, _ = _bound_candidate(client, stack)
+        old_manifest = _manifest(client, url)
+        assert old_manifest["currentPair"] is True
+        changed_id = "slide-2" if side == "source" else "slide-1"
+        with session_factory(client.app.state.settings)() as database:
+            slide = database.get(Slide, changed_id)
+            regional_token = slide_version(slide)
+            if change == "unready":
+                slide.state = SlideState.FAILED
+            else:
+                slide.trashed_at = slide.updated_at
+            database.commit()
+        fresh = client.get(url).json()
+        member = next(member for member in fresh["members"] if member["slideId"] == changed_id)
+        assert fresh["version"] == stack["version"]
+        assert member["tileSource"] is None
+        assert member["availabilityReason"] is not None
+        token_field = "sourceSnapshotVersion" if side == "source" else "anchorSnapshotVersion"
+        assert old_manifest[token_field] != member["alignmentSourceVersion"]
+        assert _manifest(client, url)["currentPair"] is False
+        with session_factory(client.app.state.settings)() as database:
+            assert slide_version(database.get(Slide, changed_id)) == regional_token
+            assert (
+                database.get(ComparisonRegistrationCandidate, candidate_id).registration == original
+            )
+
+
+def test_preview_snapshot_normalizes_case_and_preserves_sha_bound_cosmetic_changes(tmp_path):
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        response = client.post(
+            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            json={"slideIds": ["slide-1", "slide-2"], "caseId": " Case-A "},
+        )
+        assert response.status_code == 200
+        stack, url = _stack(client, headers)
+        _bound_candidate(client, stack)
+        before = _manifest(client, url)
+        response = client.post(
+            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            json={"slideIds": ["slide-2"], "caseId": "case-a", "displayName": "Renamed"},
+        )
+        assert response.status_code == 200
+        after = _manifest(client, url)
+        assert before["currentPair"] is after["currentPair"] is True
+        assert before["sourceSnapshotVersion"] == after["sourceSnapshotVersion"]
+        assert before["anchorSnapshotVersion"] == after["anchorSnapshotVersion"]
+        fresh = client.get(url).json()
+        assert fresh["version"] == stack["version"]
+        source = next(member for member in fresh["members"] if member["slideId"] == "slide-2")
+        assert source["alignmentSourceVersion"] == before["sourceSnapshotVersion"]
+
+
 @pytest.mark.parametrize(
     "change",
     [

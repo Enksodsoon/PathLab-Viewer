@@ -262,6 +262,20 @@ def _public_registration(value: Any) -> Any:
     return value
 
 
+def _preview_snapshot_version(slide: Slide) -> str:
+    """Bind separately fetched preview proof to current specimen eligibility."""
+    value = {
+        "schema": "alignment-preview-snapshot/1",
+        "sourceVersion": slide_version(slide),
+        "caseId": (slide.case_id or "").strip().casefold(),
+        "ready": slide.state in READY_STATES,
+        "trashed": slide.trashed_at is not None,
+    }
+    return "alignment-preview:" + hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
 def _live_input_frame_current(
     registration: dict[str, Any],
     source: Slide | None,
@@ -477,7 +491,7 @@ def _json(
         members.append(
             {
                 "slideId": slide.id,
-                "alignmentSourceVersion": slide_version(slide),
+                "alignmentSourceVersion": _preview_snapshot_version(slide),
                 "nativeOverviewFallback": _native_overview_fallback(
                     item.registrations.get(slide.id), slide,
                     by_id.get(anchors.get(slide.id, item.reference_slide_id)), storage,
@@ -1174,10 +1188,10 @@ def register_alignment_routes(
                     "settingsDigest": row.settings_digest,
                     "currentSettings": current_settings,
                     "currentPair": current_pair,
-                    "sourceSnapshotVersion": slide_version(slides[row.slide_id])
+                    "sourceSnapshotVersion": _preview_snapshot_version(slides[row.slide_id])
                     if current_pair
                     else None,
-                    "anchorSnapshotVersion": slide_version(slides[row.anchor_slide_id])
+                    "anchorSnapshotVersion": _preview_snapshot_version(slides[row.anchor_slide_id])
                     if current_pair
                     else None,
                     "status": row.status,
