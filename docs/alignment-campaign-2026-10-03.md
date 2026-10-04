@@ -333,12 +333,16 @@ This example is unqualified and does not establish successful anatomical
 correspondence.
 
 The completed frozen Native overview output supports 360 of 947 eligible
-published landmarks. The subsequent support diagnosis will separate missing
-component/local evidence, grid/cell exclusions and white anatomical interiors
-such as alveolar lumens. That diagnosis uses the existing maps and published
-landmarks without fitting or threshold changes; any demonstrated algorithm
-repair requires a new version and separate before/after evidence. The frozen
-public observations remain unchanged.
+published landmarks. The [completed support diagnosis](alignment-results/public-screening-2026-10-03/native-support-diagnosis.json)
+reproduced all twelve saved moving-cell topologies without rerunning registration
+or fitting landmarks. Of the 587 unsupported landmarks, 456 lie inside candidate
+cells rejected by the existing paired tissue-mask checks, 85 lie beyond the
+paired-mask grid control hull, 23 fall in enclosed source/reference-mask holes and 23
+fall outside a tissue mask/frame. Tight serial-section crops and conservative
+support geometry limit useful coverage; widening those regions without evidence
+would manufacture correspondence. The separate per-axis sampling repair changes
+zero cells in this public JPEG cohort. Its demonstrated geometry regression is
+reported with the later implementation, not substituted into frozen observations.
 
 Reviewed human correction effort can declare one to three point pairs and a
 finite nonnegative elapsed time. Missing measurements remain null; an automatic

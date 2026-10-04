@@ -1,7 +1,9 @@
 # Alignment repair and workflow verification
 
-Implementation source: `b35d3be3b2ef8933eed969dbf123746042c57640`, on
-`codex/alignment-usability`, reconciled with main `daa101e` in an isolated checkout.
+Current implementation checkpoint: `6481133`, on `codex/alignment-usability`,
+reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
+merge `2e2f99d` in an isolated checkout. The public screening remains bound to
+its earlier frozen source `b35d3be3b2ef8933eed969dbf123746042c57640`.
 No production activation or deployment was performed.
 
 ## Reproduced problems and repairs
@@ -38,28 +40,47 @@ Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
 
 ## Verification receipts
 
-- Full frontend at UI source `5c0d7f0`: 591 tests across 88 files; TypeScript and
-  ESLint passed. Later explicit overview labels/selection were covered by 61
-  focused tests, TypeScript and ESLint at `b35d3be`.
-- Eight final disposable fullstack alignment scenarios passed across Chromium,
-  Firefox, WebKit and mobile Chromium, without retries or skips. Receipts verify
-  actual rendered tissue, tile responses, navigation, correction save/reload and
-  cancellation, responsive controls and themes. All services were cleaned up;
-  the existing application was untouched.
-- Backend overview/worker/region/API integration: 113 passed. Engine/recipe/
-  benchmark checks: 122 passed, one optional-runtime skip. Engine API: 40 passed.
-- Global CI Ruff passed; strict mypy passed on 76 source files.
-- The earlier full backend run had 1669 passes, 106 skips and one outdated
-  icon-count receipt failure. The expected glyph count was corrected to 156 and
-  its regression passed; refreshed asset/security/inventory tests passed 35/35
-  again after the overview repair (`var/alignment-overview-inventories.xml`).
-- Capacity contracts: 492 passed, 12 skipped. These are contract tests, not an
-  actual concurrent production load qualification.
+- Final frontend source `9dc96ff` (unchanged by subsequent backend-test/security
+  receipt commits): 702 tests across 93 files, TypeScript, full ESLint and
+  production build passed. Annotation and assessment bundle budgets passed
+  against a byte-identical dependency lock and the current main baseline.
+- Final full backend at `6481133`: 1,834 passed, 114 skipped, 85% line coverage
+  in 983.55 seconds. PostgreSQL and platform/runtime-dependent skips remain
+  explicit. Private receipts: `var/alignment-final-backend.xml` and
+  `var/alignment-final-backend.log`.
+- Global CI Ruff and strict mypy passed on 82 source files. Security egress
+  inventory covers 260 backend, 29 frontend and 97 egress files; its 11
+  regression tests passed. Asset and dependency validators passed.
+- The earlier eight disposable fullstack alignment scenarios passed across
+  Chromium, Firefox, WebKit and mobile Chromium, without retries or skips.
+  They verified actual rendered tissue, tile responses, correction save/reload
+  and cancellation, responsive controls and themes. A final repeat against
+  the reconciled source is pending; it is reported separately from unit tests.
+- Final capacity contracts at `6481133`: 492 passed, 12 skipped; terminal exit
+  zero, receipt `var/alignment-final-capacity.log`. These are contract tests,
+  not concurrent production load qualification.
 
 Private test artifacts are retained under ignored `var/` and the disposable
 `pathlab-alignment-usability-e2e` temporary directory. Benchmark results and
 method qualification are tracked separately in
 [the campaign report](alignment-campaign-2026-10-03.md).
+
+## Worker containment and recovery
+
+An ordinary registration failure preserves the active map and permits later
+jobs after owned-process cleanup succeeds. A failure to prove cleanup instead
+records a durable `checkpointing` job with `ALIGNMENT_CONTAINMENT_LOST`, retains
+resource diagnostics, detaches its slide foreign key and exits the worker.
+That row blocks alignment admission across worker roles and replicas. Cancellation,
+slide deletion and stale-running recovery do not establish safe cleanup.
+
+Operator recovery requires stopping alignment workers, identifying the affected
+host and retained job/process diagnostics, and independently proving the owned
+processes are gone. If process identity cannot be established, restarting the
+affected isolated host/container is the recovery boundary. Preserve the failure
+receipt and release the quarantine only after that evidence is recorded through
+an authorized operational recovery procedure. There is no automatic retry or
+new user-facing recovery endpoint in this change.
 
 ## Remaining qualification limits
 
