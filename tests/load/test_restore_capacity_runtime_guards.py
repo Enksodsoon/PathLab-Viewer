@@ -65,9 +65,14 @@ def write_verifier(live: Path, behavior: str) -> None:
         "_spec.loader.exec_module(_module)\n"
         "load_manifest = _module.load_manifest\n"
         "if __name__ == '__main__':\n"
+        "    pathlib.Path(__file__).with_name('verifier.entered').write_text('entered')\n"
         f"{textwrap.indent(behavior, '    ')}\n",
         encoding="utf-8",
     )
+
+
+def assert_verifier_entered(live: Path) -> None:
+    assert (live / "deploy/scripts/verifier.entered").read_text() == "entered"
 
 
 def fixture(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path]:
@@ -100,7 +105,8 @@ def fixture(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path]:
     source = RESTORE.read_text(encoding="utf-8").replace("python3", shell(Path(sys.executable)))
     for production, reduced in {
         "COMMAND_KILL_SECONDS=5": "COMMAND_KILL_SECONDS=1",
-        "CONTAINMENT_RESERVE_SECONDS=20": "CONTAINMENT_RESERVE_SECONDS=9",
+        # Include fixed Git Bash/native-Python startup and diagnostic overhead.
+        "CONTAINMENT_RESERVE_SECONDS=20": "CONTAINMENT_RESERVE_SECONDS=15",
         "CONTAINMENT_PROBE_SECONDS=5": "CONTAINMENT_PROBE_SECONDS=3",
         "CONTAINMENT_STOP_SECONDS=10": "CONTAINMENT_STOP_SECONDS=2",
         "CONTAINMENT_STOP_KILL_SECONDS=2": "CONTAINMENT_STOP_KILL_SECONDS=1",
@@ -123,7 +129,7 @@ def execute(
     *,
     expected_sha: str = SHA,
     manifest_digest: str = DIGEST,
-    deadline_seconds: int = 15,
+    deadline_seconds: int = 30,
 ) -> subprocess.CompletedProcess[str]:
     assert BASH
     return subprocess.run(
@@ -272,6 +278,7 @@ def test_failing_verifier_stdout_never_becomes_success(tmp_path: Path) -> None:
     result = execute(live, script, lock_file)
 
     assert result.returncode != 0
+    assert_verifier_entered(live)
     assert "FAILED_STDOUT" not in result.stdout
     assert compose_trace.read_text(encoding="utf-8").splitlines()[-1] == ("stop api classroom")
 
@@ -289,6 +296,7 @@ def test_owned_failure_is_contained_and_diagnostic_is_sanitized(tmp_path: Path) 
     result = execute(live, script, lock_file)
 
     assert result.returncode != 0
+    assert_verifier_entered(live)
     assert compose_trace.read_text(encoding="utf-8").splitlines()[-1] == ("stop api classroom")
     restored = env_file.read_text(encoding="utf-8")
     assert "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300" in restored
@@ -315,10 +323,25 @@ def test_binding_change_after_mutation_does_not_stop_new_release(tmp_path: Path)
     result = execute(live, script, lock_file)
 
     assert result.returncode != 0
+    assert_verifier_entered(live)
     trace = compose_trace.read_text(encoding="utf-8").splitlines()
     assert "up -d" in trace
     assert "stop api classroom" not in trace
     assert "runtime binding changed before containment" in result.stderr
+
+
+@pytest.mark.skipif(BASH is None, reason="bash unavailable")
+def test_exhausted_verifier_budget_fails_before_mutation(tmp_path: Path) -> None:
+    live, env_file, compose_trace, script, lock_file = fixture(tmp_path)
+    before = env_file.read_bytes()
+
+    result = execute(live, script, lock_file, deadline_seconds=1)
+
+    assert result.returncode != 0
+    assert not (live / "deploy/scripts/verifier.entered").exists()
+    assert env_file.read_bytes() == before
+    assert not compose_trace.exists()
+    assert "API and Classroom were stopped" not in result.stderr
 
 
 @pytest.mark.skipif(BASH is None, reason="bash unavailable")
@@ -330,9 +353,10 @@ def test_slow_verifier_leaves_time_for_containment(tmp_path: Path) -> None:
         "raise SystemExit(1)",
     )
 
-    result = execute(live, script, lock_file, deadline_seconds=15)
+    result = execute(live, script, lock_file)
 
     assert result.returncode != 0
+    assert_verifier_entered(live)
     assert compose_trace.read_text(encoding="utf-8").splitlines()[-1] == ("stop api classroom")
     assert "API and Classroom were stopped" in result.stderr
 
@@ -350,6 +374,7 @@ def test_failed_containment_remains_nonzero_and_unproved(tmp_path: Path) -> None
     result = execute(live, script, lock_file)
 
     assert result.returncode != 0
+    assert_verifier_entered(live)
     assert "containment is unproved" in result.stderr
 
 
