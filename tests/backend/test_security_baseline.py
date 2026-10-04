@@ -28,10 +28,12 @@ def finding(**overrides: object) -> dict[str, object]:
 
 def test_current_security_baseline_reconciles() -> None:
     result = validate()
+    # The 9ad5 source bundle had 97 files; the two new operational profile
+    # scripts add disposable loopback flows under the existing scripts/* rule.
     assert result == {
         "backendRoutes": 260,
         "frontendRoutes": 29,
-        "egressFiles": 97,
+        "egressFiles": 99,
         "findingResult": "SUCCESS",
     }
 
