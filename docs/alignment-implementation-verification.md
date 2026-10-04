@@ -1,6 +1,6 @@
 # Alignment repair and workflow verification
 
-Reconciled frontend checkpoint: `9ad5d73c`, on `codex/alignment-usability`,
+Reconciled frontend checkpoint: `f1b4531c`, on `codex/alignment-usability`,
 reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
 merge `2e2f99d` in an isolated checkout. The public screening remains bound to
 its earlier frozen source `b35d3be3b2ef8933eed969dbf123746042c57640`.
@@ -67,6 +67,30 @@ cannot remain active. The candidate inspection remains unsaved.
 
 ## Verification receipts
 
+- Frontend `f1b4531c`: 728 tests across 93 files passed in 139.99 seconds,
+  with no failures or skips. Full ESLint, TypeScript, production/legal build and
+  both bundle budgets passed. Annotation initial gzip delta is 3,055 bytes
+  (limit 5,120); lazy code remains 303,776 bytes (limit 307,200). Assessment
+  learner delta is 1,909 bytes (limit 15,360), with the byte-verified reconciled
+  main baseline. All 341 tracked/draft web-source hashes remained unchanged.
+  Private receipt SHA256:
+  `26ecb49352d596938b3f2df109c421f632fd461c8424a72d1a99f88583974f16`.
+  Three meaningful regressions first failed for missing restoration observations,
+  then passed for candidate Stop, an absent/disposed source handle and regional
+  Cancel. The optional read-only `pathlab:alignment-restored` event records each
+  requested field separately from the actual OpenSeadragon getter after the
+  setter; absent handles or panes not recorded as opened report null. Restoration semantics
+  are unchanged. The fresh 16-journey browser run remains pending.
+- Post-campaign backend integration recorded 1,962 passes, 114 skips and one
+  failure in 1,145.18 seconds, with 85% coverage and 237 warnings. The failed
+  security test expected 97 egress-bearing files; the new operational controller
+  increased discovery to 98. The validator's route reconciliation and finding
+  policy passed. This failed run is retained at
+  `var/alignment-post-campaign-backend.log`/`.xml`; it is not a green full-suite
+  result. The complete green rerun must follow the final harness-source freeze
+  and reviewed inventory expectation. Backend production modules remained
+  unchanged during this run; the benchmark-controller exhaustion repair has
+  four separate focused passes.
 - Frontend `9ad5d73c`: 723 tests across 93 files passed in 147.12 seconds,
   with no failures or skips. Full ESLint, TypeScript, production/legal build and
   both bundle budgets passed. Annotation initial gzip delta is 3,064 bytes
