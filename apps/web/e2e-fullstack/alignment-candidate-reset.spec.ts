@@ -30,7 +30,7 @@ test('alignment candidate support retains current overview and direct pane Reset
   })
   await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
   const seed = (...args: string[]) => JSON.parse(execFileSync(process.env.PATHLAB_E2E_PYTHON!, [path.resolve('../../scripts/seed_frontend_qa.py'), ...args], { encoding: 'utf8' }))
-  const { slideIds } = seed('alignment') as { slideIds: string[] }
+  const { slideIds } = seed('alignment', 'candidate-pair') as { slideIds: string[] }
   const auth = await (await page.request.get('/api/v1/auth/session')).json() as { csrfToken: string }
   const headers = { 'X-CSRF-Token': auth.csrfToken }
   // Known equivalent cases first, so the final actual metadata edit can invalidate this pair.

@@ -30,7 +30,9 @@ def qa_settings() -> Settings:
     return settings
 
 
-def seed_alignment(settings: Settings, *, large_odd: bool = False) -> None:
+def seed_alignment(
+    settings: Settings, *, large_odd: bool = False, candidate_pair: bool = False
+) -> None:
     layout = StorageLayout(settings.data_root)
     image = Image.new("RGB", (640, 480), "white")
     draw = ImageDraw.Draw(image)
@@ -40,8 +42,11 @@ def seed_alignment(settings: Settings, *, large_odd: bool = False) -> None:
     if large_odd:
         image = image.resize((5003, 4009))
     width, height = image.size
-    prefix = "alignment-large-qa" if large_odd else "alignment-qa"
-    ids = [f"{prefix}-{index:02d}" for index in range(2 if large_odd else 12)]
+    prefix = (
+        "alignment-large-qa" if large_odd else "alignment-candidate-qa" if candidate_pair
+        else "alignment-qa"
+    )
+    ids = [f"{prefix}-{index:02d}" for index in range(2 if large_odd or candidate_pair else 12)]
     with session_factory(settings)() as database:
         for index, slide_id in enumerate(ids):
             if database.get(Slide, slide_id):
@@ -111,8 +116,8 @@ def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
         stack = database.get(ComparisonSet, set_id)
         if stack is None or stack.name != "Candidate support QA":
             raise ValueError("Only an explicitly named disposable QA comparison is allowed")
-        source_id = "alignment-qa-01"
-        anchor_id = "alignment-qa-00"
+        source_id = "alignment-candidate-qa-01"
+        anchor_id = "alignment-candidate-qa-00"
         if stack.reference_slide_id != anchor_id:
             raise ValueError("Unexpected QA reference")
         native = deepcopy((stack.registrations or {}).get(source_id))
@@ -193,9 +198,14 @@ def main() -> None:
         seed_alignment_candidate(settings, sys.argv[2])
         return
     if sys.argv[1] == "alignment":
-        if len(sys.argv) > 3 or (len(sys.argv) == 3 and sys.argv[2] != "large-odd"):
+        if len(sys.argv) > 3 or (
+            len(sys.argv) == 3 and sys.argv[2] not in ("large-odd", "candidate-pair")
+        ):
             raise ValueError("Unsupported alignment QA fixture mode")
-        seed_alignment(settings, large_odd=len(sys.argv) == 3)
+        mode = sys.argv[2] if len(sys.argv) == 3 else "default"
+        seed_alignment(
+            settings, large_odd=mode == "large-odd", candidate_pair=mode == "candidate-pair"
+        )
         return
     count = int(sys.argv[1])
     if count not in (0, 1, 100, 1000):
