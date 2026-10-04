@@ -32,8 +32,8 @@ recomputed the default 4096-pixel level. Repair `4d027b7` uses the actual bounde
 thumbnail/immutable/pyramid frame and pixel identity in foreground preparation,
 keeps genuine sparse pyramids with any present tile, and validates the recorded
 DZI selection. Changed thumbnail pixels or source descriptors still invalidate
-maps. These repairs have 65 focused passing tests; fresh full backend and
-large-slide browser checks remain pending at this revision. Warm foreground
+maps. These repairs have 65 focused passing tests, the fresh full backend
+pass and the large-slide browser checks recorded below. Warm foreground
 requests now include bounded decode/hash preparation, so earlier warm timing
 receipts do not establish performance for this source.
 
@@ -84,6 +84,23 @@ Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
   before browser launch; it is retained separately, with zero browser samples.
   Active-refinement publication safety remains focused-test evidence, rather than
   a scientific claim from these completed fixture jobs.
+- The [fresh post-repair browser receipt](alignment-results/ui-navigation-2026-10-04/post-basis-large-odd-observations.json)
+  records 12/12 journeys across Chromium, Firefox,
+  WebKit and mobile Chromium, zero retries, flaky tests or skips. Each layout
+  verifies guided correction with the actual preview `basisVersion` in the save
+  request, eight growing/repeated real-worker stacks and a 5,003 × 4,009 DZI
+  fixture. Actual foreground frames are 626 × 502 analysis pixels, padded
+  5,008 × 4,016 coordinates, divisor eight and level ten. Forward/reverse
+  coordinates, loaded tile responses and two nonuniform main canvases pass.
+  Measured initial application is 2,644.653 ms / 3,683.943 ms / 3,273.910 ms /
+  3,056.263 ms respectively. This engineering measurement includes worker queue,
+  preparation, API, page and initial viewport application after fixture seeding;
+  it excludes seed construction and establishes no anatomical or production
+  qualification. The first Chromium run failed a new global status locator
+  because both panes correctly displayed the same approximation label after
+  reverse navigation. Test-only `f2030cd5` scopes each pane; that failed trace is
+  retained outside the twelve terminal passes. Disposable services are gone;
+  original app services retain their process identities and start times.
 - Final capacity contracts at `6481133`: 492 passed, 12 skipped; terminal exit
   zero, receipt `var/alignment-final-capacity.log`. These are contract tests,
   not concurrent production load qualification.
@@ -137,8 +154,8 @@ receipt remains `var/alignment-final-repaired-backend.log`/`.xml`. Test-only
 commit `b08a2a7` replaces that outdated mock and verifies explicit 1024/default
 4096 bounds, preserved geometry and pyramid preference in two focused passes.
 The complete backend rerun at `b08a2a7` passed as recorded above; the earlier
-full count remains bound to `6481133`. Fresh browser acceptance must also
-cover the preview-basis contract and the large odd-dimension real-worker fixture.
+full count remains bound to `6481133`. Fresh browser acceptance above covers
+the preview-basis contract and the large odd-dimension real-worker fixture.
 
 One-point saves require the preview's `basisVersion`: an intervening automatic
 map change that alters its rotation/scale returns `REGION_PREVIEW_CHANGED` before
