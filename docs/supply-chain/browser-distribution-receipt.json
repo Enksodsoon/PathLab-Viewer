@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "76c63ce818c89f2cda12cfd08dc32572dca8335c",
-  "subjectTree": "6910f134b08c6be298b56497a87795283d6e031a",
+  "subjectCommit": "0fadc48279d3d2c31afe9bb45a5afbaa18f11e90",
+  "subjectTree": "a058eb94370c5ca7bb3947f2bbb0f429481c4840",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -49,7 +49,7 @@
     },
     {
       "path": "apps/web/e2e-fullstack/alignment-candidate-reset.spec.ts",
-      "gitBlob": "dbe939f71fe9abaaf3d00afc8ca4175c5d8e2cb2"
+      "gitBlob": "a4f7bb0118aa926acbd6545b1bfc9a177e4bdd50"
     },
     {
       "path": "apps/web/e2e-fullstack/alignment-large-odd.spec.ts",
@@ -337,7 +337,7 @@
     },
     {
       "path": "apps/web/scripts/alignment-operational-evidence.spec-node.mjs",
-      "gitBlob": "ef5c0160a1974000e12289a723e62ae7045a529c"
+      "gitBlob": "810c14069545c17fa1563bbaed1154c4391c3a16"
     },
     {
       "path": "apps/web/scripts/check-annotation-bundle-budget.mjs",
@@ -357,7 +357,7 @@
     },
     {
       "path": "apps/web/scripts/measure-alignment-operational-ui.mjs",
-      "gitBlob": "40ce7030e6f44cfd84f8b64f2edd4839da3711fb"
+      "gitBlob": "184092653781f459d586ce943007ffbf5fd16c38"
     },
     {
       "path": "apps/web/src/App.tsx",
@@ -1432,7 +1432,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "9a152916fd866adda42de948d72a139b95f844c505d3827f0a3ada190ae2a2dd",
+  "sourceInputSetSha256": "fa831f3d494c4c71733d9dd94af29f75e29c9a6ad9cbfaf8849d08594a197cb9",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
