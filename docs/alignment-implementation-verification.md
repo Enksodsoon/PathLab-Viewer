@@ -8,7 +8,12 @@ SQLAlchemy constraint. Supply-chain inventories require regeneration from these
 merged inputs; neither the merge nor earlier receipts establish final QA.
 Maintained TIFF 2026.9.20 requires NumPy >=2.1, incompatible with the frozen
 research runtime's NumPy 1.26.4. A separate owned maintained API/QA runtime is
-being provisioned; the numerical research profile remains explicitly separate.
+ready with a clean `pip check`; the numerical research profile remains
+explicitly separate. Its [sanitized admission receipt](alignment-results/runtime-2026-10-04/qa-runtime.json)
+records actual OpenCV 4.14.0, NumPy 2.5.2, TIFF 2026.9.20, FastAPI 0.142.1 and
+owned loaded native-library hashes. The operational nine-recipe profile uses
+the unchanged older research API/worker dependency profile; it does not qualify
+the maintained production runtime.
 
 Reconciled frontend checkpoint: `f1b4531c`, on `codex/alignment-usability`,
 reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
@@ -77,6 +82,28 @@ cannot remain active. The candidate inspection remains unsaved.
 
 ## Verification receipts
 
+- Merged frontend: 731 tests across 93 files passed in 168.14 seconds, with no
+  failures or skips. Full ESLint and TypeScript passed; all 345 captured web,
+  package and lock files stayed unchanged. The new compiled browser receipt
+  binds source `9c677e8f`, four observed graphs and 129 emitted assets; actual
+  distribution verification passed and the receipt was copied byte-identically.
+  The final legal build and fresh `316d6fc` baseline comparison remain pending.
+- Maintained-runtime CI Ruff scope (`server tests migrations`) and all 21
+  changed Python scripts pass. Strict mypy passes all 84 server source files.
+  An extra all-script Ruff invocation failed on 62 pre-existing findings in
+  unrelated demo seeders; that log is retained separately and does not become
+  a passing all-script claim.
+- Security source inventory at `a42b8fde` passes with 260 backend routes, 29
+  frontend routes and 99 egress-bearing files. The two added operational
+  scripts account for the increase from 97, under the existing development-tool
+  rule. Eleven focused security tests passed; rules were not loosened.
+- Optional-image source `90b5f832` constrains VALIS installation to inherited
+  backend pins and checks installed dependency consistency. An actual no-install
+  pip dry-run would replace maintained NumPy 2.5.2 with 1.26.4 without the
+  constraint, then rejects the same request with it. Installed NumPy, TIFF and
+  pip versions remained unchanged. Fifty existing deployment tests passed.
+  The frozen VALIS lock conflicts with maintained pins; Docker/ARM64 builds
+  remain unverified and the isolated research runtime remains separate.
 - Source `0ede9b86` fixes an independently reproduced disclosure race: native
   Advanced opened while React state remained stale, so Adjust region could not
   close it. A delayed-native-toggle regression failed, then two focused UI
