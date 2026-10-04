@@ -1,5 +1,15 @@
 # Alignment repair and workflow verification
 
+Integration reconciliation: maintained main
+`316d6fc997a2243166e6b43d6e4f11c0e4ed5f7e` was merged locally through
+`9c677e8fc3306a454f66916d4f5bf691d66d36b3`. The merged inputs retain maintained
+FastAPI, psycopg and TIFF pins, the alignment OpenCV dependency and the bounded
+SQLAlchemy constraint. Supply-chain inventories require regeneration from these
+merged inputs; neither the merge nor earlier receipts establish final QA.
+Maintained TIFF 2026.9.20 requires NumPy >=2.1, incompatible with the frozen
+research runtime's NumPy 1.26.4. A separate owned maintained API/QA runtime is
+being provisioned; the numerical research profile remains explicitly separate.
+
 Reconciled frontend checkpoint: `f1b4531c`, on `codex/alignment-usability`,
 reconciled with main `c37cf81a1cabc967e3a587eb2610bf95993801ba` through
 merge `2e2f99d` in an isolated checkout. The public screening remains bound to
@@ -67,6 +77,19 @@ cannot remain active. The candidate inspection remains unsaved.
 
 ## Verification receipts
 
+- Source `0ede9b86` fixes an independently reproduced disclosure race: native
+  Advanced opened while React state remained stale, so Adjust region could not
+  close it. A delayed-native-toggle regression failed, then two focused UI
+  tests passed after controlling summary activation directly. Six operational
+  Node evidence fixtures and six mocked launcher fixtures passed; TypeScript,
+  scoped ESLint and Ruff passed. An independent review additionally passed
+  thirteen Python admission/launcher fixtures and six Node fixtures. These are
+  source and fixture checks, not real service timings. The preview banner uses
+  plain temporary-alignment wording; engine details remain in Advanced.
+- Historical `f1b4531c` candidate/reset gate: Chromium passed all four journeys;
+  Firefox passed three and failed its ordinary Advanced click. The failed
+  receipt is retained. WebKit and mobile had not run at this boundary. The
+  complete four-browser gate must run again after reconciliation and the fix.
 - Frontend `f1b4531c`: 728 tests across 93 files passed in 139.99 seconds,
   with no failures or skips. Full ESLint, TypeScript, production/legal build and
   both bundle budgets passed. Annotation initial gzip delta is 3,055 bytes
