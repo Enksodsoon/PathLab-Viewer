@@ -4,8 +4,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import { ComparisonPage } from '../pages/ComparisonPage'
+import { candidatePreviewRegistration } from '../candidatePreview'
+import type { ComparisonSet, RegistrationCandidateManifest } from '../types'
 
-const viewportHarness = vi.hoisted(() => ({ enabled: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
+const currentPairProof = { currentPair: true, currentSettings: true, anchorSlideId: 'slide-1', sourceSnapshotVersion: 'snapshot-moving', anchorSnapshotVersion: 'snapshot-reference' }
+const candidateInspectionMap = { coordinateReferenceId: 'slide-1', anchorSlideId: 'slide-1', status: 'ready', provenance: 'automatic-candidate', movingToReference: [[1, 0, 0], [0, 1, 0]], triangles: [{ moving: [[0, 0], [100, 0], [0, 100]], reference: [[0, 0], [100, 0], [0, 100]] }] }
+
+const viewportHarness = vi.hoisted(() => ({ enabled: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), homed: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
   OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange, loadingMode, showLoadingMode, micronsPerPixel }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean, micronsPerPixel?: number | null }) => <button
@@ -15,7 +20,7 @@ vi.mock('../components/OpenSeadragonViewer', () => ({
     data-loading-mode={loadingMode}
     data-loading-control={showLoadingMode === false ? 'hidden' : 'shown'}
     onClick={() => {
-      if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current, ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: vi.fn() })
+      if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current, ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: () => viewportHarness.homed(tileSource) })
       onOpen?.()
       onViewportChange?.(viewportHarness.enabled ? { ...viewportHarness.current } : { centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
     }}
@@ -28,13 +33,14 @@ beforeEach(() => {
   viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 }
   viewportHarness.applied.mockClear()
   viewportHarness.fitted.mockClear()
+  viewportHarness.homed.mockClear()
   sessionStorage.clear()
   vi.stubGlobal('fetch', vi.fn(async (input) => String(input).endsWith('/jobs')
     ? new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
     : new Response(JSON.stringify({
     id: 'set-1', name: 'Multi-stain set', referenceSlideId: 'slide-1', status: 'ready', version: 1,
     members: Array.from({ length: 5 }, (_, index) => ({
-      slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
+      alignmentSourceVersion: index === 0 ? 'snapshot-reference' : 'snapshot-moving', slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
       tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
       registration: index === 0 ? null : index === 4
         ? { status: 'rejected', provenance: 'automatic' }
@@ -46,6 +52,184 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   localStorage.removeItem('pathlab-viewer-loading-mode:v1')
+})
+
+it('resets the chosen linked pane directly and keeps independent reset local without Advanced', async () => {
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  const reset = screen.getByRole('button', { name: 'Reset Slide 2 view' })
+  expect(screen.getByText('Advanced').closest('details')).not.toHaveAttribute('open')
+  viewportHarness.fitted.mockClear()
+  viewportHarness.applied.mockClear()
+  await user.click(reset)
+  expect(viewportHarness.fitted).toHaveBeenCalledWith('/tiles/2.dzi', expect.any(Array))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.any(Object))
+  await user.click(screen.getByRole('button', { name: 'Unlink Slide 2 pane' }))
+  viewportHarness.homed.mockClear()
+  viewportHarness.applied.mockClear()
+  reset.focus()
+  await user.keyboard('{Enter}')
+  expect(viewportHarness.homed).toHaveBeenCalledExactlyOnceWith('/tiles/2.dzi')
+  expect(viewportHarness.applied).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  expect(screen.getByRole('button', { name: 'Reset Slide 2 view' })).toBeDisabled()
+})
+
+function candidatePreviewFixture() {
+  const cell = (size: number, offset: number) => ({ moving: [[0, 0], [size, 0], [0, size]], reference: [[offset, 0], [size + offset, 0], [offset, size]] })
+  const overview = { status: 'approximate', provenance: 'automatic', engine: 'native-overview-v6', anchorSlideId: 'slide-1', coordinateReferenceId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 0]], overviewTriangles: [cell(700, 20)] }
+  return {
+    comparison: { id: 'set-1', name: 'Bound candidate set', referenceSlideId: 'slide-1', status: 'running', version: 1, members: [
+      { slideId: 'slide-1', displayName: 'Slide 1', tileSource: '/tiles/1.dzi', anchorSlideId: null, alignmentSourceVersion: 'snapshot-reference', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+      { slideId: 'slide-2', displayName: 'Slide 2', tileSource: '/tiles/2.dzi', anchorSlideId: 'slide-1', alignmentSourceVersion: 'snapshot-moving', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: overview, nativeOverviewFallback: overview },
+    ] },
+    manifest: { comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {}, candidates: [{ id: 'candidate-partial', slideId: 'slide-2', anchorSlideId: 'slide-1', setVersion: 1, engine: 'wsireg-0.3.8', status: 'ready', validationState: 'engineering_passed', currentSettings: true, currentPair: true, sourceSnapshotVersion: 'snapshot-moving', anchorSnapshotVersion: 'snapshot-reference', registration: { status: 'ready', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', coordinateReferenceId: 'slide-1', movingToReference: [[1, 0, 10], [0, 1, 0]], triangles: [cell(100, 10)] } }] },
+  }
+}
+
+it('uses admitted Native overview outside candidate local support and restores the latest canonical map', async () => {
+  const fixture = candidatePreviewFixture()
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    if (init?.method === 'POST') throw new Error('Candidate preview must be client-only')
+    const url = String(input)
+    return new Response(JSON.stringify(url.endsWith('/candidates') ? fixture.manifest : url.endsWith('/jobs') ? [] : fixture.comparison), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  const originalViewport = { ...viewportHarness.current }
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 320 }))
+  expect(viewportHarness.applied.mock.calls.filter(call => call[0] === '/tiles/1.dzi').at(-1)?.[1].centerY).toBeCloseTo(200, 10)
+  expect(screen.getAllByText('Approximate overview', { selector: 'span' })).toHaveLength(2)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  expect(screen.getByRole('button', { name: 'Restore saved alignment' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
+  expect(screen.getByText('Experimental alignment preview')).toBeVisible()
+  viewportHarness.current = { centerX: 20, centerY: 20, imageZoom: 2, rotation: 0 }
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 30 }))
+  expect(screen.queryByText('Approximate overview', { selector: 'span' })).not.toBeInTheDocument()
+  viewportHarness.current = { centerX: 900, centerY: 700, imageZoom: 2, rotation: 0 }
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.applied.mock.calls.filter(call => call[0] === '/tiles/1.dzi')).toHaveLength(0)
+  expect(screen.getByText('Unavailable', { selector: 'span' })).toBeVisible()
+  expect(screen.queryByText('Approximate overview', { selector: 'span' })).not.toBeInTheDocument()
+  fixture.comparison.members[1].registration!.movingToReference[0][2] = 40
+  fixture.comparison.members[1].registration!.overviewTriangles[0].reference = [[40, 0], [740, 0], [40, 700]]
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThanOrEqual(6), { timeout: 3500 })
+  await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', originalViewport)
+  viewportHarness.current = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 340 }))
+})
+
+it('ends a candidate preview when same-version polling changes a source snapshot', async () => {
+  const fixture = candidatePreviewFixture()
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  expect(screen.getByText('Experimental alignment preview')).toBeVisible()
+  fixture.comparison.members[1].alignmentSourceVersion = 'replacement-source-snapshot'
+  await waitFor(() => expect(screen.queryByText('Experimental alignment preview')).not.toBeInTheDocument(), { timeout: 3500 })
+  expect(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' })).toBeDisabled()
+})
+
+it('honors fresh removal of an unsafe embedded candidate overview while retaining the candidate map', async () => {
+  const fixture = candidatePreviewFixture()
+  const manifest = fixture.manifest as unknown as RegistrationCandidateManifest
+  const comparison = fixture.comparison as unknown as ComparisonSet
+  manifest.candidates[0].registration!.overviewFallback = comparison.members[1].nativeOverviewFallback!
+  comparison.members[1].nativeOverviewFallback = null
+  let reads = 0
+  vi.mocked(fetch).mockImplementation(async input => {
+    if (String(input).endsWith('/candidates')) reads += 1
+    return new Response(JSON.stringify(String(input).endsWith('/candidates') ? manifest : String(input).endsWith('/jobs') ? [] : comparison), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 320 }))
+  delete manifest.candidates[0].registration!.overviewFallback
+  await waitFor(() => expect(reads).toBeGreaterThan(1), { timeout: 3500 })
+  expect(screen.getByText('Experimental alignment preview')).toBeVisible()
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.applied.mock.calls.filter(call => call[0] === '/tiles/1.dzi')).toHaveLength(0)
+  viewportHarness.current = { centerX: 20, centerY: 20, imageZoom: 2, rotation: 0 }
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 30 }))
+})
+
+it.each([
+  { name: 'absent authoritative pair proof', overrides: { currentPair: undefined } },
+  { name: 'stale source or calibration proof', overrides: { currentPair: false } },
+  { name: 'missing source token', overrides: { sourceSnapshotVersion: null } },
+  { name: 'stale source token', overrides: { sourceSnapshotVersion: 'old-source' } },
+  { name: 'stale anchor token', overrides: { anchorSnapshotVersion: 'old-anchor' } },
+  { name: 'old manifest version', manifestVersion: 2, overrides: {} },
+  { name: 'wrong pair anchor', overrides: { anchorSlideId: 'slide-3' } },
+  { name: 'unknown adapter freshness', overrides: { currentSettings: undefined } },
+])('rejects candidate preview with $name', async ({ overrides, manifestVersion }) => {
+  const fixture = candidatePreviewFixture()
+  Object.assign(fixture.manifest.candidates[0], overrides)
+  if (manifestVersion) fixture.manifest.setVersion = manifestVersion
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  expect(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' })).toBeDisabled()
+})
+
+it.each(['wrong-reference', 'absent-reference', 'reflected-cell', 'nonfinite', 'degenerate', 'outside-original'] as const)('rejects %s candidate geometry and never admits corrupt Native overview', async kind => {
+  const fixture = candidatePreviewFixture()
+  const comparison = fixture.comparison as unknown as ComparisonSet
+  const manifest = fixture.manifest as unknown as RegistrationCandidateManifest
+  const candidate = manifest.candidates[0]
+  if (kind === 'wrong-reference') candidate.registration!.coordinateReferenceId = 'unrelated-slide'
+  else if (kind === 'absent-reference') delete candidate.registration!.coordinateReferenceId
+  else if (kind === 'reflected-cell') candidate.registration!.triangles![0].reference.reverse()
+  else {
+    const point = kind === 'nonfinite' ? [Infinity, 0] : kind === 'outside-original' ? [1001, 0] : [0, 0]
+    candidate.registration!.triangles![0].moving[1] = point as [number, number]
+  }
+  expect(candidatePreviewRegistration(candidate, comparison, manifest)).toBeNull()
+  const original = candidatePreviewFixture()
+  const nativeComparison = original.comparison as unknown as ComparisonSet
+  const nativeManifest = original.manifest as unknown as RegistrationCandidateManifest
+  const fallback = nativeComparison.members[1].nativeOverviewFallback!
+  if (kind === 'wrong-reference') fallback.coordinateReferenceId = 'unrelated-slide'
+  else if (kind === 'absent-reference') delete fallback.coordinateReferenceId
+  else if (kind === 'reflected-cell') fallback.overviewTriangles![0].reference.reverse()
+  else fallback.overviewTriangles![0].moving[1] = (kind === 'nonfinite' ? [Infinity, 0] : kind === 'outside-original' ? [1001, 0] : [0, 0]) as [number, number]
+  expect(candidatePreviewRegistration(nativeManifest.candidates[0], nativeComparison, nativeManifest)?.retainedOverviewFallback).toBeUndefined()
 })
 
 it('controls tile detail for the active pane from Display and preserves the saved preference', async () => {
@@ -251,7 +435,7 @@ it('shows durable automatic alignment progress for every stack member', async ()
     : new Response(JSON.stringify({
       id: 'set-1', name: 'Renal Test', referenceSlideId: 'slide-1', status: 'running', version: 4,
       members: Array.from({ length: 4 }, (_, index) => ({
-        slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: ['H&E', 'PAS', 'Silver', 'Trichrome'][index],
+        alignmentSourceVersion: index === 0 ? 'snapshot-reference' : 'snapshot-moving', slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: ['H&E', 'PAS', 'Silver', 'Trichrome'][index],
         tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: index === 1 ? { status: 'approximate', provenance: 'automatic', overviewTriangles: [] } : null,
       })),
@@ -280,8 +464,8 @@ it('keeps the current map usable while a replacement registration runs', async (
     : new Response(JSON.stringify({
       id: 'set-1', name: 'Rerunning set', referenceSlideId: 'slide-1', status: 'running', version: 2,
       members: [
-        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
-        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] } },
+        { alignmentSourceVersion: 'snapshot-reference', slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+        { alignmentSourceVersion: 'snapshot-moving', slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] } },
       ],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
 
@@ -299,11 +483,11 @@ it('does not offer promotion for a locally unqualified engine map', async () => 
     if (url.endsWith('/jobs')) return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })
     if (url.endsWith('/candidates')) return new Response(JSON.stringify({
       comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {},
-      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'current', settingsDigest: 'current', currentSettings: true, status: 'ready', validationState: 'engineering_passed', registration: { status: 'ready', provenance: 'automatic-candidate', evidence: { hisalignLocalEvidenceQualified: false } }, evidence: {}, artifactSha256: null, failureReason: null, createdAt: '2026-09-28T00:00:00Z' }],
+      candidates: [{ ...currentPairProof, id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'current', settingsDigest: 'current', currentSettings: true, status: 'ready', validationState: 'engineering_passed', registration: { ...candidateInspectionMap, evidence: { hisalignLocalEvidenceQualified: false } }, evidence: {}, artifactSha256: null, failureReason: null, createdAt: '2026-09-28T00:00:00Z' }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     return new Response(JSON.stringify({ id: 'set-1', name: 'Unsafe candidate set', referenceSlideId: 'slide-1', status: 'partial', version: 1, members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
-      { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+      { alignmentSourceVersion: 'snapshot-reference', slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+      { alignmentSourceVersion: 'snapshot-moving', slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
     ] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
   const user = userEvent.setup()
@@ -317,7 +501,7 @@ it('does not offer promotion for a locally unqualified engine map', async () => 
 it('blocks promotion after independent benchmark qualification fails while allowing inspection', async () => {
   const originalFetch = vi.mocked(fetch).getMockImplementation()!
   vi.mocked(fetch).mockImplementation(async (input, init) => String(input).endsWith('/candidates')
-    ? new Response(JSON.stringify({ candidates: [{ id: 'failed-gates', slideId: 'slide-2', setVersion: 1, engine: 'native-v12', status: 'ready', validationState: 'engineering_passed', registration: { status: 'ready', provenance: 'automatic-candidate' }, benchmarkMeasurements: { qualified: false } }] }), { status: 200 })
+    ? new Response(JSON.stringify({ comparisonSetId: 'set-1', setVersion: 1, candidates: [{ ...currentPairProof, id: 'failed-gates', slideId: 'slide-2', setVersion: 1, engine: 'native-v12', status: 'ready', validationState: 'engineering_passed', registration: { ...candidateInspectionMap }, benchmarkMeasurements: { qualified: false } }] }), { status: 200 })
     : originalFetch(input, init))
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
@@ -337,7 +521,7 @@ it.each(['native-wsireg', 'valis-rigid-wsireg', 'native-valis'].flatMap(engine =
 ]))('requires independently qualified improvement before promoting $engine ($validationState/$qualified/$improvesOnIndividualStages/$digest)', async ({ engine, validationState, qualified, improvesOnIndividualStages, digest, enabled }) => {
   const originalFetch = vi.mocked(fetch).getMockImplementation()!
   vi.mocked(fetch).mockImplementation(async (input, init) => String(input).endsWith('/candidates')
-    ? new Response(JSON.stringify({ candidates: [{ id: 'hybrid', slideId: 'slide-2', setVersion: 1, engine, status: 'ready', currentSettings: true, settingsDigest: 'current', validationState, registration: { status: 'ready', provenance: 'automatic-candidate', evidence: { valisLocalEvidenceQualified: true } }, benchmarkMeasurements: { qualified, improvesOnIndividualStages, settingsDigest: digest } }] }), { status: 200 })
+    ? new Response(JSON.stringify({ comparisonSetId: 'set-1', setVersion: 1, candidates: [{ ...currentPairProof, id: 'hybrid', slideId: 'slide-2', setVersion: 1, engine, status: 'ready', currentSettings: true, settingsDigest: 'current', validationState, registration: { ...candidateInspectionMap, evidence: { valisLocalEvidenceQualified: true } }, benchmarkMeasurements: { qualified, improvesOnIndividualStages, settingsDigest: digest } }] }), { status: 200 })
     : originalFetch(input, init))
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
@@ -352,21 +536,21 @@ it.each(['native-wsireg', 'valis-rigid-wsireg', 'native-valis'].flatMap(engine =
 it.each([{ status: 'partial', currentSettings: true }, { status: 'running', currentSettings: true }, { status: 'partial', currentSettings: false }])('handles candidate freshness and $status refreshes with currentSettings=$currentSettings', async ({ status, currentSettings }) => {
   let setReads = 0
   const savedRegistration = { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] }
-  const candidateRegistration = { status: 'approximate', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', movingToReference: [[1.03, 0, 40], [0, 1.03, 25]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[40, 25], [555, 25], [40, 540]], maxResidualPixels: 0.2 }], evidence: { featureMatchCount: 7 } }
+  const candidateRegistration = { coordinateReferenceId: 'slide-1', status: 'approximate', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', movingToReference: [[1.03, 0, 40], [0, 1.03, 25]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[40, 25], [555, 25], [40, 540]], maxResidualPixels: 0.2 }], evidence: { featureMatchCount: 7 } }
   vi.mocked(fetch).mockImplementation(async (input, init) => {
     const url = String(input)
     if (url.endsWith('/jobs')) return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
     if (url.endsWith('/candidates')) return new Response(JSON.stringify({
       comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {},
-      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'c56d1eb', settingsDigest: 'abc', currentSettings, status: 'approximate', validationState: 'rejected', registration: candidateRegistration, evidence: {}, artifactSha256: 'hash', failureReason: null, createdAt: '2026-09-22T00:00:00Z' }],
+      candidates: [{ ...currentPairProof, id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'c56d1eb', settingsDigest: 'abc', currentSettings, status: 'approximate', validationState: 'rejected', registration: candidateRegistration, evidence: {}, artifactSha256: 'hash', failureReason: null, createdAt: '2026-09-22T00:00:00Z' }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     if (init?.method === 'POST') throw new Error('Preview must not mutate the server')
     setReads += 1
     return new Response(JSON.stringify({
       id: 'set-1', name: setReads > 1 ? 'Refreshed preview set' : 'Candidate preview set', referenceSlideId: 'slide-1', status, version: 1,
       members: [
-        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
-        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: savedRegistration },
+        { alignmentSourceVersion: 'snapshot-reference', slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+        { alignmentSourceVersion: 'snapshot-moving', slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: savedRegistration },
       ],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
@@ -474,7 +658,7 @@ it('labels short overview gaps approximate instead of freezing the linked pane',
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Mixed evidence set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+      { alignmentSourceVersion: 'snapshot-reference', slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
       {
         slideId: 'slide-2', displayName: 'Silver', stain: 'Silver', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: {
@@ -499,7 +683,7 @@ it('automatically uses and labels an order-preserving component overview', async
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Ordered component set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+      { alignmentSourceVersion: 'snapshot-reference', slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
       {
         slideId: 'slide-2', displayName: 'Silver', stain: 'Silver', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: {
@@ -524,9 +708,9 @@ it('automatically uses and labels a whole-slide structural overview', async () =
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Whole-slide structural set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+      { alignmentSourceVersion: 'snapshot-reference', slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
       {
-        slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1030, height: 860, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
+        alignmentSourceVersion: 'snapshot-moving', slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1030, height: 860, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: {
           status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1.08, 10]], triangles: [],
           overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 550]] }],
@@ -746,7 +930,7 @@ it('lets an administrator save a direct serial-section anchor and queue registra
     id: 'set-1', name: 'Multi-stain set', referenceSlideId: 'slide-1', status: 'draft', version: 2,
     alignmentConfig: { anchors: { 'slide-4': 'slide-3' } },
     members: Array.from({ length: 5 }, (_, index) => ({
-      slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
+      alignmentSourceVersion: index === 0 ? 'snapshot-reference' : 'snapshot-moving', slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
       tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null,
     })),
   }
@@ -816,9 +1000,9 @@ it.each([false, true])('requeues obsolete maps on admin opening only (public: %s
 it('keeps native overview preview-only and benchmarks its explicit availability identity alongside legacy native', async () => {
   const originalFetch = vi.mocked(fetch).getMockImplementation()!
   vi.mocked(fetch).mockImplementation(async (input, init) => String(input).endsWith('/candidates')
-    ? new Response(JSON.stringify({ engineAvailability: { 'native-v12': { available: true }, 'native-overview-v6': { available: true } }, candidates: [
-      { id: 'legacy-native', slideId: 'slide-2', setVersion: 1, engine: 'native-v12', status: 'ready', currentSettings: true, validationState: 'engineering_passed', registration: { status: 'ready', provenance: 'automatic-candidate' } },
-      { id: 'bounded-overview', slideId: 'slide-2', setVersion: 1, engine: 'native-overview-v6', status: 'approximate', currentSettings: true, validationState: 'rejected', registration: { status: 'approximate', provenance: 'automatic-candidate' } },
+    ? new Response(JSON.stringify({ comparisonSetId: 'set-1', setVersion: 1, engineAvailability: { 'native-v12': { available: true }, 'native-overview-v6': { available: true } }, candidates: [
+      { ...currentPairProof, id: 'legacy-native', slideId: 'slide-2', setVersion: 1, engine: 'native-v12', status: 'ready', currentSettings: true, validationState: 'engineering_passed', registration: { ...candidateInspectionMap } },
+      { ...currentPairProof, id: 'bounded-overview', slideId: 'slide-2', setVersion: 1, engine: 'native-overview-v6', status: 'approximate', currentSettings: true, validationState: 'rejected', registration: { ...candidateInspectionMap, status: 'approximate', triangles: [], overviewTriangles: candidateInspectionMap.triangles } },
     ] }), { status: 200 }) : originalFetch(input, init))
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)

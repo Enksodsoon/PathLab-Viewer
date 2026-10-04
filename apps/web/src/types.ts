@@ -230,6 +230,8 @@ export interface SharedManifest {
 }
 
 export interface SlideRegistration {
+  /** Client-only, backend-admitted current Native overview during candidate inspection. */
+  retainedOverviewFallback?: SlideRegistration
   overviewFallback?: SlideRegistration
   status: 'ready' | 'approximate' | 'rejected' | 'needs_refinement' | 'stale'
   provenance: 'automatic' | 'automatic-candidate' | 'manual' | 'manual-region'
@@ -292,6 +294,8 @@ export interface SlideRegistration {
 }
 
 export interface ComparisonMember {
+  alignmentSourceVersion?: string
+  nativeOverviewFallback?: SlideRegistration | null
   slideId: string
   displayName: string
   stain: string
@@ -356,6 +360,9 @@ export interface ComparisonRegistrationJob {
 }
 
 export interface RegistrationCandidate {
+  currentPair?: boolean
+  sourceSnapshotVersion?: string | null
+  anchorSnapshotVersion?: string | null
   recipeIdentity?: string
   stageProvenance?: RegistrationStageReceipt[]
   benchmarkMeasurements?: RegistrationBenchmarkMeasurements

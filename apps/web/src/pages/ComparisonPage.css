@@ -48,7 +48,9 @@
 .comparison-tray > strong span { color: var(--muted); background: var(--surface); }
 .comparison-add-pane { box-shadow: none; }
 .comparison-pane > header button { flex-basis: 44px; width: 44px; height: 44px; }
-.comparison-pane-select { position: relative; flex: 1 1 auto; min-width: 0; max-width: 320px; }
+.comparison-pane > header { flex-wrap: wrap; }
+.comparison-pane > header > :is(.alignment-ready, .alignment-unavailable, .alignment-approximate) { position: absolute; top: calc(100% + 6px); left: 0; max-width: calc(100% - 14px); padding: 4px 7px; border-radius: 4px; background: rgb(20 20 20 / 92%); overflow-wrap: anywhere; }
+.comparison-pane-select { position: relative; flex: 1 1 100px; min-width: 80px; max-width: 320px; }
 .comparison-pane-select > svg { position: absolute; right: 10px; top: 50%; translate: 0 -50%; width: 14px; height: 14px; pointer-events: none; color: #fff; }
 .comparison-pane > header select { width: 100%; min-height: 44px; appearance: none; color: #fff; background-color: #2d2b27; }
 .comparison-pane .viewer-loading-mode { top: 76px; }

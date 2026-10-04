@@ -4,6 +4,22 @@ import { mapStackPoint } from '../alignment'
 import { alignmentViewDelta, continuousAlignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapContinuousComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, overviewAlignmentViewDelta, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
 
 describe('comparison coordinate mapping', () => {
+  it('uses retained Native only after candidate local and own overview, never in strict mode', () => {
+    const cell = (size: number, offset: number) => ({ moving: [[0, 0], [size, 0], [0, size]] as [[number, number], [number, number], [number, number]], reference: [[offset, 0], [size + offset, 0], [offset, size]] as [[number, number], [number, number], [number, number]] })
+    const registration = { status: 'ready', anchorSlideId: 'fixed', movingToReference: [[1, 0, 10], [0, 1, 0]], triangles: [cell(10, 10)], overviewTriangles: [cell(100, 30)], overviewFallback: { movingToReference: [[1, 0, 40], [0, 1, 0]], overviewTriangles: [cell(200, 40)] }, retainedOverviewFallback: { movingToReference: [[1, 0, 20], [0, 1, 0]], overviewTriangles: [cell(500, 20)] } }
+    const members = [{ slideId: 'fixed' }, { slideId: 'moving', registration }]
+    expect(mapStackPoint([2, 2], 'moving', 'fixed', 'fixed', members)).toMatchObject({ point: [12, 2], approximate: false })
+    expect(mapStackPoint([40, 20], 'moving', 'fixed', 'fixed', members)?.point[0]).toBeCloseTo(70)
+    expect(mapStackPoint([120, 30], 'moving', 'fixed', 'fixed', members)?.point[0]).toBeCloseTo(160)
+    expect(mapStackPoint([350, 100], 'moving', 'fixed', 'fixed', members)).toMatchObject({ approximate: true, retainedOverview: true })
+    expect(mapStackPoint([350, 100], 'moving', 'fixed', 'fixed', members)?.point[0]).toBeCloseTo(370)
+    expect(mapStackPoint([370, 100], 'fixed', 'moving', 'fixed', members)?.point[0]).toBeCloseTo(350)
+    expect(mapStackPoint([350, 100], 'moving', 'fixed', 'fixed', members, 'strict')).toBeNull()
+    expect(mapStackPoint([600, 600], 'moving', 'fixed', 'fixed', members)).toBeNull()
+    const regional = [{ sourceSlideId: 'moving', targetSlideId: 'fixed', sourceBounds: [0, 0, 500, 500] as [number, number, number, number], registration: { status: 'approximate', movingToReference: [[1, 0, 80], [0, 1, 0]], triangles: [cell(500, 80)] } }]
+    expect(mapStackPoint([350, 100], 'moving', 'fixed', 'fixed', members, 'best', 0, regional)).toMatchObject({ regional: true })
+    expect(mapStackPoint([350, 100], 'moving', 'fixed', 'fixed', members, 'best', 0, regional)?.point[0]).toBeCloseTo(430)
+  })
   it('prefers bounded regional corrections for displayed siblings without changing their overview maps', () => {
     const cell = { moving: [[100, 100], [300, 100], [100, 300]] as [[number, number], [number, number], [number, number]], reference: [[140, 120], [340, 120], [140, 320]] as [[number, number], [number, number], [number, number]] }
     const members = ['a', 'b'].map(slideId => ({ slideId, registration: { status: 'approximate', anchorSlideId: 'root', movingToReference: [[1, 0, 0], [0, 1, 0]], overviewTriangles: [{ moving: [[0, 0], [1000, 0], [0, 1000]] as typeof cell.moving, reference: [[0, 0], [1000, 0], [0, 1000]] as typeof cell.reference }] } }))

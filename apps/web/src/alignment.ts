@@ -10,6 +10,7 @@ export interface RegistrationTriangle {
 }
 
 export interface LocalRegistration {
+  retainedOverviewFallback?: LocalRegistration
   overviewFallback?: LocalRegistration
   movingToReference?: AffineTransform
   controlPoints?: Array<{ moving: Point; reference: Point; errorPixels: number }>
@@ -114,11 +115,11 @@ export function mapStackPoint(
   mode: 'best' | 'strict' | 'overview' = 'best',
   visibleRadiusPixels = 0,
   regionalCorrections: RegionalMap[] = [],
-): { point: Point; rotation: number; zoomScale: number; approximate: boolean; regional?: boolean } | null {
+): { point: Point; rotation: number; zoomScale: number; approximate: boolean; regional?: boolean; retainedOverview?: boolean } | null {
   if (!point.every(Number.isFinite)) return null
   if (sourceId === targetId) return { point, rotation: 0, zoomScale: 1, approximate: false }
   if (regionalCorrections.length) {
-    type Mapped = { point: Point; rotation: number; zoomScale: number; approximate: boolean; regional?: boolean }
+    type Mapped = { point: Point; rotation: number; zoomScale: number; approximate: boolean; regional?: boolean; retainedOverview?: boolean }
     const visit = (id: string, current: Mapped, seen: Set<string>): Mapped | null => {
       if (id === targetId) return current
       if (seen.has(id) || seen.size > members.length) return null
@@ -153,7 +154,8 @@ export function mapStackPoint(
       for (const hop of hops) {
         const mapped = visit(hop.id, { point: hop.mapped.point, rotation: current.rotation + hop.mapped.rotation,
           zoomScale: current.zoomScale * hop.mapped.zoomScale, approximate: current.approximate || hop.mapped.approximate,
-          regional: current.regional || hop.mapped.regional }, visited)
+          regional: current.regional || hop.mapped.regional,
+          ...(current.retainedOverview || hop.mapped.retainedOverview ? { retainedOverview: true } : {}) }, visited)
         if (mapped) return mapped
       }
       return null
@@ -177,13 +179,14 @@ export function mapStackPoint(
   if (!source || !target) return null
   const common = source.find(id => target.includes(id))
   if (!common) return null
-  let result = { point, rotation: 0, zoomScale: 1, approximate: false }
+  let result: { point: Point; rotation: number; zoomScale: number; approximate: boolean; retainedOverview?: boolean } = { point, rotation: 0, zoomScale: 1, approximate: false }
   const step = (id: string, backwards: boolean) => {
     const registration = byId.get(id)?.registration
     if (!registration?.movingToReference) return false
     let mapped = mode !== 'overview' && registration.status === 'ready'
       ? mapRegistrationPoint(result.point, registration, backwards) : null
     const approximate = !mapped
+    let retainedOverview = false
     if (!mapped && mode !== 'strict') {
       if (registration.overviewTriangles?.length) {
         mapped = mapRegistrationPointUsing(result.point, registration, registration.overviewTriangles, backwards)
@@ -193,6 +196,11 @@ export function mapStackPoint(
       if (!mapped && registration.overviewFallback?.movingToReference) {
         mapped = mapRegistrationPointUsing(result.point, registration.overviewFallback,
           registration.overviewFallback.overviewTriangles, backwards)
+      }
+      if (!mapped && registration.retainedOverviewFallback?.movingToReference) {
+        mapped = mapRegistrationPointUsing(result.point, registration.retainedOverviewFallback,
+          registration.retainedOverviewFallback.overviewTriangles, backwards)
+        retainedOverview = !!mapped
       }
       // Prefer supported cells from either mesh before crossing a short glass gap.
       if (!mapped && registration.overviewTriangles?.length) {
@@ -205,7 +213,8 @@ export function mapStackPoint(
     if (!mapped) return false
     const view = linearView(mapped.linear)
     result = { point: mapped.point, rotation: result.rotation - view.rotation,
-      zoomScale: result.zoomScale / view.scale, approximate: result.approximate || approximate }
+      zoomScale: result.zoomScale / view.scale, approximate: result.approximate || approximate,
+      ...(result.retainedOverview || retainedOverview ? { retainedOverview: true } : {}) }
     return true
   }
   try {
