@@ -34,7 +34,12 @@
     "SPDXBuildValidation": "PASS",
     "strictAdmissionExit": 1,
     "independentInventoryReview": "CLEAR",
-    "inventoryRegressionSuite": "RUNNING"
+    "inventoryRegressionSuite": {
+      "passed": 45,
+      "skipped": 1,
+      "exitCode": 0,
+      "skipReason": "Windows host lacks symbolic-link creation permission; Linux CI exercises case"
+    }
   },
   "hostedVerification": "PENDING"
 }
