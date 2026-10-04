@@ -1,0 +1,165 @@
+{
+  "actualLoadedVersions": {
+    "cv2": "4.14.0",
+    "fastapi": "0.142.1",
+    "libvips": "8.18.6",
+    "numpy": "2.5.2",
+    "openslideLibrary": "4.0.0",
+    "sqlalchemy": "2.0.52",
+    "tifffile": "2026.9.20"
+  },
+  "binarySha256": {
+    "opencv": "441542da947fb1d51b4e1c4654ceb191bd7748f917a5f88dfeb50dc7d5221241",
+    "pythonBaseExecutable": "4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a",
+    "pythonLauncher": "0b471133e110cfb53a061cad528ce8e517d7b9ac41a0a396c39ad795a487fc14"
+  },
+  "captureDate": "2026-10-04",
+  "coreProductionLockSha256": "24194a25c8f39dfc93846b74b23cded620a884b1c186eefb6fc51065da35424a",
+  "distributions": {
+    "Mako": "1.4.1",
+    "MarkupSafe": "3.0.3",
+    "PyYAML": "6.0.3",
+    "Pygments": "2.21.0",
+    "SQLAlchemy": "2.0.52",
+    "alembic": "1.19.1",
+    "annotated-doc": "0.0.5",
+    "annotated-types": "0.8.0",
+    "anyio": "4.14.2",
+    "argon2-cffi": "25.1.0",
+    "argon2-cffi-bindings": "26.1.0",
+    "ast_serialize": "0.12.1",
+    "attrs": "26.1.0",
+    "certifi": "2026.7.22",
+    "cffi": "2.1.1",
+    "charset-normalizer": "3.5.2",
+    "click": "8.5.0",
+    "colorama": "0.4.6",
+    "coverage": "7.16.2",
+    "cryptography": "50.0.1",
+    "fastapi": "0.142.1",
+    "greenlet": "3.5.5",
+    "h11": "0.16.0",
+    "hatchling": "1.32.4",
+    "httpcore": "1.0.9",
+    "httptools": "0.8.0",
+    "httpx": "0.28.1",
+    "idna": "3.19",
+    "imagecodecs": "2026.8.16",
+    "iniconfig": "2.3.0",
+    "itsdangerous": "2.2.0",
+    "jsonschema": "4.26.0",
+    "jsonschema-specifications": "2025.9.1",
+    "librt": "0.16.0",
+    "lxml": "6.1.2",
+    "mypy": "2.4.0",
+    "mypy_extensions": "1.1.0",
+    "numpy": "2.5.2",
+    "ome-types": "0.6.3",
+    "opencv-python-headless": "4.14.0.94",
+    "openslide-bin": "4.0.0.11",
+    "openslide-python": "1.4.3",
+    "opentelemetry-api": "1.45.0",
+    "packaging": "26.3",
+    "pathlab-viewer": "0.1.0",
+    "pathspec": "1.1.1",
+    "pillow": "12.3.0",
+    "pip": "25.0.1",
+    "pkgconfig": "1.6.0",
+    "pluggy": "1.6.0",
+    "psycopg": "3.3.6",
+    "psycopg-binary": "3.3.6",
+    "pycparser": "3.0",
+    "pydantic": "2.13.5",
+    "pydantic-extra-types": "2.11.1",
+    "pydantic-settings": "2.15.0",
+    "pydantic_core": "2.46.5",
+    "pytest": "9.1.1",
+    "pytest-cov": "7.1.0",
+    "python-dotenv": "1.2.3",
+    "pyvips": "3.2.0",
+    "pyvips-binary": "8.18.6",
+    "referencing": "0.37.0",
+    "requests": "2.34.2",
+    "rpds-py": "2026.6.3",
+    "ruff": "0.16.10",
+    "setuptools": "84.0.0",
+    "starlette": "1.6.0",
+    "tifffile": "2026.9.20",
+    "tomlkit": "0.15.1",
+    "trove-classifiers": "2026.9.21.13",
+    "typing-inspection": "0.4.4",
+    "typing_extensions": "4.16.0",
+    "tzdata": "2026.4",
+    "urllib3": "2.8.0",
+    "uvicorn": "0.52.4",
+    "watchfiles": "1.2.0",
+    "websockets": "17.1",
+    "wheel": "0.48.0",
+    "xsdata": "26.2"
+  },
+  "excludedPlatformPackages": [
+    {
+      "name": "uvloop",
+      "reason": "Windows unsupported; uvicorn standard platform marker excludes"
+    }
+  ],
+  "globalRuntimeChanged": false,
+  "imageOperations": false,
+  "modelsImported": false,
+  "nativeProviders": {
+    "openslide-bin": {
+      "nativeLibraries": [
+        {
+          "bytes": 9793043,
+          "loadedPathVerified": true,
+          "sha256": "174ec7b71cf4f413b25836d4974317cc795414f3faa6cc8449c6f449e09a4094"
+        }
+      ],
+      "version": "4.0.0.11"
+    },
+    "pyvips-binary": {
+      "nativeLibraries": [
+        {
+          "bytes": 18614784,
+          "loadedPathVerified": true,
+          "sha256": "e6cc51bbc763e7deda536c6f56ce96b4c51ea769690ce4f4ed07607527b81dae"
+        }
+      ],
+      "version": "8.18.6"
+    }
+  },
+  "operationalNineRecipeRuntime": "Separate preserved research runtime; older server/TIFF compatibility profile",
+  "pipCheck": "No broken requirements found.",
+  "platform": {
+    "architecture": "AMD64",
+    "operatingSystem": "Windows",
+    "python": "3.12.10"
+  },
+  "platformExtensions": {
+    "pillow": {
+      "admission": "Explicit same-version Windows artifact; production Linux lock unchanged",
+      "filename": "pillow-12.3.0-cp312-cp312-win_amd64.whl",
+      "primaryMetadataSha256": "63159d6013cf20f98ff9caeb8b0b210b7f5877975587f4265397ffb0fd8c72a0",
+      "primarySource": "https://pypi.org/pypi/pillow/12.3.0/json",
+      "sha256": "a2b55dd6b2a4c4b7d87ffa56bdb33fdc5fdb9a462173861a7bc097f17d91cb09",
+      "version": "12.3.0"
+    }
+  },
+  "platformPackageCount": 78,
+  "platformPlanSha256": "6688a47782fae1bc975bfd35724d17161c493b3cdccbeda479f14f2ed9c2e046",
+  "privateReceiptSha256": "2b0ad5a21ba2754f707960616ee4f64cb86a4ab125724df7a85031b10ca1ad66",
+  "pyvipsSourceBuild": {
+    "buildIsolation": false,
+    "buildToolAdmission": "Private hash-admitted QA tool profile",
+    "derivedWheelSha256": "56a2534029a199f30216197eb8c54244b912351efb50bc79e699b20607ae78de",
+    "sourceSha256": "5fa47cdce4e7f450747c118c12fde913e0710850c6015d8ec4f5af490003a347",
+    "version": "3.2.0"
+  },
+  "registrationQualification": false,
+  "researchRuntimeChanged": false,
+  "schema": "maintained-windows-qa-runtime-public/1",
+  "scope": "Maintained Windows QA runtime; version/native-library admission only",
+  "servicesStarted": false,
+  "setupFailurePreserved": "Editable metadata setup lacked editables; ordinary project wheel install succeeded",
+  "sourceImportMode": "Explicit active-checkout PYTHONPATH; project wheel metadata installed"
+}
