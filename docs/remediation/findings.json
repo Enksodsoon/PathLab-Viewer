@@ -12996,7 +12996,7 @@
     },
     {
       "key": "campaign-assessment-save-revision-serialization",
-      "status": "confirmed; local candidate qualified, delivery pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Base2289b45 deferred PATCH plus two debounce expirations sends two saves at the same revision; independent red expects one and observes two. Subsequent browser cases expose a brief All changes saved message while only the first revision has been submitted.",
       "repair": "Serialize pending saves per draft load generation; drain newer edits at acknowledged revision; ignore stale-generation timers/completions. Keep Saving while the acknowledged document differs from the latest edit.",
       "qualification": "Initial40affected pass; independent review exposes cross-draft guard regression and deferred navigation red reproduces it. Scoped generation fix passes42affected, lint and build12.75s; renewed review finds no actionable issues. First generation run failed because save fixture returned wrong draft ID, corrected to echo requested ID. Complete/frontend/browser qualification pending. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending. PR299 passed all nine exact-head7677cdc contexts after fixture option-boundary repair and merged746df1a. All nine exact-main gates passed; protected deployment37141936233 succeeded, actualrestore and fresh health200 verified. Authenticated save-specific checks remain pending.",
@@ -13004,33 +13004,69 @@
         "AssessmentBuilderPage autosave",
         "Upgrade to sections route navigation"
       ],
-      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md"
+      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md",
+      "previousStatus": "confirmed; local candidate qualified, delivery pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37141936233,
+        "initialDeployedCommit": "746df1a194558581699adfeaf45b3861897ab9af",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-optional-recovery-read",
-      "status": "confirmed; local candidate qualified, delivery pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Successful server GET plus SecurityError from local recovery read renders Unable to open draft; independent red reproduced.",
       "repair": "Treat rejected local-cache read as absent while preserving actual server-load failures and Retry.",
       "qualification": "Storage-denial and server-unavailable controls pass in42affected suite; complete browser/frontend qualification pending. No server acknowledgment or local dirty-copy recovery inferred. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending. PR299 passed all nine exact-head7677cdc contexts after fixture option-boundary repair and merged746df1a. All nine exact-main gates passed; protected deployment37141936233 succeeded, actualrestore and fresh health200 verified. Authenticated save-specific checks remain pending.",
       "callers": [
         "AssessmentBuilderPage initial/retry draft load"
       ],
-      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md"
+      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md",
+      "previousStatus": "confirmed; local candidate qualified, delivery pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37141936233,
+        "initialDeployedCommit": "746df1a194558581699adfeaf45b3861897ab9af",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-equal-revision-local-recovery",
-      "status": "confirmed; local candidate qualified, complete delivery checks pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Failed PATCH caches edits at unchanged revision1; reload with serverrevision1 discards locally retained title. Independent component red reproduces.",
       "repair": "Recover equal-revision divergent local documents; preserve older-cache rejection and optimistic server revision.",
       "qualification": "Initial45affected tests and four real-IndexedDB browser cases pass. Later error-containment qualification is separately recorded; final exact-source checks and release remain pending. Final corrected affected suite45passed61.35seconds, eight zero-retry browser cases39.9seconds, build6.50seconds; renewed independent review has no actionable findings. Complete hosted gates and delivery remain required. Complete final-source frontend538passed83files262.47seconds. Asset rights16ADMITTED and deterministic software612BLOCKED validators pass with admission unchanged. PR300 merged43044d5 after nine head gates; all nine merged-main gates and protected37144050380 succeeded. Restore/health and native positive save/reload verified; production storage/HTTP failures were not injected.",
       "callers": [
         "AssessmentBuilderPage initial/retry draft load"
       ],
-      "ticket": "docs/remediation/tickets/assessment-local-recovery.md"
+      "ticket": "docs/remediation/tickets/assessment-local-recovery.md",
+      "previousStatus": "confirmed; local candidate qualified, complete delivery checks pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37144050380,
+        "initialDeployedCommit": "43044d538d01b5611ff3fd8d850742393d846949",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-local-recovery-write-denial",
-      "status": "confirmed; local candidate qualified, complete delivery checks pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Actual Chromium IndexedDB denial emits two unhandled page errors during one server-acknowledged draft edit; browser red reproduces.",
       "repair": "Catch both local-cache write failures, scope notices to current load generation, and show local recovery unavailable separately from server save state.",
       "qualification": "Eight zero-retry browser cases pass39.9seconds across four projects; build6.50seconds and lint pass. Three authoring fixture failures reveal undefined cache mock rather than Promise<void>; corrected stub and renewed targeted suite pending. Final corrected affected suite45passed61.35seconds, eight zero-retry browser cases39.9seconds, build6.50seconds; renewed independent review has no actionable findings. Complete hosted gates and delivery remain required. Complete final-source frontend538passed83files262.47seconds. Asset rights16ADMITTED and deterministic software612BLOCKED validators pass with admission unchanged. PR300 merged43044d5 after nine head gates; all nine merged-main gates and protected37144050380 succeeded. Restore/health and native positive save/reload verified; production storage/HTTP failures were not injected.",
@@ -13038,7 +13074,19 @@
         "AssessmentBuilderPage local edited-draft cache",
         "AssessmentBuilderPage acknowledged-draft cache"
       ],
-      "ticket": "docs/remediation/tickets/assessment-local-recovery.md"
+      "ticket": "docs/remediation/tickets/assessment-local-recovery.md",
+      "previousStatus": "confirmed; local candidate qualified, complete delivery checks pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37144050380,
+        "initialDeployedCommit": "43044d538d01b5611ff3fd8d850742393d846949",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-import-unsaved-overwrite",
