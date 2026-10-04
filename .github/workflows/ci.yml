@@ -70,9 +70,16 @@ jobs:
               git fetch --no-tags --depth=1 origin "${INVENTORY_SUBJECT}"
             fi
           done
+          if [[ -f docs/supply-chain/browser-distribution-receipt.json ]]; then
+            BROWSER_SUBJECT="$(python -c 'import json; print(json.load(open("docs/supply-chain/browser-distribution-receipt.json"))["subjectCommit"])')"
+            [[ "${BROWSER_SUBJECT}" =~ ^[0-9a-f]{40}$ ]] || exit 1
+            if ! git cat-file -e "${BROWSER_SUBJECT}^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "${BROWSER_SUBJECT}"
+            fi
+          fi
           python scripts/validate_dependency_inventory.py
           python scripts/validate_combine_errors_removal.py
-          ruff check scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py scripts/validate_combine_errors_removal.py tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
+          ruff check scripts/browser_distribution.py scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py scripts/validate_combine_errors_removal.py tests/backend/test_browser_distribution.py tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
       - name: Validate asset rights ledger
         run: |
           python scripts/validate_asset_rights_ledger.py
@@ -269,6 +276,17 @@ jobs:
       - run: node tests/supply-chain/test_tus_error_aggregation.mjs
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
+      - name: Verify qualified browser distribution against actual emitted bytes
+        run: |
+          if [[ -f docs/supply-chain/browser-distribution-receipt.json ]]; then
+            BROWSER_SUBJECT="$(python -c 'import json; print(json.load(open("docs/supply-chain/browser-distribution-receipt.json"))["subjectCommit"])')"
+            [[ "${BROWSER_SUBJECT}" =~ ^[0-9a-f]{40}$ ]] || exit 1
+            if ! git cat-file -e "${BROWSER_SUBJECT}^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "${BROWSER_SUBJECT}"
+            fi
+            python scripts/browser_distribution.py verify \
+              --dist apps/web/dist --packaged-legal-files
+          fi
       - name: Verify web distribution license files
         run: |
           cmp LICENSE apps/web/dist/LICENSE

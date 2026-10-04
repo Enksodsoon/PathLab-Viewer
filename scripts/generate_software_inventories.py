@@ -487,6 +487,15 @@ def inventory_input_paths() -> tuple[str, ...]:
     return (
         *INPUT_PATHS,
         *(
+            (
+                "docs/supply-chain/browser-distribution-receipt.json",
+                "scripts/browser_distribution.py",
+                "scripts/qualify_browser_distribution.mjs",
+            )
+            if (SUPPLY_CHAIN / "browser-distribution-receipt.json").is_file()
+            else ()
+        ),
+        *(
             path.relative_to(ROOT).as_posix()
             for path in sorted(
                 (ROOT / "docs/supply-chain/notice-material").rglob("*"),

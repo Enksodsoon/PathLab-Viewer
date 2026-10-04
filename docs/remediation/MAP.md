@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Browser shipped distribution classification](tickets/browser-shipped-distribution.md): bind two exact unshipped browser dependencies to fresh graphs and artifact bytes; preserve source notice blockers and admission decisions. Qualification/integration remains in progress.
+
 - [Shared viewer canvas keyboard ownership](tickets/shared-viewer-canvas-keyboard.md): repeated canvas arrows stay with image panning; navigation elsewhere remains available. [Additional handoff source coverage](ADDITIONAL_HANDOFF_RECONCILIATION.md) records eight additional source hashes and eleven aliases without altering the original register.
 
 - [Assessment save failure feedback](tickets/assessment-save-failure-feedback.md): distinguish failed save boundaries and retry temporary failures while retaining edits.
@@ -78,3 +80,8 @@ Production9ea88b9 is verified through protected release37150191318, actual resto
 ## Current released checkpoint
 
 [Atomic assessment revision admission](tickets/assessment-revision-admission.md) and [lost acknowledgment recovery](tickets/assessment-lost-acknowledgment.md) are delivered together at verified production c570116. [Remaining campaign closure](tickets/remaining-campaign-closure.md) retains direct production drag observation, specific synthetic action confirmations, external security facts and strict accountable software admission. Earlier pending-delivery entries above describe historical checkpoints. The approved full destination remains unchanged.
+
+
+## Current verified production c37cf81
+
+PR307 merged c37cf81 after all nine reviewed-head gates. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts; the unchanged Library-sort observation, focused45-case suite and20replays are retained separately from the successful same-SHA failed-job rerun. Protected deployment37164136683 succeeded with actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh health200/200 and anonymous drafts401 passed. Native explicit Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved; Library return loaded authenticated content. [Release receipt](evidence/production-c37cf81-release.json) records scope and limitations. Original findings and external closure requirements remain visible.

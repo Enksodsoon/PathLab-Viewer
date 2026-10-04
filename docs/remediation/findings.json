@@ -12699,8 +12699,8 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "Production c570116 remains verified; PR306 evidence merged a90759d. All44 campaign findings, original954 entries/29 subclaims and11 additional aliases retained. New canvas keyboard repair is local, independently reviewed before protected release. External security facts, accountable software admission and specific production observations/confirmations keep the campaign open.",
-  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate.",
+  "campaignStatus": "Production c37cf81 verified after PR307, all nine fresh main gates, protected deployment37164136683, actual restore and fresh native persistence/viewer/Library checks. All44 campaign findings, original954 entries/29 subclaims and11 additional aliases retained. Browser distribution qualification remains in progress. External security facts, accountable software admissions and pending specific production confirmations/observations keep the campaign open.",
+  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate. Current production c37cf81: PR307 reviewed head ddc74e4 passed all nine gates and normal protected squash merged c37cf81. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts after a retained unchanged Library-sort test observation and same-SHA failed-job rerun. Protected deployment37164136683 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200/anonymous drafts401. Explicit native Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved. Library return loaded authenticated content. No production held-key fault injection or new publication/learner/Cancel actions.",
   "campaignFindings": [
     {
       "key": "campaign-ci-inventory-subject",
@@ -13122,10 +13122,10 @@
     },
     {
       "key": "campaign-shared-viewer-canvas-keyboard",
-      "status": "confirmed; locally repaired and independently reviewed, protected release pending",
+      "status": "confirmed; repaired and delivered in verified production c37cf81",
       "evidence": "Actual repeated ArrowRight on focused OpenSeadragon canvas changes shared slide at c570116. Original-source regression fails Chromium, Firefox and WebKit; initial two-canvas selector failure is setup history.",
       "repair": "Keep Left/Right events originating inside .openseadragon-canvas out of the window adjacent-slide handler. Preserve outside navigation and existing viewer handling.",
-      "qualification": "Original-source focused browser regression fails Chromium/Firefox/WebKit; fixed four-engine held Right at0/Left at1, outside navigation and reload passes4/4. Full affected browser32/32passes1.5minutes. Changed-file ESLint and production build8.94s pass. Default frontend570pass1existing auth-performance30s timeout retained; bounded four-worker fullsuite571pass85files189.25s. Independent review clear after strengthening Left test and correcting factual source wording. Protected CI/merge/deployment pending; production c570116 remains unchanged.",
+      "qualification": "Original-source focused browser regression fails Chromium/Firefox/WebKit; fixed four-engine held Right at0/Left at1, outside navigation and reload passes4/4. Full affected browser32/32passes1.5minutes. Changed-file ESLint and production build8.94s pass. Default frontend570pass1existing auth-performance30s timeout retained; bounded four-worker fullsuite571pass85files189.25s. Independent review clear after strengthening Left test and correcting factual source wording. Protected CI/merge/deployment pending; production c570116 remains unchanged. Delivered via PR307 at c37cf81 after all nine reviewed-head and fresh main gates; protected deployment37164136683 succeeded with actual restore and fresh health/native positive persistence/viewer/Library checks. The held-key defect itself is qualified by the four-engine local regression, not native production fault injection.",
       "callers": [
         "Public shared folder viewer",
         "Public shared collection viewer"
@@ -13167,13 +13167,13 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "c570116a7b018620bd803266edca813701bc8f6f",
-    "ciRun": 37157146069,
-    "securityRun": 37157146107,
-    "deploymentRun": 37158209056,
+    "sha": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
+    "checkedAt": "2026-10-04T00:31:26.839824+00:00",
+    "deploymentRun": 37164136683,
     "deploymentConclusion": "success",
-    "updatedAt": "2026-10-03T22:38:37Z",
-    "allNineLatestMainChecksPassed": true,
+    "ciRun": 37162376381,
+    "securityRun": 37162376369,
+    "requiredChecksReceipt": "var/main-c37cf81-required-checks.json",
     "restore": {
       "archiveRoots": [
         "delivery",
@@ -13189,26 +13189,26 @@
       "tableCount": 69
     },
     "health": {
-      "checkedAt": "2026-10-03T22:38:41.899344+00:00",
+      "checkedAt": "2026-10-04T00:29:04.645933+00:00",
       "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
       "results": [
         {
           "path": "/livez",
           "status": 200,
           "expected": 200,
-          "elapsedSeconds": 0.125
+          "elapsedSeconds": 0.172
         },
         {
           "path": "/readyz",
           "status": 200,
           "expected": 200,
-          "elapsedSeconds": 0.14
+          "elapsedSeconds": 0.125
         },
         {
           "path": "/api/v2/admin/assessment/drafts",
           "status": 401,
           "expected": 401,
-          "elapsedSeconds": 0.125
+          "elapsedSeconds": 0.109
         }
       ],
       "passed": true
@@ -13217,36 +13217,38 @@
       "classroom": true,
       "annotations": false,
       "adminAnnotationCanary": true,
-      "study": "existing gate retained"
-    },
-    "nativeAssessment": {
-      "draftId": "8fa54472-90a8-4041-9462-eede03640074",
-      "descriptionMarker": "Atomic revisions and acknowledgment recovery release c570116 verified.",
-      "observations": [
-        "Browser Refresh loaded assessment",
-        "Native description edit acknowledged All changes saved",
-        "Browser Refresh retained marker, two questions and 2.502 points"
-      ],
-      "receipt": "var/production-c570116-native-save.md"
+      "study": "existing disabled gate retained"
     },
     "nativeViewer": {
       "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
       "observations": [
-        "Refreshed Library loaded synthetic B thumbnail",
-        "Open viewer reached authenticated admin preview",
-        "3072 x 3072 patterned tiles, two saved rectangles and NO CHANGES rendered"
+        "Explicit browser Refresh after terminal deployment success",
+        "Patterned 3072 x 3072 tiles, two saved rectangles and NO CHANGES rendered"
       ]
     },
+    "nativeAssessment": {
+      "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+      "observations": [
+        "Explicit browser Refresh after terminal deployment success",
+        "Existing c570116 acknowledgment marker retained",
+        "Two questions, 2.502 points and All changes saved retained"
+      ]
+    },
+    "limitations": "Positive native released persistence and viewer checks only; shared canvas held-key failure proved in the local four-engine regression, not injected through native production controls. No new publication, permissions, learner submission or Cancel actions.",
     "remaining": [
-      "Native production drag direct observation",
-      "Specific synthetic publication/learner-attempt and Cancel confirmations",
-      "External reported-secret rotation/provenance and actual OneDrive sync/sharing facts",
-      "Strict accountable software admission and two exact notice gaps",
-      "Requirement-by-requirement campaign closure"
+      "Human native folder drag observation",
+      "Pending specific synthetic action confirmations",
+      "External secret provenance/rotation and OneDrive sharing facts",
+      "Accountable software admissions and two exact source notice gaps",
+      "Browser artifact distribution qualification integration",
+      "Requirement-level campaign closure"
     ],
-    "limitations": "Positive native released save/reload and viewer checks only; failure/concurrency paths qualified locally/hosted, not injected into production. No clinical, physical-device, unrestricted capacity or zero-bug claim.",
-    "evidenceOrigin": "Protected GitHub workflow logs and fresh native signed-in Edge observations; no credential values or production failure injection.",
-    "completedAt": "2026-10-03T22:38:36Z"
+    "nativeLibrary": {
+      "observations": [
+        "Explicit Library return from authenticated viewer reached /admin",
+        "Library loaded synthetic B thumbnail and Open viewer / Quick look controls"
+      ]
+    }
   },
   "previousProductionReleases": [
     {
@@ -13590,6 +13592,88 @@
         "V2 assessment score/preflight repair candidate and historical published-definition qualification"
       ],
       "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
+    },
+    {
+      "sha": "c570116a7b018620bd803266edca813701bc8f6f",
+      "ciRun": 37157146069,
+      "securityRun": 37157146107,
+      "deploymentRun": 37158209056,
+      "deploymentConclusion": "success",
+      "updatedAt": "2026-10-03T22:38:37Z",
+      "allNineLatestMainChecksPassed": true,
+      "restore": {
+        "archiveRoots": [
+          "delivery",
+          "originals",
+          "private",
+          "public"
+        ],
+        "fileBytes": 3286131731,
+        "fileCount": 106325,
+        "filesIntegrity": "restored",
+        "databaseIntegrity": "restored",
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69
+      },
+      "health": {
+        "checkedAt": "2026-10-03T22:38:41.899344+00:00",
+        "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+        "results": [
+          {
+            "path": "/livez",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.125
+          },
+          {
+            "path": "/readyz",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.14
+          },
+          {
+            "path": "/api/v2/admin/assessment/drafts",
+            "status": 401,
+            "expected": 401,
+            "elapsedSeconds": 0.125
+          }
+        ],
+        "passed": true
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "nativeAssessment": {
+        "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+        "descriptionMarker": "Atomic revisions and acknowledgment recovery release c570116 verified.",
+        "observations": [
+          "Browser Refresh loaded assessment",
+          "Native description edit acknowledged All changes saved",
+          "Browser Refresh retained marker, two questions and 2.502 points"
+        ],
+        "receipt": "var/production-c570116-native-save.md"
+      },
+      "nativeViewer": {
+        "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
+        "observations": [
+          "Refreshed Library loaded synthetic B thumbnail",
+          "Open viewer reached authenticated admin preview",
+          "3072 x 3072 patterned tiles, two saved rectangles and NO CHANGES rendered"
+        ]
+      },
+      "remaining": [
+        "Native production drag direct observation",
+        "Specific synthetic publication/learner-attempt and Cancel confirmations",
+        "External reported-secret rotation/provenance and actual OneDrive sync/sharing facts",
+        "Strict accountable software admission and two exact notice gaps",
+        "Requirement-by-requirement campaign closure"
+      ],
+      "limitations": "Positive native released save/reload and viewer checks only; failure/concurrency paths qualified locally/hosted, not injected into production. No clinical, physical-device, unrestricted capacity or zero-bug claim.",
+      "evidenceOrigin": "Protected GitHub workflow logs and fresh native signed-in Edge observations; no credential values or production failure injection.",
+      "completedAt": "2026-10-03T22:38:36Z"
     }
   ],
   "additionalHandoffSources": [

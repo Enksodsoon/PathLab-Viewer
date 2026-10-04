@@ -7,6 +7,21 @@ from pathlib import Path
 SCANNER = Path(__file__).resolve().parents[2] / "scripts" / "check_public_repository.py"
 
 
+def test_browser_receipt_patch_path_is_not_a_personal_email() -> None:
+    from scripts.check_public_repository import scan_text
+
+    relative = "docs/supply-chain/browser-distribution-receipt.json"
+    patch = "openseadragon" + "@" + "6.1.0.patch"
+    line = f'      "path": "patches/{patch}",'
+    assert scan_text(relative, line) == []
+    assert scan_text(relative, line, label="immutable") == []
+    assert scan_text("docs/other.json", line)
+    assert scan_text(relative, line.replace('"path"', '"email"'))
+    assert scan_text(relative, line.replace("6.1.0.patch", "6.2.0.patch"))
+    private_email = "owner" + "@" + "private-domain" + ".com"
+    assert scan_text(relative, line + '\n"owner": "' + private_email + '"')
+
+
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
