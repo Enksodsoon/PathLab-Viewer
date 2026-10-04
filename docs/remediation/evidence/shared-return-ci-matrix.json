@@ -1,0 +1,58 @@
+{
+  "schema": "pathlab.shared-return-ci-matrix/1",
+  "baselineCommit": "48434dd015abc6ff4835bcbe47fef62bde3cac3a",
+  "baselinePR": 310,
+  "baselineReviewedHead": "5b4db46149678da57b16617d9fb23da7d1f981f3",
+  "baselineHostedBrowserPassed": 253,
+  "newCasesPreviouslyLocalPassed": 32,
+  "baselineAllNinePassed": true,
+  "applicationTreeUnchanged": true,
+  "verificationDefect": "Explicit hosted file list omitted new shared-unavailable-return fixture",
+  "implementationCommit": "c8fb67817bcdddfd33c559c6542d62bd4ba2536e",
+  "browserReceiptCommit": "67f3e25e1d96942c8bb72515e08628430eccbb40",
+  "softwareSubject": "e1695fe8bb8d5c84727bc16a9ec8f0259d243b67",
+  "actualWorkflowSelector": {
+    "listedTests": 288,
+    "newReturnCases": 32,
+    "workers": 2,
+    "timeoutMinutes": 16
+  },
+  "localChecks": {
+    "qualificationBuildSeconds": 6.06,
+    "graphs": 4,
+    "assets": 125,
+    "existingStandardOutputAssetAndLegalMatch": "PASS",
+    "softwareValidation": "PASS",
+    "SPDXSource": "PASS",
+    "SPDXBuild": "PASS",
+    "privacyCurrentAndHistory": "PASS",
+    "independentReview": "CLEAR",
+    "dependencyRecordsUnchanged": 582,
+    "sourceComponents": 612,
+    "buildComponents": 574,
+    "noticeBytesUnchanged": 1449829,
+    "unreviewedShippedInputsUnchanged": 176
+  },
+  "hostedBrowserExpected": {
+    "passed": 285,
+    "skipped": 3,
+    "state": "QUALIFIED_REVIEWED_HEAD_AND_FRESH_MAIN"
+  },
+  "hostedGates": "All nine reviewed-head and fresh-main gates passed",
+  "productionTouched": false,
+  "verifiedProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+  "delivery": {
+    "reviewedHead": "3560cd52e31284387e57e29e619269bbe6104c04",
+    "mergedMain": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+    "freshMainBrowserPassed": 285,
+    "freshMainBrowserSkipped": 3,
+    "all32NewCasesExecuted": true,
+    "matrixSeconds": 855,
+    "matrixBudgetSeconds": 960,
+    "deploymentRun": 37177663993,
+    "deploymentConclusion": "success",
+    "nativeVerification": "PENDING"
+  },
+  "previousNativeQualifiedProduction": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
+  "verifiedProductionScope": "Exact SHA, protected deployment, restore and fresh health; native verification PENDING"
+}

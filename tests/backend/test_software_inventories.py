@@ -36,12 +36,36 @@ def test_checked_in_software_inventories_reconcile_and_repeat() -> None:
         "buildComponents": manifest["coverage"]["buildComponents"],
         "currentShippedInputs": manifest["coverage"]["currentShippedInputs"],
         "dependencyRecordIdsSha256": manifest["coverage"]["dependencyRecordIdsSha256"],
-        "dependencyRecords": 583,
-        "sourceComponents": 614,
+        "dependencyRecords": 585,
+        "sourceComponents": 615,
         "toolchainRecordIdsSha256": manifest["coverage"]["toolchainRecordIdsSha256"],
         "toolchainRecords": 14,
     }
     assert manifest["offlineKit"]["state"] == "CONTRACT_ONLY_NOT_ASSEMBLED"
+
+
+def test_browser_absence_does_not_erase_source_notice_or_admission() -> None:
+    manifest = load_json(DEFAULT_OUTPUT / "manifest.json")
+    paths = {receipt["path"] for receipt in manifest["inputs"]}
+    assert {
+        "docs/supply-chain/browser-distribution-receipt.json",
+        "scripts/browser_distribution.py",
+        "scripts/qualify_browser_distribution.mjs",
+    }.issubset(paths)
+    inventory = load_json(DEFAULT_OUTPUT.parent / "dependency-inventory.json")
+    indexed = {record["id"]: record for record in inventory["records"]}
+    for identifier in ["npm:guid-typescript@1.0.9", "npm:eastasianwidth@0.2.0"]:
+        record = indexed[identifier]
+        assert record["distribution"] == "not-bundled-in-current-browser-build"
+        assert record["admission"] == "BLOCKED"
+        assert record["blockers"]
+        assert record["noticeFiles"] == []
+        assert f"BLOCKED:{identifier}" not in manifest["releaseBlockers"]
+        assert f"ID: {identifier}" in (DEFAULT_OUTPUT / "THIRD_PARTY_NOTICES.txt").read_text(
+            encoding="utf-8"
+        )
+    assert manifest["releaseAdmission"] == "BLOCKED"
+    assert manifest["coverage"]["currentShippedInputs"] == 177
 
 
 def test_generation_is_byte_identical_across_directories(tmp_path: Path) -> None:

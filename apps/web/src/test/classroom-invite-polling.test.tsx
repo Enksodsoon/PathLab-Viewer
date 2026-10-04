@@ -19,10 +19,12 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.clearAllMocks(); vi.unstubAllGlobals() })
 function NextInvite() { const navigate = useNavigate(); return <button onClick={() => navigate('/classroom/invite/two')}>Next invite</button> }
 async function mount() {
-  render(<MemoryRouter initialEntries={['/classroom/invite/one']}><ThemeProvider><NextInvite /><Routes>
-    <Route path="/classroom/invite/:publicId" element={<ClassroomInvitePage />} />
-  </Routes></ThemeProvider></MemoryRouter>)
-  await screen.findByText('Post-class review')
+  await act(async () => {
+    render(<MemoryRouter initialEntries={['/classroom/invite/one']}><ThemeProvider><NextInvite /><Routes>
+      <Route path="/classroom/invite/:publicId" element={<ClassroomInvitePage />} />
+    </Routes></ThemeProvider></MemoryRouter>)
+  })
+  expect(screen.getByText('Post-class review')).toBeVisible()
 }
 it('retains review after transient polling error and clears only terminal denial', async () => {
   api.classroomInvitePhase.mockRejectedValueOnce(new Error('network')).mockRejectedValueOnce(new ApiError(410, 'expired'))
@@ -38,9 +40,10 @@ it('retains review after transient polling error and clears only terminal denial
 })
 it('serializes timer and visibility polling and ignores old invite responses', async () => {
   let resolveOld: ((value: { phase: string }) => void) | undefined
-  api.classroomInvitePhase.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve }))
-  await mount()
+  api.classroomInvitePhase.mockResolvedValue({ phase: 'review' })
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve }))
   vi.useFakeTimers()
+  await mount()
   await act(async () => { document.dispatchEvent(new Event('visibilitychange')); vi.advanceTimersByTime(15000) })
   expect(api.classroomInvitePhase).toHaveBeenCalledTimes(1)
   api.classroomInviteState.mockResolvedValue({ ...invite, publicId: 'two', phase: 'preview' })

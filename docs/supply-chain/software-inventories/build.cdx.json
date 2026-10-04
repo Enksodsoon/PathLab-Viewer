@@ -2,11 +2,11 @@
   "bomFormat": "CycloneDX",
   "components": [
     {
-      "bom-ref": "dependency:container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "bom-ref": "dependency:container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648"
+          "content": "6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
         }
       ],
       "licenses": [
@@ -20,7 +20,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648"
+          "value": "container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
         },
         {
           "name": "pathlab:role",
@@ -44,11 +44,11 @@
       "version": "2.11.4-alpine"
     },
     {
-      "bom-ref": "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
+      "bom-ref": "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
+          "content": "c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2"
         }
       ],
       "licenses": [
@@ -62,7 +62,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
+          "value": "container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2"
         },
         {
           "name": "pathlab:role",
@@ -81,9 +81,9 @@
           "value": "[\"IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED\"]"
         }
       ],
-      "purl": "pkg:oci/node@26.8.1-alpine3.23",
+      "purl": "pkg:oci/node@26.10.0-alpine3.23",
       "type": "container",
-      "version": "26.8.1-alpine3.23"
+      "version": "26.10.0-alpine3.23"
     },
     {
       "bom-ref": "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
@@ -476,15 +476,15 @@
       "version": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
     },
     {
-      "bom-ref": "dependency:github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e",
+      "bom-ref": "dependency:github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b187196cc803df7f5f0e"
+          "url": "https://github.com/docker/setup-buildx-action/tree/f87e5991a6d7451dcb8d9637bfbc97413f497069"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b187196cc803df7f5f0e"
+          "url": "https://github.com/docker/setup-buildx-action/tree/f87e5991a6d7451dcb8d9637bfbc97413f497069"
         }
       ],
       "licenses": [
@@ -496,7 +496,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e"
+          "value": "github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069"
         },
         {
           "name": "pathlab:role",
@@ -515,20 +515,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e",
+      "purl": "pkg:github/docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
       "type": "library",
-      "version": "37fe631027851001ddb9b187196cc803df7f5f0e"
+      "version": "f87e5991a6d7451dcb8d9637bfbc97413f497069"
     },
     {
-      "bom-ref": "dependency:github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
+      "bom-ref": "dependency:github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a"
+          "url": "https://github.com/docker/setup-qemu-action/tree/99012661954931238ded8c8b007157a8430204e1"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a"
+          "url": "https://github.com/docker/setup-qemu-action/tree/99012661954931238ded8c8b007157a8430204e1"
         }
       ],
       "licenses": [
@@ -540,7 +540,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a"
+          "value": "github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1"
         },
         {
           "name": "pathlab:role",
@@ -559,20 +559,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
+      "purl": "pkg:github/docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
       "type": "library",
-      "version": "1f40c72289eff860ee54a304f1438e3cff362e0a"
+      "version": "99012661954931238ded8c8b007157a8430204e1"
     },
     {
-      "bom-ref": "dependency:github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "bom-ref": "dependency:github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/analyze/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/analyze/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         }
       ],
       "licenses": [
@@ -584,7 +584,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "value": "github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "name": "pathlab:role",
@@ -603,20 +603,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "purl": "pkg:github/github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "type": "library",
-      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "version": "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
-      "bom-ref": "dependency:github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "bom-ref": "dependency:github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/init/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/init/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         }
       ],
       "licenses": [
@@ -628,7 +628,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "value": "github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "name": "pathlab:role",
@@ -647,20 +647,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "purl": "pkg:github/github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "type": "library",
-      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "version": "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
-      "bom-ref": "dependency:github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065",
+      "bom-ref": "dependency:github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/grafana/setup-k6-action/tree/db07bd9765aac508ef18982e52ab937fe633a065"
+          "url": "https://github.com/grafana/setup-k6-action/tree/43b9fc21641a76002687994433dd586f56e791b1"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/grafana/setup-k6-action/tree/db07bd9765aac508ef18982e52ab937fe633a065"
+          "url": "https://github.com/grafana/setup-k6-action/tree/43b9fc21641a76002687994433dd586f56e791b1"
         }
       ],
       "licenses": [
@@ -672,7 +672,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065"
+          "value": "github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1"
         },
         {
           "name": "pathlab:role",
@@ -691,20 +691,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065",
+      "purl": "pkg:github/grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1",
       "type": "library",
-      "version": "db07bd9765aac508ef18982e52ab937fe633a065"
+      "version": "43b9fc21641a76002687994433dd586f56e791b1"
     },
     {
-      "bom-ref": "dependency:github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "bom-ref": "dependency:github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1"
+          "url": "https://github.com/pnpm/action-setup/tree/ea17c68df8912ef543352723c149a84f56e3d413"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1"
+          "url": "https://github.com/pnpm/action-setup/tree/ea17c68df8912ef543352723c149a84f56e3d413"
         }
       ],
       "licenses": [
@@ -716,7 +716,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1"
+          "value": "github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
         },
         {
           "name": "pathlab:role",
@@ -735,53 +735,9 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "purl": "pkg:github/pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
       "type": "library",
-      "version": "b906affcce14559ad1aafd4ab0e942779e9f58b1"
-    },
-    {
-      "bom-ref": "dependency:github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://github.com/pnpm/action-setup/tree/f40ffcd9367d9f12939873eb1018b921a783ffaa"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/pnpm/action-setup/tree/f40ffcd9367d9f12939873eb1018b921a783ffaa"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "pnpm/action-setup",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "build-only"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "hosted-CI-only"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "BLOCKED"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
-        }
-      ],
-      "purl": "pkg:github/pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa",
-      "type": "library",
-      "version": "f40ffcd9367d9f12939873eb1018b921a783ffaa"
+      "version": "ea17c68df8912ef543352723c149a84f56e3d413"
     },
     {
       "bom-ref": "dependency:npm:@adobe/css-tools@4.5.0",
@@ -10140,7 +10096,7 @@
         },
         {
           "name": "pathlab:distribution",
-          "value": "bundled"
+          "value": "not-bundled-in-current-browser-build"
         },
         {
           "name": "pathlab:admission",
@@ -12208,7 +12164,7 @@
         },
         {
           "name": "pathlab:distribution",
-          "value": "bundled"
+          "value": "not-bundled-in-current-browser-build"
         },
         {
           "name": "pathlab:admission",
@@ -20824,6 +20780,56 @@
       "version": "1.4.0"
     },
     {
+      "bom-ref": "dependency:pypi:asn1crypto@1.5.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/de/cf/d547feed25b5244fcb9392e288ff9fdc3280b10260362fc45d37a798a6ee/asn1crypto-1.5.1.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/asn1crypto/1.5.1/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "13ae38502be632115abf8a24cbe5f4da52e3b5231990aff31123c805306ccb9c"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "asn1crypto",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:asn1crypto@1.5.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "deployment-only"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "operator-tooling"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/asn1crypto@1.5.1",
+      "type": "library",
+      "version": "1.5.1"
+    },
+    {
       "bom-ref": "dependency:pypi:attrs@26.1.0",
       "externalReferences": [
         {
@@ -21224,6 +21230,56 @@
       "version": "8.5.0"
     },
     {
+      "bom-ref": "dependency:pypi:colorama@0.4.6",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/colorama/0.4.6/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "colorama",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:colorama@0.4.6"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "deployment-only"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "operator-tooling"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/colorama@0.4.6",
+      "type": "library",
+      "version": "0.4.6"
+    },
+    {
       "bom-ref": "dependency:pypi:crc32c@2.8",
       "externalReferences": [
         {
@@ -21324,21 +21380,21 @@
       "version": "50.0.1"
     },
     {
-      "bom-ref": "dependency:pypi:fastapi@0.141.1",
+      "bom-ref": "dependency:pypi:fastapi@0.142.1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/8a/02/91e3416a8fdd715abb903a952a6bec7cdd8d14eed55d415fc8595524c319/fastapi-0.141.1.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/a3/d4/96b417c2ec88df6be2fe90010e6e23c5323eeb2160c6cb0108f99707c130/fastapi-0.142.1.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/fastapi/0.141.1/json"
+          "url": "https://pypi.org/pypi/fastapi/0.142.1/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "e8822fc40db1e1858054d7a949a888695bc9bdce70139178e33bd2871a453ca1"
+          "content": "761663e3e6939da45f997a6f68362abc0fa9d8606e76d504f15f806d2281581d"
         }
       ],
       "licenses": [
@@ -21350,7 +21406,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:fastapi@0.141.1"
+          "value": "pypi:fastapi@0.142.1"
         },
         {
           "name": "pathlab:role",
@@ -21369,9 +21425,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/fastapi@0.141.1",
+      "purl": "pkg:pypi/fastapi@0.142.1",
       "type": "library",
-      "version": "0.141.1"
+      "version": "0.142.1"
     },
     {
       "bom-ref": "dependency:pypi:frozenlist@1.8.0",
@@ -22074,21 +22130,21 @@
       "version": "2.5.2"
     },
     {
-      "bom-ref": "dependency:pypi:oci-cli@3.92.0",
+      "bom-ref": "dependency:pypi:oci-cli@3.94.1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/50/4c/f944975d0245970fb6612ac0f914be65e84033e9aef016b610ba587b682b/oci_cli-3.92.0.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/2c/73/e6830db52ba8d307e0980195d14b69c3ad5c8bc82c4369fc834badacb7e3/oci_cli-3.94.1.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/oci-cli/3.92.0/json"
+          "url": "https://pypi.org/pypi/oci-cli/3.94.1/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "13c231ee4ac5109c1526269f9cec278973450d0f04a4a34f1e966dd73195e1b1"
+          "content": "d4b8ea7c451d619f01d46e7e8f7c267b2235919df602a7dec7884ab479b3ba0c"
         }
       ],
       "licenses": [
@@ -22102,7 +22158,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:oci-cli@3.92.0"
+          "value": "pypi:oci-cli@3.94.1"
         },
         {
           "name": "pathlab:role",
@@ -22121,26 +22177,26 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/oci-cli@3.92.0",
+      "purl": "pkg:pypi/oci-cli@3.94.1",
       "type": "library",
-      "version": "3.92.0"
+      "version": "3.94.1"
     },
     {
-      "bom-ref": "dependency:pypi:oci@2.185.1",
+      "bom-ref": "dependency:pypi:oci@2.187.1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/1c/47/9dbc5ac04d7f4230d49be16f4d724d44877834eefe77290e5215e17364ab/oci-2.185.1.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/97/79/28d75548d6fe9e531b604516783c8fcd8dfe295d65bcdeea1dc77da5d593/oci-2.187.1.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/oci/2.185.1/json"
+          "url": "https://pypi.org/pypi/oci/2.187.1/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "b703be0a94da5a2b10158ced904d2eaa732c72f0a5d4582e476758fa4db1a8ea"
+          "content": "9c7beeebe9f60ba92191f97d645185168c48877e3bbfff0fd9ab743106159f5f"
         }
       ],
       "licenses": [
@@ -22154,7 +22210,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:oci@2.185.1"
+          "value": "pypi:oci@2.187.1"
         },
         {
           "name": "pathlab:role",
@@ -22173,9 +22229,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/oci@2.185.1",
+      "purl": "pkg:pypi/oci@2.187.1",
       "type": "library",
-      "version": "2.185.1"
+      "version": "2.187.1"
     },
     {
       "bom-ref": "dependency:pypi:ome-types@0.6.3",
@@ -22228,21 +22284,21 @@
       "version": "0.6.3"
     },
     {
-      "bom-ref": "dependency:pypi:opencv-python-headless@4.14.0.94",
+      "bom-ref": "dependency:pypi:opentelemetry-api@1.45.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/67/8a/51ff1c6287be0b6cd3070cf095875da4ff7d6eda38507e6ada5608786a78/opencv_python_headless-4.14.0.94.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/1f/dc/e12c1fe1ed8a7b7149777127b1a0e12ce5bd5a81d97408bedc2128c260f5/opentelemetry_api-1.45.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/opencv-python-headless/4.14.0.94/json"
+          "url": "https://pypi.org/pypi/opentelemetry-api/1.45.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577"
+          "content": "711ede81773c8025c2c03dac0450bc89f3d30aea6eabcc815c570d4e35a963f7"
         }
       ],
       "licenses": [
@@ -22250,11 +22306,11 @@
           "expression": "Apache-2.0"
         }
       ],
-      "name": "opencv-python-headless",
+      "name": "opentelemetry-api",
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:opencv-python-headless@4.14.0.94"
+          "value": "pypi:opentelemetry-api@1.45.0"
         },
         {
           "name": "pathlab:role",
@@ -22273,9 +22329,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/opencv-python-headless@4.14.0.94",
+      "purl": "pkg:pypi/opentelemetry-api@1.45.0",
       "type": "library",
-      "version": "4.14.0.94"
+      "version": "1.45.0"
     },
     {
       "bom-ref": "dependency:pypi:pillow@12.3.0",
@@ -22428,21 +22484,21 @@
       "version": "0.5.2"
     },
     {
-      "bom-ref": "dependency:pypi:psycopg-binary@3.3.4",
+      "bom-ref": "dependency:pypi:psycopg-binary@3.3.6",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/b7/bf/70d8a60488f9955cbbcd538beae44d56bb2f1d19e673b72788f2d343ff55/psycopg_binary-3.3.4-cp310-cp310-macosx_10_9_x86_64.whl"
+          "url": "https://files.pythonhosted.org/packages/52/92/00350a66de0af05e41d01aa3134e3970045e816afed3f99d58ec1abe15b2/psycopg_binary-3.3.6-cp310-cp310-macosx_10_9_x86_64.whl"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/psycopg-binary/3.3.4/json"
+          "url": "https://pypi.org/pypi/psycopg-binary/3.3.6/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "b7bfff1ca23732b488cbca3076fc11bc98d520ee122514fdb17a8e20d3338f5a"
+          "content": "7beb3e41c9a1e509f3ed85263386588cbe3e975aa67be21f79f44fd35ffaeefc"
         }
       ],
       "licenses": [
@@ -22454,7 +22510,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:psycopg-binary@3.3.4"
+          "value": "pypi:psycopg-binary@3.3.6"
         },
         {
           "name": "pathlab:role",
@@ -22473,26 +22529,26 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/psycopg-binary@3.3.4",
+      "purl": "pkg:pypi/psycopg-binary@3.3.6",
       "type": "library",
-      "version": "3.3.4"
+      "version": "3.3.6"
     },
     {
-      "bom-ref": "dependency:pypi:psycopg@3.3.4",
+      "bom-ref": "dependency:pypi:psycopg@3.3.6",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/db/2f/cb91e5502ec9de1de6f1b76cfbf69531932725361168bb06963620c77e2e/psycopg-3.3.4.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/76/26/3ea4ca5eaea1c0debcdf7ee7c1613fbe721dc27a03c461c0817ffd8a0601/psycopg-3.3.6.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/psycopg/3.3.4/json"
+          "url": "https://pypi.org/pypi/psycopg/3.3.6/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "e21207764952cff81b6b8bdacad9a3939f2793367fdac2987b3aac36a651b5bc"
+          "content": "c081f2250df751a943036e42db6df4571c66cd0aabe8291a7a506512b12007d2"
         }
       ],
       "licenses": [
@@ -22504,7 +22560,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:psycopg@3.3.4"
+          "value": "pypi:psycopg@3.3.6"
         },
         {
           "name": "pathlab:role",
@@ -22523,9 +22579,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/psycopg@3.3.4",
+      "purl": "pkg:pypi/psycopg@3.3.6",
       "type": "library",
-      "version": "3.3.4"
+      "version": "3.3.6"
     },
     {
       "bom-ref": "dependency:pypi:pycparser@3.0",
@@ -22980,6 +23036,56 @@
       "version": "1.2.3"
     },
     {
+      "bom-ref": "dependency:pypi:python-pkcs11@0.9.4",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/89/33/4287ebdcbdcae6f93521be56ffdd5f474b6aebda1a50df4c4b9870a140fa/python_pkcs11-0.9.4.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/python-pkcs11/0.9.4/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3d950aadefa473b880dc75f01539133487e65ec2a97db1e955c4f6bef1bd71d5"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "python-pkcs11",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:python-pkcs11@0.9.4"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "deployment-only"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "operator-tooling"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/python-pkcs11@0.9.4",
+      "type": "library",
+      "version": "0.9.4"
+    },
+    {
       "bom-ref": "dependency:pypi:pytz@2026.2",
       "externalReferences": [
         {
@@ -23430,21 +23536,21 @@
       "version": "3.1.10"
     },
     {
-      "bom-ref": "dependency:pypi:tifffile@2026.8.23",
+      "bom-ref": "dependency:pypi:tifffile@2026.9.20",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/eb/07/90078f49e60718d414d5440dc498301f11ff049458e65cf8d27c62a5c9d1/tifffile-2026.8.23.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/92/66/634db78ebad513038d753830dd8815eea26278b5463ba0f43198b0c24c4e/tifffile-2026.9.20.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/tifffile/2026.8.23/json"
+          "url": "https://pypi.org/pypi/tifffile/2026.9.20/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "bd3c816f166f85c93329a54a0c9a1eccc9968a6a78f91d63b65d7b17675915f2"
+          "content": "30e145a7042ce7143ae50a50fe8b7221b0070aae22adab8f9e79a264be6b5cdc"
         }
       ],
       "licenses": [
@@ -23456,7 +23562,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:tifffile@2026.8.23"
+          "value": "pypi:tifffile@2026.9.20"
         },
         {
           "name": "pathlab:role",
@@ -23475,9 +23581,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/tifffile@2026.8.23",
+      "purl": "pkg:pypi/tifffile@2026.9.20",
       "type": "library",
-      "version": "2026.8.23"
+      "version": "2026.9.20"
     },
     {
       "bom-ref": "dependency:pypi:typing-extensions@4.16.0",
@@ -23580,56 +23686,6 @@
       "version": "0.4.4"
     },
     {
-      "bom-ref": "dependency:pypi:tzdata@2026.3",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/92/ff/5a28bdfd8c3ebec42564ac7d0e54ca3db65044a9314a97f9564fa7a1e926/tzdata-2026.3.tar.gz"
-        },
-        {
-          "type": "vcs",
-          "url": "https://pypi.org/pypi/tzdata/2026.3/json"
-        }
-      ],
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "4a1518b8993086a7982523e071643f3c0e5f213e75b21318e78bcabfff9d1415"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "Apache-2.0"
-        }
-      ],
-      "name": "tzdata",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "pypi:tzdata@2026.3"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "deployment-only"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "operator-tooling"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "RECORDED_UNREVIEWED"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[]"
-        }
-      ],
-      "purl": "pkg:pypi/tzdata@2026.3",
-      "type": "library",
-      "version": "2026.3"
-    },
-    {
       "bom-ref": "dependency:pypi:tzdata@2026.4",
       "externalReferences": [
         {
@@ -23660,11 +23716,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "runtime-mandatory"
+          "value": "deployment-only"
         },
         {
           "name": "pathlab:distribution",
-          "value": "bundled-runtime"
+          "value": "operator-tooling"
         },
         {
           "name": "pathlab:admission",
@@ -23778,6 +23834,58 @@
       "purl": "pkg:pypi/uvicorn@0.52.4",
       "type": "library",
       "version": "0.52.4"
+    },
+    {
+      "bom-ref": "dependency:pypi:uvloop@0.23.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/fa/42/02c739ce85fb2ee8d99212c61417da8140c6b87e9d97c430bea520d76044/uvloop-0.23.0.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/uvloop/0.23.0/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "28d160f51ab4da3b187063652e643dea6831072add4adc1e6d62afbe73b6be27"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache Software License | MIT License"
+          }
+        }
+      ],
+      "name": "uvloop",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:uvloop@0.23.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled-runtime"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/uvloop@0.23.0",
+      "type": "library",
+      "version": "0.23.0"
     },
     {
       "bom-ref": "dependency:pypi:watchfiles@1.2.0",
@@ -25213,47 +25321,6 @@
       "version": "1e1b9a7762e2ac81"
     },
     {
-      "bom-ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "52ab4f279f4640622ba298097c4fc0fd919941039a34e75956b8ea9ffec2a3d4"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache-2.0 repository source; procedural mathematical filter"
-          }
-        }
-      ],
-      "name": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "release-asset"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "SHIPPED_RUNTIME"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "ADMITTED"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[]"
-        }
-      ],
-      "type": "file",
-      "version": "52ab4f279f464062"
-    },
-    {
       "bom-ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
       "hashes": [
         {
@@ -25621,7 +25688,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "23004817896d854a6f2d3da2dd2765c1d1e837c15994fb0100142792728203f0"
+          "content": "cc36f33f585bb025e97fdf770a377916aa9d9ba67372c21160a50fe86283528d"
         }
       ],
       "licenses": [
@@ -25653,7 +25720,7 @@
         }
       ],
       "type": "file",
-      "version": "23004817896d854a"
+      "version": "cc36f33f585bb025"
     },
     {
       "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
@@ -25741,8 +25808,8 @@
   "dependencies": [
     {
       "dependsOn": [
-        "dependency:container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
-        "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
+        "dependency:container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
+        "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
         "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
         "dependency:container:python@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b",
         "dependency:container:tusproject/tusd@sha256:9c61565fccd2689b052aa78e52d9558f309e98f6320960746f225d2fd73a35e3",
@@ -25752,13 +25819,12 @@
         "dependency:github-action:actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
         "dependency:github-action:actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
         "dependency:github-action:actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-        "dependency:github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e",
-        "dependency:github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
-        "dependency:github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-        "dependency:github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-        "dependency:github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065",
-        "dependency:github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
-        "dependency:github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa",
+        "dependency:github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
+        "dependency:github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
+        "dependency:github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+        "dependency:github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+        "dependency:github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1",
+        "dependency:github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
         "dependency:npm:@adobe/css-tools@4.5.0",
         "dependency:npm:@asamuzakjp/css-color@6.0.7",
         "dependency:npm:@asamuzakjp/dom-selector@8.3.2",
@@ -26213,6 +26279,7 @@
         "dependency:pypi:argon2-cffi-bindings@26.1.0",
         "dependency:pypi:argon2-cffi@25.1.0",
         "dependency:pypi:arrow@1.4.0",
+        "dependency:pypi:asn1crypto@1.5.1",
         "dependency:pypi:attrs@26.1.0",
         "dependency:pypi:certifi@2025.11.12",
         "dependency:pypi:certifi@2026.7.22",
@@ -26221,9 +26288,10 @@
         "dependency:pypi:circuitbreaker@2.1.3",
         "dependency:pypi:click@8.4.2",
         "dependency:pypi:click@8.5.0",
+        "dependency:pypi:colorama@0.4.6",
         "dependency:pypi:crc32c@2.8",
         "dependency:pypi:cryptography@50.0.1",
-        "dependency:pypi:fastapi@0.141.1",
+        "dependency:pypi:fastapi@0.142.1",
         "dependency:pypi:frozenlist@1.8.0",
         "dependency:pypi:greenlet@3.5.5",
         "dependency:pypi:h11@0.16.0",
@@ -26238,15 +26306,15 @@
         "dependency:pypi:markupsafe@3.0.3",
         "dependency:pypi:multidict@6.7.1",
         "dependency:pypi:numpy@2.5.2",
-        "dependency:pypi:oci-cli@3.92.0",
-        "dependency:pypi:oci@2.185.1",
+        "dependency:pypi:oci-cli@3.94.1",
+        "dependency:pypi:oci@2.187.1",
         "dependency:pypi:ome-types@0.6.3",
-        "dependency:pypi:opencv-python-headless@4.14.0.94",
+        "dependency:pypi:opentelemetry-api@1.45.0",
         "dependency:pypi:pillow@12.3.0",
         "dependency:pypi:prompt-toolkit@3.0.43",
         "dependency:pypi:propcache@0.5.2",
-        "dependency:pypi:psycopg-binary@3.3.4",
-        "dependency:pypi:psycopg@3.3.4",
+        "dependency:pypi:psycopg-binary@3.3.6",
+        "dependency:pypi:psycopg@3.3.6",
         "dependency:pypi:pycparser@3.0",
         "dependency:pypi:pydantic-core@2.46.5",
         "dependency:pypi:pydantic-extra-types@2.11.1",
@@ -26256,6 +26324,7 @@
         "dependency:pypi:pyopenssl@26.4.0",
         "dependency:pypi:python-dateutil@2.9.0.post0",
         "dependency:pypi:python-dotenv@1.2.3",
+        "dependency:pypi:python-pkcs11@0.9.4",
         "dependency:pypi:pytz@2026.2",
         "dependency:pypi:pyvips@3.2.0",
         "dependency:pypi:pyyaml@6.0.2",
@@ -26265,13 +26334,13 @@
         "dependency:pypi:sqlalchemy@2.0.52",
         "dependency:pypi:starlette@1.6.0",
         "dependency:pypi:terminaltables@3.1.10",
-        "dependency:pypi:tifffile@2026.8.23",
+        "dependency:pypi:tifffile@2026.9.20",
         "dependency:pypi:typing-extensions@4.16.0",
         "dependency:pypi:typing-inspection@0.4.4",
-        "dependency:pypi:tzdata@2026.3",
         "dependency:pypi:tzdata@2026.4",
         "dependency:pypi:urllib3@2.8.0",
         "dependency:pypi:uvicorn@0.52.4",
+        "dependency:pypi:uvloop@0.23.0",
         "dependency:pypi:watchfiles@1.2.0",
         "dependency:pypi:wcwidth@0.8.2",
         "dependency:pypi:websockets@17.1",
@@ -26304,7 +26373,6 @@
         "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
         "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
-        "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
@@ -26318,15 +26386,15 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:81122aadfd52c32359b5c07ba3ed8d42980fa413"
+      "ref": "pathlab:build:e537ac87a896add8194127197a88a73744269858"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648"
+      "ref": "dependency:container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
+      "ref": "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2"
     },
     {
       "dependsOn": [],
@@ -26366,31 +26434,27 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e"
+      "ref": "dependency:github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a"
+      "ref": "dependency:github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "ref": "dependency:github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "ref": "dependency:github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065"
+      "ref": "dependency:github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1"
-    },
-    {
-      "dependsOn": [],
-      "ref": "dependency:github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa"
+      "ref": "dependency:github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
     },
     {
       "dependsOn": [],
@@ -28210,6 +28274,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:asn1crypto@1.5.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:attrs@26.1.0"
     },
     {
@@ -28242,6 +28310,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:colorama@0.4.6"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:crc32c@2.8"
     },
     {
@@ -28250,7 +28322,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:fastapi@0.141.1"
+      "ref": "dependency:pypi:fastapi@0.142.1"
     },
     {
       "dependsOn": [],
@@ -28310,11 +28382,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:oci-cli@3.92.0"
+      "ref": "dependency:pypi:oci-cli@3.94.1"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:oci@2.185.1"
+      "ref": "dependency:pypi:oci@2.187.1"
     },
     {
       "dependsOn": [],
@@ -28322,7 +28394,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:opencv-python-headless@4.14.0.94"
+      "ref": "dependency:pypi:opentelemetry-api@1.45.0"
     },
     {
       "dependsOn": [],
@@ -28338,11 +28410,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:psycopg-binary@3.3.4"
+      "ref": "dependency:pypi:psycopg-binary@3.3.6"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:psycopg@3.3.4"
+      "ref": "dependency:pypi:psycopg@3.3.6"
     },
     {
       "dependsOn": [],
@@ -28382,6 +28454,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:python-pkcs11@0.9.4"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:pytz@2026.2"
     },
     {
@@ -28418,7 +28494,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:tifffile@2026.8.23"
+      "ref": "dependency:pypi:tifffile@2026.9.20"
     },
     {
       "dependsOn": [],
@@ -28427,10 +28503,6 @@
     {
       "dependsOn": [],
       "ref": "dependency:pypi:typing-inspection@0.4.4"
-    },
-    {
-      "dependsOn": [],
-      "ref": "dependency:pypi:tzdata@2026.3"
     },
     {
       "dependsOn": [],
@@ -28443,6 +28515,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:pypi:uvicorn@0.52.4"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:pypi:uvloop@0.23.0"
     },
     {
       "dependsOn": [],
@@ -28574,10 +28650,6 @@
     },
     {
       "dependsOn": [],
-      "ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
-    },
-    {
-      "dependsOn": [],
       "ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1"
     },
     {
@@ -28627,15 +28699,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:81122aadfd52c32359b5c07ba3ed8d42980fa413",
+      "bom-ref": "pathlab:build:e537ac87a896add8194127197a88a73744269858",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/81122aadfd52c32359b5c07ba3ed8d42980fa413"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e537ac87a896add8194127197a88a73744269858"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/81122aadfd52c32359b5c07ba3ed8d42980fa413"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e537ac87a896add8194127197a88a73744269858"
         }
       ],
       "licenses": [
@@ -28666,13 +28738,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@81122aadfd52c32359b5c07ba3ed8d42980fa413",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@e537ac87a896add8194127197a88a73744269858",
       "type": "application",
-      "version": "81122aadfd52c32359b5c07ba3ed8d42980fa413"
+      "version": "e537ac87a896add8194127197a88a73744269858"
     },
-    "timestamp": "2026-10-04T00:52:52Z"
+    "timestamp": "2026-10-04T07:52:53Z"
   },
-  "serialNumber": "urn:uuid:81122aad-fd52-4323-a9b5-c07ba3ed8d42",
+  "serialNumber": "urn:uuid:e537ac87-a896-4dd8-a941-27197a88a737",
   "specVersion": "1.6",
   "version": 1
 }

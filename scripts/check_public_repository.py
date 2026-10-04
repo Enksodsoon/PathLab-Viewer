@@ -28,7 +28,7 @@ HISTORICAL_SYNTHETIC_EMAIL_LINES = {
 # material. A changed receipt, line, or path receives no exemption. This affects
 # email findings only; every credential/IP/workstation rule still runs.
 LEGAL_EMAIL_RECEIPT = "docs/supply-chain/notice-material/public-legal-email-lines.json"
-LEGAL_EMAIL_RECEIPT_SHA256 = "7e09325084e042aceeefd7ade5588c74d19a0ae17bfbe138874095782231627a"
+LEGAL_EMAIL_RECEIPT_SHA256 = "0f145a26f4ddc7c413767610412912dcd2051ee5c17f95b4f5d82975eb579872"
 
 
 def approved_legal_email_lines() -> dict[str, list[str]]:
@@ -141,7 +141,10 @@ LOCK_NAMES = {"pnpm-lock.yaml", "package-lock.json", "yarn.lock"}
 PNPM_PATCH_REFERENCE_LINES = {
     "pnpm-workspace.yaml": {
         "  openseadragon@6.1.0: patches/openseadragon@6.1.0.patch",
-    }
+    },
+    "docs/supply-chain/browser-distribution-receipt.json": {
+        '      "path": "patches/openseadragon@6.1.0.patch",',
+    },
 }
 
 Finding = tuple[str, int, str]

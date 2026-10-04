@@ -1,0 +1,169 @@
+{
+  "schema": "pathlab.shared-return-retry-fixture/1",
+  "baselineReviewedHead": "2ec03ca0988a5d32cfd4a84a6a16f036e149d4c7",
+  "baselineWorkflow": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37178827946",
+  "baselineBrowser": {
+    "passed": 284,
+    "skipped": 3,
+    "failed": 1,
+    "minutes": 12.0,
+    "failedCase": "mobile-chromium folder 900x420",
+    "assertion": "boundingBox must be nonnull"
+  },
+  "baselineOtherGates": "backend, web, PostgreSQL, fullstack, containers and three security checks succeeded",
+  "failureArtifact": {
+    "id": 11294677093,
+    "bytes": 10447270,
+    "sha256": "211b12f8bb44e91d62452dc58c2f7000f8604f4d471fc2b9909c113017e92baa"
+  },
+  "rootCause": "Request count increments before response fulfillment. Immediate visibility assertions can accept the previous error view; Retry detaches its link while a one-shot ElementHandle measurement is pending.",
+  "productDefectProved": false,
+  "repair": "Hold the Retry 404 response; assert loading and old link absence, release in finally, then await the fresh unavailable view before measurement.",
+  "localMechanismProbe": {
+    "staleHandle": "RED: nonnull assertion receives null after actual Retry loading transition",
+    "freshBarrier": "GREEN: original geometry, focus, Enter, authentication and reload checks",
+    "scope": "Controlled transition mechanism reproduction, not deterministic failure of the complete original matrix"
+  },
+  "localFinalMatrix": {
+    "passed": 32,
+    "projects": [
+      "chromium",
+      "firefox",
+      "webkit",
+      "mobile-chromium"
+    ],
+    "targets": [
+      "folder",
+      "collection"
+    ],
+    "viewports": [
+      "320x740",
+      "768x1024",
+      "900x420",
+      "1584x992"
+    ]
+  },
+  "assertionsPreserved": [
+    "request delta",
+    "nonnull geometry",
+    "44px minimum height",
+    "viewport containment",
+    "keyboard focus and Enter",
+    "/admin authentication",
+    "authentication after reload"
+  ],
+  "timeoutsRetriesWorkersUnchanged": true,
+  "independentFixtureReview": "CLEAR",
+  "productionTouched": false,
+  "productionRelease": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+  "freshHostedQualification": "PASS_REVIEWED_HEAD",
+  "nativeProductionVerification": "PENDING",
+  "localChecks": {
+    "frontendLint": "PASS",
+    "qualificationBuildSeconds": 16.93,
+    "graphs": 4,
+    "emittedAssets": 125,
+    "assetsGraphsPrebuiltInputsAndExclusionsMatchPreviousReceipt": true,
+    "softwareValidation": "PASS",
+    "SPDXSource": "PASS",
+    "SPDXBuild": "PASS",
+    "privacyCurrentAndNewHistory": "PASS",
+    "findingAndRightsInvariants": "PASS",
+    "dependencyRecordsPreserved": 582,
+    "sourceComponents": 612,
+    "buildComponents": 574,
+    "noticeBytesPreserved": 1449829,
+    "noticeSha256": "9f7c52bca7c8453a6e9211a9d5f4edcf3ea59031f241b4b68738985a209a98b3",
+    "strictAdmission": "BLOCKED: 176 recorded unreviewed shipped inputs unchanged"
+  },
+  "immutableQualification": {
+    "implementation": "f484c1ea3e801a132ddb013a57d1ff4852657132",
+    "browserReceipt": "3ca837bfaa0779cc152e3c0d1e7f57210279ba84",
+    "softwareSubject": "f9d6a2e412812dd12a871c9a22254f5a199e305f",
+    "softwareArtifacts": "36ca33850128438e87f2a3deed11e8eb16b8b875"
+  },
+  "reviewedHeadQualification": {
+    "recordedAt": "2026-10-04T06:01:02.541714+00:00",
+    "reviewedHead": "9063f61954f584a424bd2bdeec8c51e188848388",
+    "allNinePassed": true,
+    "campaignChecks": {
+      "backend": {
+        "id": 111372295392,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623325/job/111372295392"
+      },
+      "web": {
+        "id": 111372295313,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623325/job/111372295313"
+      },
+      "containers": {
+        "id": 111372295396,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623325/job/111372295396"
+      },
+      "browser": {
+        "id": 111372295416,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623325/job/111372295416"
+      },
+      "fullstack": {
+        "id": 111372295450,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623325/job/111372295450"
+      },
+      "postgres": {
+        "id": 111372295367,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623325/job/111372295367"
+      },
+      "repository-and-dependencies": {
+        "id": 111372295167,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623323/job/111372295167"
+      },
+      "CodeQL (python)": {
+        "id": 111372295259,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623323/job/111372295259"
+      },
+      "CodeQL (javascript-typescript)": {
+        "id": 111372295240,
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37180623323/job/111372295240"
+      }
+    },
+    "ciRun": 37180623325,
+    "securityRun": 37180623323,
+    "browserPassed": 285,
+    "browserSkipped": 3,
+    "all32NewCasesExecuted": true,
+    "matrixSeconds": 911,
+    "matrixBudgetSeconds": 960,
+    "fullstack": {
+      "expected": 30,
+      "skipped": 1,
+      "unexpected": 0,
+      "flaky": 0,
+      "seconds": 847.398455,
+      "productionTouched": false
+    }
+  },
+  "delivery": {
+    "pr": 312,
+    "url": "https://github.com/Enksodsoon/PathLab-Viewer/pull/312",
+    "mergedMain": "adfbd5de47efd6174cae348552adfe0a47131e5a",
+    "mergedAt": "2026-10-04T05:59:59Z",
+    "mergeMethod": "normal protected squash with exact reviewed-head match",
+    "scope": "Reviewed-head qualification and merged verification batch; fresh merged-main checks are separate. Deployed application5069c80 is unchanged and native verification remains pending."
+  }
+}

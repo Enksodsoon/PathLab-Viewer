@@ -12699,8 +12699,8 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "Production c570116 remains verified; PR306 evidence merged a90759d. All44 campaign findings, original954 entries/29 subclaims and11 additional aliases retained. New canvas keyboard repair is local, independently reviewed before protected release. External security facts, accountable software admission and specific production observations/confirmations keep the campaign open.",
-  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate.",
+  "campaignStatus": "Production5069c80 deployed through protected workflow37177663993 after all nine exact-main gates and actual285browser/3skip/all32new cases within855s/960s budget. Actual restore69tables/106325files/3286131731bytes and fresh health200/200/anonymous drafts401 passed. Native released verification remains pending: assessment tab signed out and Windows input stopped because current browser URL could not be confidently determined. Original954entries/29aggregate subclaims/45campaign findings and all versioned aliases retained. External security facts, specific native actions/observations, accountable admissions and production qualification gaps keep the campaign open.",
+  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate. Prior native-qualified production c37cf81: PR307 reviewed head ddc74e4 passed all nine gates and normal protected squash merged c37cf81. Fresh main CI37162376381/Security37162376369 passed all nine latest exact-SHA contexts after a retained unchanged Library-sort test observation and same-SHA failed-job rerun. Protected deployment37164136683 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200/anonymous drafts401. Explicit native Refresh retained synthetic viewer tiles/two annotations/NO CHANGES and private assessment two questions/2.502points/All changes saved. Library return loaded authenticated content. No production held-key fault injection or new publication/learner/Cancel actions. Current deployed production5069c80: protected workflow37177663993 succeeded after all nine fresh-main checks; exactSHA/actual restore/fresh health/access denial passed. Fresh native verification remains pending; prior native-qualified c37cf81 evidence is historical.",
   "campaignFindings": [
     {
       "key": "campaign-ci-inventory-subject",
@@ -12996,7 +12996,7 @@
     },
     {
       "key": "campaign-assessment-save-revision-serialization",
-      "status": "confirmed; local candidate qualified, delivery pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Base2289b45 deferred PATCH plus two debounce expirations sends two saves at the same revision; independent red expects one and observes two. Subsequent browser cases expose a brief All changes saved message while only the first revision has been submitted.",
       "repair": "Serialize pending saves per draft load generation; drain newer edits at acknowledged revision; ignore stale-generation timers/completions. Keep Saving while the acknowledged document differs from the latest edit.",
       "qualification": "Initial40affected pass; independent review exposes cross-draft guard regression and deferred navigation red reproduces it. Scoped generation fix passes42affected, lint and build12.75s; renewed review finds no actionable issues. First generation run failed because save fixture returned wrong draft ID, corrected to echo requested ID. Complete/frontend/browser qualification pending. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending. PR299 passed all nine exact-head7677cdc contexts after fixture option-boundary repair and merged746df1a. All nine exact-main gates passed; protected deployment37141936233 succeeded, actualrestore and fresh health200 verified. Authenticated save-specific checks remain pending.",
@@ -13004,33 +13004,69 @@
         "AssessmentBuilderPage autosave",
         "Upgrade to sections route navigation"
       ],
-      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md"
+      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md",
+      "previousStatus": "confirmed; local candidate qualified, delivery pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37141936233,
+        "initialDeployedCommit": "746df1a194558581699adfeaf45b3861897ab9af",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-optional-recovery-read",
-      "status": "confirmed; local candidate qualified, delivery pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Successful server GET plus SecurityError from local recovery read renders Unable to open draft; independent red reproduced.",
       "repair": "Treat rejected local-cache read as absent while preserving actual server-load failures and Retry.",
       "qualification": "Storage-denial and server-unavailable controls pass in42affected suite; complete browser/frontend qualification pending. No server acknowledgment or local dirty-copy recovery inferred. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending. PR299 passed all nine exact-head7677cdc contexts after fixture option-boundary repair and merged746df1a. All nine exact-main gates passed; protected deployment37141936233 succeeded, actualrestore and fresh health200 verified. Authenticated save-specific checks remain pending.",
       "callers": [
         "AssessmentBuilderPage initial/retry draft load"
       ],
-      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md"
+      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md",
+      "previousStatus": "confirmed; local candidate qualified, delivery pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37141936233,
+        "initialDeployedCommit": "746df1a194558581699adfeaf45b3861897ab9af",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-equal-revision-local-recovery",
-      "status": "confirmed; local candidate qualified, complete delivery checks pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Failed PATCH caches edits at unchanged revision1; reload with serverrevision1 discards locally retained title. Independent component red reproduces.",
       "repair": "Recover equal-revision divergent local documents; preserve older-cache rejection and optimistic server revision.",
       "qualification": "Initial45affected tests and four real-IndexedDB browser cases pass. Later error-containment qualification is separately recorded; final exact-source checks and release remain pending. Final corrected affected suite45passed61.35seconds, eight zero-retry browser cases39.9seconds, build6.50seconds; renewed independent review has no actionable findings. Complete hosted gates and delivery remain required. Complete final-source frontend538passed83files262.47seconds. Asset rights16ADMITTED and deterministic software612BLOCKED validators pass with admission unchanged. PR300 merged43044d5 after nine head gates; all nine merged-main gates and protected37144050380 succeeded. Restore/health and native positive save/reload verified; production storage/HTTP failures were not injected.",
       "callers": [
         "AssessmentBuilderPage initial/retry draft load"
       ],
-      "ticket": "docs/remediation/tickets/assessment-local-recovery.md"
+      "ticket": "docs/remediation/tickets/assessment-local-recovery.md",
+      "previousStatus": "confirmed; local candidate qualified, complete delivery checks pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37144050380,
+        "initialDeployedCommit": "43044d538d01b5611ff3fd8d850742393d846949",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-local-recovery-write-denial",
-      "status": "confirmed; local candidate qualified, complete delivery checks pending",
+      "status": "confirmed; repaired and deployed; current-release native qualification pending",
       "evidence": "Actual Chromium IndexedDB denial emits two unhandled page errors during one server-acknowledged draft edit; browser red reproduces.",
       "repair": "Catch both local-cache write failures, scope notices to current load generation, and show local recovery unavailable separately from server save state.",
       "qualification": "Eight zero-retry browser cases pass39.9seconds across four projects; build6.50seconds and lint pass. Three authoring fixture failures reveal undefined cache mock rather than Promise<void>; corrected stub and renewed targeted suite pending. Final corrected affected suite45passed61.35seconds, eight zero-retry browser cases39.9seconds, build6.50seconds; renewed independent review has no actionable findings. Complete hosted gates and delivery remain required. Complete final-source frontend538passed83files262.47seconds. Asset rights16ADMITTED and deterministic software612BLOCKED validators pass with admission unchanged. PR300 merged43044d5 after nine head gates; all nine merged-main gates and protected37144050380 succeeded. Restore/health and native positive save/reload verified; production storage/HTTP failures were not injected.",
@@ -13038,7 +13074,19 @@
         "AssessmentBuilderPage local edited-draft cache",
         "AssessmentBuilderPage acknowledged-draft cache"
       ],
-      "ticket": "docs/remediation/tickets/assessment-local-recovery.md"
+      "ticket": "docs/remediation/tickets/assessment-local-recovery.md",
+      "previousStatus": "confirmed; local candidate qualified, complete delivery checks pending",
+      "repairState": "deployed; current-release native verification pending; no production failure injection claimed",
+      "deliveryEvidence": {
+        "initialDeploymentRun": 37144050380,
+        "initialDeployedCommit": "43044d538d01b5611ff3fd8d850742393d846949",
+        "initialDeploymentConclusion": "success",
+        "includedInCurrentProduction": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+        "ancestryVerified": true,
+        "currentReleaseReceipt": "docs/remediation/evidence/production-5069c80-release.json",
+        "currentReleaseNativeQualification": "PENDING",
+        "scope": "Delivery disposition correction; no new native or production failure-injection evidence"
+      }
     },
     {
       "key": "campaign-assessment-import-unsaved-overwrite",
@@ -13122,15 +13170,28 @@
     },
     {
       "key": "campaign-shared-viewer-canvas-keyboard",
-      "status": "confirmed; locally repaired and independently reviewed, protected release pending",
+      "status": "confirmed; repaired and delivered in verified production c37cf81",
       "evidence": "Actual repeated ArrowRight on focused OpenSeadragon canvas changes shared slide at c570116. Original-source regression fails Chromium, Firefox and WebKit; initial two-canvas selector failure is setup history.",
       "repair": "Keep Left/Right events originating inside .openseadragon-canvas out of the window adjacent-slide handler. Preserve outside navigation and existing viewer handling.",
-      "qualification": "Original-source focused browser regression fails Chromium/Firefox/WebKit; fixed four-engine held Right at0/Left at1, outside navigation and reload passes4/4. Full affected browser32/32passes1.5minutes. Changed-file ESLint and production build8.94s pass. Default frontend570pass1existing auth-performance30s timeout retained; bounded four-worker fullsuite571pass85files189.25s. Independent review clear after strengthening Left test and correcting factual source wording. Protected CI/merge/deployment pending; production c570116 remains unchanged.",
+      "qualification": "Original-source focused browser regression fails Chromium/Firefox/WebKit; fixed four-engine held Right at0/Left at1, outside navigation and reload passes4/4. Full affected browser32/32passes1.5minutes. Changed-file ESLint and production build8.94s pass. Default frontend570pass1existing auth-performance30s timeout retained; bounded four-worker fullsuite571pass85files189.25s. Independent review clear after strengthening Left test and correcting factual source wording. Protected CI/merge/deployment pending; production c570116 remains unchanged. Delivered via PR307 at c37cf81 after all nine reviewed-head and fresh main gates; protected deployment37164136683 succeeded with actual restore and fresh health/native positive persistence/viewer/Library checks. The held-key defect itself is qualified by the four-engine local regression, not native production fault injection.",
       "callers": [
         "Public shared folder viewer",
         "Public shared collection viewer"
       ],
       "ticket": "docs/remediation/tickets/shared-viewer-canvas-keyboard.md"
+    },
+    {
+      "key": "campaign-shared-unavailable-return",
+      "status": "confirmed; repaired and delivered in production5069c80; fresh native verification pending",
+      "evidence": "Antigravity v2 reconciliation line200 FE-89; two original-source unit failures prove missing return on unavailable public folder/collection.",
+      "repair": "Native Go to library link routes to existing /admin authentication boundary; preserve Retry and public permissions.",
+      "qualification": "Original-source two-unit red regression; repaired11 affected unit passes; final full frontend573 tests/85files175.46s, lint and production build pass; final32 browser cases across four engines/two callers/four viewports pass; independent review clear. Actual125assets/legal verification, deterministic inventories, SPDX2, Ruff, privacy/current history and45inventory regressions pass (one Windows symlink-permission skip); admissions remain unchanged. PR310 reviewed head5b4db461 passed all nine gates and merged48434dd. Its hosted matrix passed253 existing cases but omitted32 new locally qualified cases; the separate CI selector repair is tracked in docs/remediation/tickets/shared-return-ci-matrix.md. Fresh complete hosted coverage and protected delivery pending. PR311 reviewed head3560cd52 passed all nine checks and hosted285browser/3skip/all32new cases within916seconds; merged5069c80. Fresh main attempt1 retained one existing mobile annotation readiness failure before drawing assertions; unchanged focused20replays passed, followed by one unchanged failed-job retry. Attempt2 passed285/3skip/all32new within855seconds with original assertions/timeouts intact. Protected deployment37177663993 succeeded at exact5069c80; actual restore and fresh health/access denial passed. Fresh native return/persistence remains pending; no authentication or publication/Cancel action was automated.",
+      "callers": [
+        "Public shared folder unavailable state",
+        "Public shared collection unavailable state"
+      ],
+      "ticket": "docs/remediation/tickets/shared-unavailable-return.md",
+      "releaseEvidence": "docs/remediation/evidence/production-5069c80-release.json"
     }
   ],
   "currentClosureBranch": "main",
@@ -13167,13 +13228,51 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "c570116a7b018620bd803266edca813701bc8f6f",
-    "ciRun": 37157146069,
-    "securityRun": 37157146107,
-    "deploymentRun": 37158209056,
+    "schema": "pathlab.production-remediation-release/1",
+    "sha": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+    "checkedAt": "2026-10-04T04:55:59.546787+00:00",
+    "deploymentRun": 37177663993,
     "deploymentConclusion": "success",
-    "updatedAt": "2026-10-03T22:38:37Z",
-    "allNineLatestMainChecksPassed": true,
+    "deploymentExactSHAEvidence": "Terminal protected log reports success after live checkout SHA and service health assertions.",
+    "ciRun": 37175468040,
+    "securityRun": 37175468076,
+    "qualification": {
+      "subject": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+      "run": 37175468040,
+      "all32NewCasesExecuted": true,
+      "browserPassed": 285,
+      "browserSkipped": 3,
+      "browserReportedRuntime": "14.2m",
+      "matrixStepSeconds": 855.0,
+      "matrixBudgetSeconds": 960,
+      "budgetPreserved": true,
+      "fullstackProductionTouched": false,
+      "scope": "Terminal official CI log and step metadata; full-stack case statistics require its separate retained report.",
+      "qualificationAttempt": 2,
+      "originalAttempt1": {
+        "browserPassed": 284,
+        "browserSkipped": 3,
+        "browserFailed": 1,
+        "failure": "Existing mobile annotation readiness deadline before drawing assertions",
+        "log": "var/main-5069c80-attempt1-ci.log",
+        "retained": true
+      },
+      "unchangedFocusedReplay": {
+        "passed": 20,
+        "seconds": 45.0
+      },
+      "assertionsAndTimeoutsUnchanged": true,
+      "fullstackEvidence": {
+        "executedAttempt": 1,
+        "carriedForwardByGitHub": true,
+        "expected": 30,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0,
+        "durationSeconds": 929.104887,
+        "report": "var/main-5069c80-fullstack-artifact/fullstack.json"
+      }
+    },
     "restore": {
       "archiveRoots": [
         "delivery",
@@ -13189,26 +13288,27 @@
       "tableCount": 69
     },
     "health": {
-      "checkedAt": "2026-10-03T22:38:41.899344+00:00",
-      "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+      "checkedAt": "2026-10-04T04:55:45.114220+00:00",
+      "requestedReleaseSubject": "5069c80e6d5ecff079ab806fd7fb084f1d3119a2",
+      "scope": "Anonymous health and actual assessment authorization boundary; exact deployed SHA requires independent terminal workflow evidence. No credentials or response bodies recorded.",
       "results": [
         {
           "path": "/livez",
           "status": 200,
           "expected": 200,
-          "elapsedSeconds": 0.125
+          "elapsedSeconds": 0.14
         },
         {
           "path": "/readyz",
           "status": 200,
           "expected": 200,
-          "elapsedSeconds": 0.14
+          "elapsedSeconds": 0.141
         },
         {
           "path": "/api/v2/admin/assessment/drafts",
           "status": 401,
           "expected": 401,
-          "elapsedSeconds": 0.125
+          "elapsedSeconds": 0.094
         }
       ],
       "passed": true
@@ -13217,36 +13317,18 @@
       "classroom": true,
       "annotations": false,
       "adminAnnotationCanary": true,
-      "study": "existing gate retained"
+      "study": "existing disabled gate retained"
     },
-    "nativeAssessment": {
-      "draftId": "8fa54472-90a8-4041-9462-eede03640074",
-      "descriptionMarker": "Atomic revisions and acknowledgment recovery release c570116 verified.",
-      "observations": [
-        "Browser Refresh loaded assessment",
-        "Native description edit acknowledged All changes saved",
-        "Browser Refresh retained marker, two questions and 2.502 points"
-      ],
-      "receipt": "var/production-c570116-native-save.md"
-    },
-    "nativeViewer": {
-      "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
-      "observations": [
-        "Refreshed Library loaded synthetic B thumbnail",
-        "Open viewer reached authenticated admin preview",
-        "3072 x 3072 patterned tiles, two saved rectangles and NO CHANGES rendered"
-      ]
-    },
+    "nativeVerification": "PENDING: fresh signed-in return and persistence checks required; previous-release checks are separate.",
+    "campaignComplete": false,
     "remaining": [
-      "Native production drag direct observation",
-      "Specific synthetic publication/learner-attempt and Cancel confirmations",
-      "External reported-secret rotation/provenance and actual OneDrive sync/sharing facts",
-      "Strict accountable software admission and two exact notice gaps",
-      "Requirement-by-requirement campaign closure"
-    ],
-    "limitations": "Positive native released save/reload and viewer checks only; failure/concurrency paths qualified locally/hosted, not injected into production. No clinical, physical-device, unrestricted capacity or zero-bug claim.",
-    "evidenceOrigin": "Protected GitHub workflow logs and fresh native signed-in Edge observations; no credential values or production failure injection.",
-    "completedAt": "2026-10-03T22:38:36Z"
+      "Fresh signed-in released native return and persistence checks",
+      "Specific synthetic Practice/learner and paused-upload Cancel confirmations",
+      "Human native production folder drag observation",
+      "Reported secret provenance/rotation and actual OneDrive sync/sharing facts",
+      "176 accountable software admissions and two exact unshipped source notice gaps",
+      "Distinct-identity production competing admission qualification"
+    ]
   },
   "previousProductionReleases": [
     {
@@ -13590,6 +13672,172 @@
         "V2 assessment score/preflight repair candidate and historical published-definition qualification"
       ],
       "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
+    },
+    {
+      "sha": "c570116a7b018620bd803266edca813701bc8f6f",
+      "ciRun": 37157146069,
+      "securityRun": 37157146107,
+      "deploymentRun": 37158209056,
+      "deploymentConclusion": "success",
+      "updatedAt": "2026-10-03T22:38:37Z",
+      "allNineLatestMainChecksPassed": true,
+      "restore": {
+        "archiveRoots": [
+          "delivery",
+          "originals",
+          "private",
+          "public"
+        ],
+        "fileBytes": 3286131731,
+        "fileCount": 106325,
+        "filesIntegrity": "restored",
+        "databaseIntegrity": "restored",
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69
+      },
+      "health": {
+        "checkedAt": "2026-10-03T22:38:41.899344+00:00",
+        "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+        "results": [
+          {
+            "path": "/livez",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.125
+          },
+          {
+            "path": "/readyz",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.14
+          },
+          {
+            "path": "/api/v2/admin/assessment/drafts",
+            "status": 401,
+            "expected": 401,
+            "elapsedSeconds": 0.125
+          }
+        ],
+        "passed": true
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "nativeAssessment": {
+        "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+        "descriptionMarker": "Atomic revisions and acknowledgment recovery release c570116 verified.",
+        "observations": [
+          "Browser Refresh loaded assessment",
+          "Native description edit acknowledged All changes saved",
+          "Browser Refresh retained marker, two questions and 2.502 points"
+        ],
+        "receipt": "var/production-c570116-native-save.md"
+      },
+      "nativeViewer": {
+        "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
+        "observations": [
+          "Refreshed Library loaded synthetic B thumbnail",
+          "Open viewer reached authenticated admin preview",
+          "3072 x 3072 patterned tiles, two saved rectangles and NO CHANGES rendered"
+        ]
+      },
+      "remaining": [
+        "Native production drag direct observation",
+        "Specific synthetic publication/learner-attempt and Cancel confirmations",
+        "External reported-secret rotation/provenance and actual OneDrive sync/sharing facts",
+        "Strict accountable software admission and two exact notice gaps",
+        "Requirement-by-requirement campaign closure"
+      ],
+      "limitations": "Positive native released save/reload and viewer checks only; failure/concurrency paths qualified locally/hosted, not injected into production. No clinical, physical-device, unrestricted capacity or zero-bug claim.",
+      "evidenceOrigin": "Protected GitHub workflow logs and fresh native signed-in Edge observations; no credential values or production failure injection.",
+      "completedAt": "2026-10-03T22:38:36Z"
+    },
+    {
+      "sha": "c37cf81a1cabc967e3a587eb2610bf95993801ba",
+      "checkedAt": "2026-10-04T00:31:26.839824+00:00",
+      "deploymentRun": 37164136683,
+      "deploymentConclusion": "success",
+      "ciRun": 37162376381,
+      "securityRun": 37162376369,
+      "requiredChecksReceipt": "var/main-c37cf81-required-checks.json",
+      "restore": {
+        "archiveRoots": [
+          "delivery",
+          "originals",
+          "private",
+          "public"
+        ],
+        "fileBytes": 3286131731,
+        "fileCount": 106325,
+        "filesIntegrity": "restored",
+        "databaseIntegrity": "restored",
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69
+      },
+      "health": {
+        "checkedAt": "2026-10-04T00:29:04.645933+00:00",
+        "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+        "results": [
+          {
+            "path": "/livez",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.172
+          },
+          {
+            "path": "/readyz",
+            "status": 200,
+            "expected": 200,
+            "elapsedSeconds": 0.125
+          },
+          {
+            "path": "/api/v2/admin/assessment/drafts",
+            "status": 401,
+            "expected": 401,
+            "elapsedSeconds": 0.109
+          }
+        ],
+        "passed": true
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing disabled gate retained"
+      },
+      "nativeViewer": {
+        "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
+        "observations": [
+          "Explicit browser Refresh after terminal deployment success",
+          "Patterned 3072 x 3072 tiles, two saved rectangles and NO CHANGES rendered"
+        ]
+      },
+      "nativeAssessment": {
+        "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+        "observations": [
+          "Explicit browser Refresh after terminal deployment success",
+          "Existing c570116 acknowledgment marker retained",
+          "Two questions, 2.502 points and All changes saved retained"
+        ]
+      },
+      "limitations": "Positive native released persistence and viewer checks only; shared canvas held-key failure proved in the local four-engine regression, not injected through native production controls. No new publication, permissions, learner submission or Cancel actions.",
+      "remaining": [
+        "Human native folder drag observation",
+        "Pending specific synthetic action confirmations",
+        "External secret provenance/rotation and OneDrive sharing facts",
+        "Accountable software admissions and two exact source notice gaps",
+        "Browser artifact distribution qualification integration",
+        "Requirement-level campaign closure"
+      ],
+      "nativeLibrary": {
+        "observations": [
+          "Explicit Library return from authenticated viewer reached /admin",
+          "Library loaded synthetic B thumbnail and Open viewer / Quick look controls"
+        ]
+      }
     }
   ],
   "additionalHandoffSources": [
@@ -13730,6 +13978,390 @@
       "disposition": "hardening; model semantic qualification unresolved",
       "canonicalKey": "study.feature-schema-qualification",
       "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    }
+  ],
+  "revisedHandoffSources": [
+    {
+      "path": "docs/reports/CODEX_IMPLEMENTATION_PLAYBOOK.md",
+      "sha256": "da384211a8cbc107d71d979be65b11e6219dc4ed94713cb8713e76c739591111",
+      "lines": 277,
+      "revision": "2.0.0",
+      "date": "2026-09-28",
+      "review": "COMPLETE; evidence-backed dispositions; external qualification remains open",
+      "originalFrozenSourceIdentityRetained": true,
+      "evidence": "docs/remediation/ANTIGRAVITY_V2_RECONCILIATION.md"
+    },
+    {
+      "path": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md",
+      "sha256": "ceafbc7455b16b9692cebf6810c89d4f596a2b66237f61a7a8616df9f20ffaf2",
+      "lines": 225,
+      "revision": "2.0.0",
+      "date": "2026-09-28",
+      "review": "COMPLETE; evidence-backed dispositions; external qualification remains open",
+      "originalFrozenSourceIdentityRetained": true,
+      "evidence": "docs/remediation/ANTIGRAVITY_V2_RECONCILIATION.md"
+    }
+  ],
+  "revisedHandoffClaims": [
+    {
+      "versionedSourceAlias": "P47; R100 — Trap A",
+      "mechanism": "Sequential thumbnail reread",
+      "canonicalTracking": "conversion.sequential-thumbnail-read",
+      "evidenceDisposition": "conversion.py still loads separately after releasing the DZI image. HARDENING_REVIEW.md:498 preserves this bounded contract. Hardening; claimed elimination is false."
+    },
+    {
+      "versionedSourceAlias": "P49; R101 — Trap B",
+      "mechanism": "SQLite pool starvation",
+      "canonicalTracking": "database.bounded-pool; capacity.bounded-admission",
+      "evidenceDisposition": "database.py retains bounded PressureQueuePool, not NullPool. Hardening; claimed pool replacement is false."
+    },
+    {
+      "versionedSourceAlias": "P51; R102 — Trap C",
+      "mechanism": "PostgreSQL connection limit",
+      "canonicalTracking": "capacity.bounded-admission",
+      "evidenceDisposition": "compose.postgres.yaml retains max_connections=20 and shared_buffers=128MB. Hardening; claimed 100/256MB settings are false."
+    },
+    {
+      "versionedSourceAlias": "P53 — Trap D",
+      "mechanism": "Missing ICC fallback",
+      "canonicalTracking": "conversion.color-profile",
+      "evidenceDisposition": "conversion.py transforms present ICC profiles and supplies no invented source profile. HARDENING_REVIEW.md:472. Hardening; clinical-fidelity/fallback claim unsupported."
+    },
+    {
+      "versionedSourceAlias": "P57; R69 — SEC-01",
+      "mechanism": "Legacy administrator authorization",
+      "canonicalTracking": "auth.legacy-owner",
+      "evidenceDisposition": "Registered owner/session boundary evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P58; R70 — SEC-02",
+      "mechanism": "Last-owner/governance races",
+      "canonicalTracking": "identity.governance-lock",
+      "evidenceDisposition": "identity_mutation_lock.py and registered governance-lock evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P59; R71 — SEC-03",
+      "mechanism": "Shared authentication admission",
+      "canonicalTracking": "auth.shared-admission",
+      "evidenceDisposition": "admission.py and registered migration evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P60; R72 — SEC-04",
+      "mechanism": "Internal proxy-route denial",
+      "canonicalTracking": "edge.internal-route-denial",
+      "evidenceDisposition": "Caddy boundary and registered disposition. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P61; R73 — SEC-06",
+      "mechanism": "Delivery helper root confinement",
+      "canonicalTracking": "delivery.shared-boundary",
+      "evidenceDisposition": "delivery.py returns direct FileResponse before helper root check; approved callers constrain provenance. Hardening; unconditional-check repair claim is false."
+    },
+    {
+      "versionedSourceAlias": "P62; R74 — SEC-08/14/26, DATA-05",
+      "mechanism": "Revoked/trashed delivery",
+      "canonicalTracking": "sharing.revoke-delivery-auth; desktop.trashed-download; sharing.trashed-manifest; slide.individual-delivery-cleanup",
+      "evidenceDisposition": "Existing authorization/manifest-cleanup coverage. Covered; preserve distinct mechanisms."
+    },
+    {
+      "versionedSourceAlias": "P63; R75 — SEC-09/40/46",
+      "mechanism": "CSV formula injection",
+      "canonicalTracking": "annotation.csv-formula",
+      "evidenceDisposition": "Registered sanitized export boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P64; R76 — SEC-10",
+      "mechanism": "Teacher SSE ownership",
+      "canonicalTracking": "classroom.teacher-owner",
+      "evidenceDisposition": "Registered active-teacher capability boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P65; R77 — SEC-12",
+      "mechanism": "Request-body limits",
+      "canonicalTracking": "http.body-limits",
+      "evidenceDisposition": "Registered body-limit middleware evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P66; R78 — SEC-21",
+      "mechanism": "Pairing admission flooding",
+      "canonicalTracking": "desktop.pairing-admission",
+      "evidenceDisposition": "Registered database admission evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P67; R79 — SEC-23 / v2 BUG-NEW-01",
+      "mechanism": "Credentials surviving password changes",
+      "canonicalTracking": "auth.desktop-revocation",
+      "evidenceDisposition": "auth.py shared revocation path covers desktop credentials. Covered, fixed upstream. Versioned BUG-NEW-01 must not alias original worker deletion."
+    },
+    {
+      "versionedSourceAlias": "P68; R80 — SEC-38",
+      "mechanism": "Proxy/IP trust",
+      "canonicalTracking": "edge.proxy-trust",
+      "evidenceDisposition": "HARDENING_REVIEW.md:685. Existing hardening disposition; blanket resolved narrative overstates it."
+    },
+    {
+      "versionedSourceAlias": "P69; R81 — SEC-39",
+      "mechanism": "Prepared-ingest Windows traversal",
+      "canonicalTracking": "ingest.windows-path",
+      "evidenceDisposition": "Registered path-normalization boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P72; R84 — CONC-01",
+      "mechanism": "Pairing approval race",
+      "canonicalTracking": "desktop.pairing-cas",
+      "evidenceDisposition": "Registered CAS/locking evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P73; R85 — CONC-02",
+      "mechanism": "Recovery transaction serialization",
+      "canonicalTracking": "auth.recovery-lock",
+      "evidenceDisposition": "Registered dialect-specific recovery locking. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P74; R86 — CONC-03",
+      "mechanism": "Shared storage admission",
+      "canonicalTracking": "storage.shared-cap-lock",
+      "evidenceDisposition": "Registered transactional accounting boundary. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P75; R87 — CONC-05/08/16",
+      "mechanism": "Study aggregate races",
+      "canonicalTracking": "study.readiness-aggregate-race; study.aggregate-concurrency",
+      "evidenceDisposition": "REPAIR_COVERAGE.md and Study regression evidence. Covered, repair present; retain both mechanisms."
+    },
+    {
+      "versionedSourceAlias": "P76; R88 — CONC-06",
+      "mechanism": "Study course capacity",
+      "canonicalTracking": "study.course-admission",
+      "evidenceDisposition": "Existing admission-lock coverage. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P77; R89 — CONC-18",
+      "mechanism": "Concurrent Study submissions",
+      "canonicalTracking": "study.task-submission-serialization",
+      "evidenceDisposition": "Actual HTTP race and repaired 200/429 regression retained. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P78; R92 — DATA-01",
+      "mechanism": "WSI byte-counter overflow",
+      "canonicalTracking": "db.wsi-bigint",
+      "evidenceDisposition": "Registered schema widening. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P79; R93 — DATA-02",
+      "mechanism": "Finalizer commit/orphan durability",
+      "canonicalTracking": "desktop.finalizer-commit-orphan",
+      "evidenceDisposition": "desktop_finalizer.py and transaction regressions. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P80; R94 — DATA-03",
+      "mechanism": "PostgreSQL sequence drift",
+      "canonicalTracking": "ops.postgres-sequences",
+      "evidenceDisposition": "Registered migration evidence. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P81; R95 — DATA-04/19",
+      "mechanism": "Delete synchronization",
+      "canonicalTracking": "library.folder-delete-sync; library.delete-sync",
+      "evidenceDisposition": "Existing sync-event coverage. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P82; R96 — DATA-06",
+      "mechanism": "Desktop folder truncation",
+      "canonicalTracking": "desktop.folder-limit",
+      "evidenceDisposition": "Pagination and native 102-folder evidence. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "R97 — TIME-01 through TIME-05",
+      "mechanism": "UTC consistency",
+      "canonicalTracking": "time.utc-normalization; sharing.utc-expiry",
+      "evidenceDisposition": "Registered normalization/expiry evidence. Covered, fixed upstream; retain individual original aliases."
+    },
+    {
+      "versionedSourceAlias": "P83; R103 — v2 BUG-NEW-02",
+      "mechanism": "Claimed TUSD chunk-assembly repair",
+      "canonicalTracking": "conversion.serial-contract, related contract only",
+      "evidenceDisposition": "Current serial conversion/staging contract is reviewed; a separate worker chunk-assembly race is not established. Hardening/unsupported repair narrative; do not imply exact semantic equivalence."
+    },
+    {
+      "versionedSourceAlias": "P84; R104 — REL-01",
+      "mechanism": "Worker deletion durability",
+      "canonicalTracking": "worker.delete-durability",
+      "evidenceDisposition": "Existing deletion/constraint regressions. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P85; R105 — REL-03 through REL-08",
+      "mechanism": "Heartbeat/filesystem/deletion handling",
+      "canonicalTracking": "Existing individual worker keys",
+      "evidenceDisposition": "Original alias meanings and individual regression evidence remain authoritative. Covered as grouped historical summary, not one new defect."
+    },
+    {
+      "versionedSourceAlias": "P88; R108 — FE-01",
+      "mechanism": "Application error boundary",
+      "canonicalTracking": "web.application-boundary",
+      "evidenceDisposition": "Current boundary and rendered retry/reload/navigation test. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P89; R109 — FE-02",
+      "mechanism": "Authentication return path",
+      "canonicalTracking": "viewer.auth-return",
+      "evidenceDisposition": "Existing return-path coverage. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P90; R110 — FE-03",
+      "mechanism": "Viewer load errors",
+      "canonicalTracking": "viewer.load-errors",
+      "evidenceDisposition": "Current classified error/retry UI. Covered, fixed upstream."
+    },
+    {
+      "versionedSourceAlias": "P91; R111 — storage aliases",
+      "mechanism": "Blocked browser storage",
+      "canonicalTracking": "web.api-storage; classroom.teacher-storage; sharing.viewer-storage; viewer.blocked-storage; study.csrf-storage; study.locale-storage",
+      "evidenceDisposition": "Existing caller-specific repairs/dispositions. Covered; preserve separate callers and original aliases."
+    },
+    {
+      "versionedSourceAlias": "P92; R112 — FE-08/10/40",
+      "mechanism": "IndexedDB transaction durability",
+      "canonicalTracking": "study.authoring-commit; study.local-commit",
+      "evidenceDisposition": "Existing completion/abort/close coverage. Covered; connection leaks is an imprecise summary of transaction durability."
+    },
+    {
+      "versionedSourceAlias": "P93; R113 — FE-12",
+      "mechanism": "Join notebook failure",
+      "canonicalTracking": "classroom.join-notebook-failure",
+      "evidenceDisposition": "Existing fallback coverage. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P94; R113 — FE-13",
+      "mechanism": "Invite polling failure",
+      "canonicalTracking": "classroom.invite-poll",
+      "evidenceDisposition": "Current transient/terminal handling plus PR309 verification repair. Covered, application repair present; fixture issue separately tracked."
+    },
+    {
+      "versionedSourceAlias": "P95 — FE-15",
+      "mechanism": "Draft-open retry",
+      "canonicalTracking": "annotation.draft-open-retry; campaign-annotation-draft-open-retry",
+      "evidenceDisposition": "Existing native failure/retry evidence. Covered, campaign repair present."
+    },
+    {
+      "versionedSourceAlias": "P96; R114 — FE-81",
+      "mechanism": "Private preview return/navigation",
+      "canonicalTracking": "viewer.private-return-navigation; library.preview-navigation",
+      "evidenceDisposition": "Current return link/adjacent navigation and coverage receipts. Covered, repair present."
+    },
+    {
+      "versionedSourceAlias": "P97; R115 — v2 FE-82",
+      "mechanism": "Single-card versus bulk selection",
+      "canonicalTracking": "library.single-action-selection",
+      "evidenceDisposition": "REPAIR_COVERAGE.md:73 and scoped card-action regressions. Covered by this mechanism; original FE-82 remains saved-view rehydration."
+    },
+    {
+      "versionedSourceAlias": "P98; R116 — v2 BUG-NEW-06",
+      "mechanism": "WebGL context restoration",
+      "canonicalTracking": "No established matching mechanism",
+      "evidenceDisposition": "No application webglcontextlost/restored listeners or reported regression found. Unsupported repair narrative; no confirmed current defect. Original alias remains capacity admission."
+    },
+    {
+      "versionedSourceAlias": "P99; R116 — v2 BUG-NEW-07",
+      "mechanism": "Viewport query debounce/cancellation",
+      "canonicalTracking": "annotation.viewport-count, related reviewed caller",
+      "evidenceDisposition": "Reviewed annotation paths do not issue the claimed per-pan queries; no matching bbox cancellation repair established. Unsupported narrative; do not equate original student-event-flood alias."
+    },
+    {
+      "versionedSourceAlias": "P100; R116 — v2 BUG-NEW-08",
+      "mechanism": "React Query invalidation loops",
+      "canonicalTracking": "No established matching mechanism",
+      "evidenceDisposition": "No React Query dependency/hooks found in current application. Unsupported narrative; original alias remains synthetic-reset retirement race."
+    },
+    {
+      "versionedSourceAlias": "R117 — PR276",
+      "mechanism": "Paused-upload cancellation",
+      "canonicalTracking": "campaign-upload-cancel-reservation",
+      "evidenceDisposition": "Existing cancellation implementation/ticket; specific native Cancel confirmation remains separate. Covered repair; live confirmation still open."
+    },
+    {
+      "versionedSourceAlias": "P123 through P142 — named campaign keys",
+      "mechanism": "Sixteen historical campaign mechanisms",
+      "canonicalTracking": "Same named keys in campaignFindings",
+      "evidenceDisposition": "All named keys are retained. Covered; historical all-deployed prose cannot close remaining action-specific qualification."
+    },
+    {
+      "versionedSourceAlias": "P150; R125",
+      "mechanism": "Accountable software admission",
+      "canonicalTracking": "INVENTORY_CLOSURE.md",
+      "evidenceDisposition": "Unresolved governance: 176 unreviewed shipped inputs and two source-only notice gaps. No automatic admission overlay or grant inferred."
+    },
+    {
+      "versionedSourceAlias": "P159; R137",
+      "mechanism": "Cloud-sync database placement",
+      "canonicalTracking": "Existing external environment finding",
+      "evidenceDisposition": "Unresolved external facts. Presence under OneDrive does not prove synchronization, sharing or production use."
+    },
+    {
+      "versionedSourceAlias": "P164",
+      "mechanism": "Secret rotation/provenance",
+      "canonicalTracking": "Existing external security finding",
+      "evidenceDisposition": "Unresolved external facts; no credential values inspected or exposed."
+    },
+    {
+      "versionedSourceAlias": "P167; R147",
+      "mechanism": "Larger soak certification",
+      "canonicalTracking": "Existing bounded-stress qualification",
+      "evidenceDisposition": "Local 20-session/30-minute Library soak is recorded in PRODUCTION_CLOSURE_QA.md:104. Broader dedicated-production certification remains unqualified; not a new bug."
+    },
+    {
+      "versionedSourceAlias": "P173; R156",
+      "mechanism": "Real WSI/physical devices",
+      "canonicalTracking": "Existing qualification limitations",
+      "evidenceDisposition": "Unqualified capability/clinical/device scope. Exact claimed universal Safari memory ceiling is unsupported here."
+    },
+    {
+      "versionedSourceAlias": "P177; R165",
+      "mechanism": "Study activation/PostgreSQL cutover",
+      "canonicalTracking": "Existing feature/operational gates",
+      "evidenceDisposition": "Operator/qualification work, not defects. Preserve gates and cutover safeguards."
+    },
+    {
+      "versionedSourceAlias": "P187; R180",
+      "mechanism": "Stale release chunks/automatic reload",
+      "canonicalTracking": "web.application-boundary; closure QA",
+      "evidenceDisposition": "Existing stale-chunk observation recovered through Reload app. Automatic reload is optional recovery policy requiring care for unsaved work; no new unrepaired outage established."
+    },
+    {
+      "versionedSourceAlias": "P198; R190",
+      "mechanism": "Permanently purge synthetic QA trash",
+      "canonicalTracking": "Existing QA cleanup authorization item",
+      "evidenceDisposition": "Destructive operational action, not a new defect; specific authorization required."
+    },
+    {
+      "versionedSourceAlias": "P202; R194",
+      "mechanism": "Distinct-identity competing admission",
+      "canonicalTracking": "Classroom qualification gap",
+      "evidenceDisposition": "PRODUCTION_CLOSURE_QA.md:53 retains this limitation; local admission tests are separate. Unresolved production qualification, not proved concurrency failure."
+    },
+    {
+      "versionedSourceAlias": "P206",
+      "mechanism": "Historical E2E menu-sweep flake",
+      "canonicalTracking": "Existing PR274 fixture history",
+      "evidenceDisposition": "Historical verification claim. Fresh reviewed-head checks remain authoritative."
+    },
+    {
+      "versionedSourceAlias": "R199 — FE-83",
+      "mechanism": "Redundant navigation surfaces",
+      "canonicalTracking": "library.navigation-design",
+      "evidenceDisposition": "HARDENING_REVIEW.md:785. Optional product consolidation; no reproduced broken action."
+    },
+    {
+      "versionedSourceAlias": "R200 — v2 FE-89",
+      "mechanism": "Missing exit on unavailable shared viewer",
+      "canonicalTracking": "Separate SharedViewerPage caller extension",
+      "evidenceDisposition": "Baseline c569453 unavailable branch has Retry only; original viewer.error-navigation repair covers ViewerPage. Separate confirmed SharedViewerPage return gap is locally repaired;11 affected unit,573 full frontend and32 browser passes. Native /admin link retains existing authentication boundary. Release pending; docs/remediation/tickets/shared-unavailable-return.md."
+    },
+    {
+      "versionedSourceAlias": "R201 — FE-90",
+      "mechanism": "Blank Study task/inverted limits",
+      "canonicalTracking": "study.blank-task",
+      "evidenceDisposition": "Blank-task repair already covered. Alleged inverted min/max is unsupported; do not change limits without reproduction."
     }
   ]
 }

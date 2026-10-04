@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+try:
+    from scripts.browser_distribution import (
+        RECEIPT_PATH,
+        apply_exclusions,
+        load_authoritative_receipt,
+    )
+except ModuleNotFoundError:
+    from browser_distribution import RECEIPT_PATH, apply_exclusions, load_authoritative_receipt
+
 import argparse
 import base64
 import hashlib
@@ -533,6 +542,13 @@ def main() -> int:
 
     manual = json.loads(MANUAL_INPUTS.read_text(encoding="utf-8"))
     manual_records = normalize_manual_records(manual["records"])
+    records = sorted(
+        npm_records + merge_python_records(python_records) + manual_records,
+        key=lambda item: item["id"],
+    )
+    browser_receipt = ROOT / RECEIPT_PATH
+    if browser_receipt.is_file():
+        apply_exclusions(records, load_authoritative_receipt(ROOT, args.subject), ROOT)
     subject_tree = git("rev-parse", f"{args.subject}^{{tree}}")
     inventory = {
         "schema": "pathlab.dependency-inventory/1",
@@ -543,6 +559,7 @@ def main() -> int:
             manifest_receipt(NPM_LOCK),
             *(manifest_receipt(path) for path in PYTHON_LOCKS.values()),
             manifest_receipt(MANUAL_INPUTS),
+            *([manifest_receipt(browser_receipt)] if browser_receipt.is_file() else []),
             *(
                 manifest_receipt(path)
                 for path in sorted(
@@ -552,10 +569,7 @@ def main() -> int:
                 if path.is_file()
             ),
         ],
-        "records": sorted(
-            npm_records + merge_python_records(python_records) + manual_records,
-            key=lambda item: item["id"],
-        ),
+        "records": records,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(inventory, indent=2, sort_keys=True) + "\n", encoding="utf-8")

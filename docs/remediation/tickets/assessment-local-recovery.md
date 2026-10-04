@@ -1,7 +1,9 @@
 # Assessment local recovery after failed saves
 
 Labels: wayfinder:decision
-Status: confirmed; separate candidate under qualification
+Status: confirmed; repaired and deployed; current-release native qualification pending
+
+Historical status at candidate qualification: confirmed; separate candidate under qualification
 
 ## Current-code evidence and decision
 
@@ -24,3 +26,8 @@ Ignored receipts: assessment-local-recovery-red.log, assessment-local-recovery-g
 Final corrected affected suite:45passed61.35seconds. Eight zero-retry browser cases39.9seconds and build6.50seconds pass. Renewed independent review reports no actionable findings. Complete hosted qualification and protected delivery remain required.
 
 Complete final-source frontend qualification passed538tests across83files262.47seconds. Asset-rights validator passes16ADMITTED; deterministic software validator passes612components with strict BLOCKED admission unchanged. No accountable software rights granted. The later import-boundary reproduction was not part of this collected suite and is a separate candidate.
+
+
+## Verified delivery disposition
+
+[Protected deployment37144050380](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37144050380) reached terminal success at exact43044d538d01b5611ff3fd8d850742393d846949. The deployed commit is an ancestor of current production5069c80e6d5ecff079ab806fd7fb084f1d3119a2; this corrects the stale candidate/delivery-pending label. Prior reproductions, qualification failures and scope limits above are historical evidence and remain intact. [Current release receipt](../evidence/production-5069c80-release.json) records exact-SHA delivery, restore and health. Fresh authenticated verification on that release remains pending; no new production concurrency, storage-denial or response-loss injection is claimed. Original954source entries/29aggregate subclaims,45campaign keys and revised60claims are unchanged.

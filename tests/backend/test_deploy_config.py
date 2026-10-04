@@ -591,7 +591,7 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     backend = dockerfiles[0]
     assert "pip install --no-cache-dir --require-hashes" in backend
     lockfile = Path("deploy/backend-requirements.txt").read_text(encoding="utf-8")
-    assert "fastapi==0.141.1" in lockfile
+    assert "fastapi==0.142.1" in lockfile
     assert "pyvips==3.2.0" in lockfile
     assert "--hash=sha256:" in lockfile
     package = Path("package.json").read_text(encoding="utf-8")
@@ -648,7 +648,7 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "vars.OCI_HOST" not in workflow
     assert "pip install --require-hashes -r deploy/oci-cli-requirements.txt" in workflow
     lockfile = Path("deploy/oci-cli-requirements.txt").read_text(encoding="utf-8")
-    assert "oci-cli==3.92.0" in lockfile
+    assert "oci-cli==3.94.1" in lockfile
     assert "cryptography==50.0.1" in lockfile
     assert "--hash=sha256:" in lockfile
 
