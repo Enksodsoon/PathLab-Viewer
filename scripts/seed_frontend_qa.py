@@ -192,8 +192,92 @@ def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
         }))
 
 
+def seed_operational_public_pair(settings: Settings) -> None:
+    """Import the admitted whole-section JPEGs, without inventing calibration."""
+    manifest_path = Path(__file__).resolve().parents[1] / (
+        "var/benchmark-inputs/public-screening-crops-frozen.json"
+    )
+    manifest_bytes = manifest_path.read_bytes()
+    if hashlib.sha256(manifest_bytes).hexdigest() != (
+        "d8fc10b233149495758c7ff23f15f35ec7ca9dd6cc959301fbb172be5906746a"
+    ):
+        raise ValueError("The admitted public manifest changed")
+    pair = json.loads(manifest_bytes)["pairs"][10]
+    expected = (
+        ("46d71e0f0d6487c084293b1d250ead5d348ed9295acf62e680a36e555bdaa6e2", (1164, 787)),
+        ("8d0c72e14ed2d4e3b7b05245f16152e7851f56be4bc4d57cdd9d1a996b0e1633", (1123, 724)),
+    )
+    layout = StorageLayout(settings.data_root)
+    proofs = []
+    with session_factory(settings)() as database:
+        for index, side in enumerate((pair["reference"], pair["moving"])):
+            source = Path(side["path"]) / "thumbnail.jpg"
+            if source.is_symlink() or source.stat().st_size > 2 * 1024**2:
+                raise ValueError("Public input is not the bounded admitted original JPEG")
+            original = source.read_bytes()
+            digest = hashlib.sha256(original).hexdigest()
+            if digest != expected[index][0] or tuple(side["size"]) != expected[index][1]:
+                raise ValueError("Public source bytes or coordinate geometry changed")
+            slide_id = f"alignment-operational-public-{index:02d}"
+            if database.get(Slide, slide_id):
+                raise ValueError("Operational public fixture is not a fresh import")
+            derivative = layout.for_slide(slide_id).private_derivative
+            derivative.mkdir(parents=True, exist_ok=False)
+            (derivative / "thumbnail.jpg").write_bytes(original)
+            width, height = expected[index][1]
+            (derivative / "slide.dzi").write_text(
+                '<Image xmlns="http://schemas.microsoft.com/deepzoom/2008" '
+                'TileSize="2048" Overlap="0" Format="jpeg">'
+                f'<Size Width="{width}" Height="{height}"/></Image>'
+            )
+            maximum = math.ceil(math.log2(max(width, height)))
+            lower = []
+            with Image.open(source) as opened:
+                if opened.size != (width, height):
+                    raise ValueError("Decoded original JPEG geometry differs")
+                for level in range(maximum + 1):
+                    tile = derivative / "slide_files" / str(level) / "0_0.jpeg"
+                    tile.parent.mkdir(parents=True, exist_ok=True)
+                    if level == maximum:
+                        tile.write_bytes(original)
+                    else:
+                        divisor = 2 ** (maximum - level)
+                        size = (math.ceil(width / divisor), math.ceil(height / divisor))
+                        small = opened.resize(size)
+                        small.save(tile, quality=95)
+                        small.close()
+                        lower.append({"level": level, "size": list(size),
+                                      "sha256": hashlib.sha256(tile.read_bytes()).hexdigest()})
+            maximum_digest = hashlib.sha256(tile.read_bytes()).hexdigest()
+            if maximum_digest != digest:
+                raise ValueError("Full-resolution original tile bytes changed")
+            database.add(Slide(
+                id=slide_id, public_id=f"public-crop-{index}",
+                display_name=f"Public kidney {'reference' if index == 0 else 'moving'}",
+                original_filename=source.name, source_bytes=len(original), sha256=digest,
+                state=SlideState.READY_PRIVATE, case_id="operational-public-pair",
+                slide_metadata={"width": width, "height": height},
+                organ_site="Kidney", stain="HE" if index == 0 else "PanCytokeratin",
+                tags=["operational-profile", "public-whole-section"],
+            ))
+            proofs.append({"slideId": slide_id, "originalJpegSha256": digest,
+                           "sourceSize": [width, height], "maximumLevel": maximum,
+                           "maximumTileSha256": maximum_digest, "lowerPyramid": lower})
+        database.commit()
+    print(json.dumps({"slideIds": [proof["slideId"] for proof in proofs],
+                      "manifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                      "pairIndex": 10, "calibration": "unavailable-relative-only",
+                      "scope": "Original published whole-section JPEGs, not full-resolution WSI",
+                      "sources": proofs}))
+
+
 def main() -> None:
     settings = qa_settings()
+    if sys.argv[1] == "alignment-operational-public-pair":
+        if len(sys.argv) != 2:
+            raise ValueError("The operational profile uses exactly the admitted public pair")
+        seed_operational_public_pair(settings)
+        return
     if sys.argv[1] == "alignment-candidate":
         if len(sys.argv) != 3:
             raise ValueError("A disposable comparison ID is required")
