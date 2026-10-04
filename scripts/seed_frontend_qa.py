@@ -111,6 +111,11 @@ def seed_alignment(
 def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
     """Synthetic partial support over a real worker map; never an engine result."""
     from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS, settings_digest
+    from wsi_viewer.alignment_fast import PREPARATION_VERSION
+    from wsi_viewer.alignment_routes import (
+        _preview_snapshot_version,
+        _strict_registration_pair_current,
+    )
 
     with session_factory(settings)() as database:
         stack = database.get(ComparisonSet, set_id)
@@ -120,11 +125,42 @@ def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
         anchor_id = "alignment-candidate-qa-00"
         if stack.reference_slide_id != anchor_id:
             raise ValueError("Unexpected QA reference")
-        native = deepcopy((stack.registrations or {}).get(source_id))
+        source, anchor = database.get(Slide, source_id), database.get(Slide, anchor_id)
+        canonical = deepcopy((stack.registrations or {}).get(source_id))
+        native = deepcopy(canonical)
         if native and native.get("engine") != "native-overview-v6":
             native = native.get("overviewFallback")
+        retained_capture = False
         if not native or native.get("engine") != "native-overview-v6":
-            raise ValueError("An actual Native foreground map must exist first")
+            capture_path = Path(settings.data_root).resolve().parent / (
+                f"native-capture-{stack.id}.json"
+            )
+            if capture_path.is_symlink() or capture_path.stat().st_size > 1024**2:
+                raise ValueError("Native capture is outside the bounded fixture scope")
+            capture = json.loads(capture_path.read_bytes())
+            native = capture.get("native")
+            if (
+                not source or not anchor or not canonical
+                or capture.get("comparisonSetId") != stack.id
+                or capture.get("setVersion") != stack.version
+                or capture.get("sourceToken") != _preview_snapshot_version(source)
+                or capture.get("anchorToken") != _preview_snapshot_version(anchor)
+                or not native or native.get("engine") != "native-overview-v6"
+                or (native.get("evidence") or {}).get("phase") != "preview"
+                or (native.get("evidence") or {}).get("preparationVersion") != PREPARATION_VERSION
+                or not _strict_registration_pair_current(
+                    native, source, anchor, StorageLayout(settings.data_root)
+                )
+                or canonical.get("overviewFallback")
+            ):
+                raise ValueError("Captured real Native map is not current and safely retainable")
+            # Explicit engineering fixture: preserve the current canonical cells/transform
+            # while retaining an actually computed, independently revalidated foreground.
+            stack.registrations = {
+                **stack.registrations,
+                source_id: {**canonical, "overviewFallback": deepcopy(native)},
+            }
+            retained_capture = True
         cells = native.get("overviewTriangles") or []
         if not cells:
             raise ValueError("No actual supported Native cells; cannot invent a fallback")
@@ -138,7 +174,6 @@ def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
         targets = np.column_stack((small, np.ones(3))) @ affine.T
         targets[:, 0] += 2
         affine[0, 2] += 2
-        source, anchor = database.get(Slide, source_id), database.get(Slide, anchor_id)
         if source is None or anchor is None or any(
             np.any(points < 0)
             or np.any(points[:, 0] > slide.slide_metadata["width"])
@@ -189,6 +224,13 @@ def seed_alignment_candidate(settings: Settings, set_id: str) -> None:
             "nativeOnlyPoint": (np.array([0.65, 0.2, 0.15]) @ moving).tolist(),
             "syntheticUIFixture": True,
             "computedEngineResult": False,
+            "retainedActualForegroundCapture": retained_capture,
+            "canonicalBefore": {"engine": (canonical or {}).get("engine"),
+                                "status": (canonical or {}).get("status"),
+                                "ownCellCount": len((canonical or {}).get("triangles", [])),
+                                "overviewCellCount": len(
+                                    (canonical or {}).get("overviewTriangles", [])
+                                )},
         }))
 
 

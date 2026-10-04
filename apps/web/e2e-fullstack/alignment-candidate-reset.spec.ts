@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
+import { writeFileSync } from 'node:fs'
 import { expect, test } from './qa-test'
 import { signIn } from '../e2e-live/capacity-helpers'
 import type { RegistrationCandidateManifest, ComparisonSet, SlideRegistration } from '../src/types'
@@ -45,9 +46,20 @@ test('alignment candidate support retains current overview and direct pane Reset
     current = await getSet()
     return current.members[1].nativeOverviewFallback?.overviewTriangles?.length ?? 0
   }, { timeout: 25_000 }).toBeGreaterThan(0)
+  // Keep the actual computed Native map before an equivalent legacy refinement can
+  // replace its identity. The seed later revalidates live tokens/frame/geometry.
+  const nativeCapture = { comparisonSetId: id, setVersion: current.version,
+    sourceToken: current.members[1].alignmentSourceVersion, anchorToken: current.members[0].alignmentSourceVersion,
+    native: current.members[1].nativeOverviewFallback }
+  writeFileSync(path.join(process.env.PATHLAB_DATA_ROOT!, '..', `native-capture-${id}.json`), JSON.stringify(nativeCapture))
   await expect.poll(async () => (await (await page.request.get(`${endpoint}/jobs`)).json() as Array<{ status: string }>).every(job => ['succeeded', 'failed', 'cancelled'].includes(job.status)), { timeout: 25_000 }).toBe(true)
+  const postRefinement = await getSet()
+  await testInfo.attach('actual-native-before-after-refinement', { body: JSON.stringify({ nativeCapture, postRefinement }), contentType: 'application/json' })
   const fixture = seed('alignment-candidate', id) as { candidateId: string; sourceId: string; anchorId: string; localPoint: Point; nativeOnlyPoint: Point }
   current = await getSet()
+  const postOwnMap = { ...postRefinement.members[1].registration }, seedOwnMap = { ...current.members[1].registration }
+  delete postOwnMap.overviewFallback; delete seedOwnMap.overviewFallback
+  expect(seedOwnMap).toEqual(postOwnMap)
   const manifest = await (await page.request.get(`${endpoint}/candidates`)).json() as RegistrationCandidateManifest
   const candidate = manifest.candidates.find(row => row.id === fixture.candidateId)!
   expect(candidate.currentPair).toBe(true)
@@ -169,5 +181,5 @@ test('alignment candidate support retains current overview and direct pane Reset
   await expect(preview).toBeDisabled()
   await page.getByText('Advanced', { exact: true }).click()
   await page.screenshot({ path: testInfo.outputPath('candidate-source-invalidated.png'), fullPage: true })
-  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Polling is held by fixture status without creating a registration job.', resetReceipts, supportReceipts, loadedTiles, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
+  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', resetReceipts, supportReceipts, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
 })
