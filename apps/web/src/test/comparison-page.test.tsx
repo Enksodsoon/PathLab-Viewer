@@ -79,6 +79,26 @@ it('resets the chosen linked pane directly and keeps independent reset local wit
   expect(screen.getByRole('button', { name: 'Reset Slide 2 view' })).toBeDisabled()
 })
 
+it('keeps Advanced controlled when native toggle delivery is delayed during navigation', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  const summary = screen.getByText('Advanced'), disclosure = summary.closest('details')!
+  // Native details toggle notifications are queued separately from the click.
+  const holdQueuedNotification = (event: Event) => {
+    if (event.target === disclosure) event.stopImmediatePropagation()
+  }
+  document.addEventListener('toggle', holdQueuedNotification, true)
+  try {
+    await user.click(summary)
+    expect(disclosure).toHaveAttribute('open')
+    await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+    expect(disclosure).toHaveAttribute('open')
+    await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+    expect(disclosure).not.toHaveAttribute('open')
+  } finally { document.removeEventListener('toggle', holdQueuedNotification, true) }
+})
+
 function candidatePreviewFixture() {
   const cell = (size: number, offset: number) => ({ moving: [[0, 0], [size, 0], [0, size]], reference: [[offset, 0], [size + offset, 0], [offset, size]] })
   const overview = { status: 'approximate', provenance: 'automatic', engine: 'native-overview-v6', anchorSlideId: 'slide-1', coordinateReferenceId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 0]], overviewTriangles: [cell(700, 20)] }
@@ -146,6 +166,9 @@ it('uses admitted Native overview outside candidate local support and restores t
   await user.click(screen.getByText('Advanced'))
   await user.click(screen.getByText('Registration engine candidates'))
   await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  const previewNotice = screen.getByText('Experimental alignment preview').closest('[role="status"]')
+  expect(previewNotice).toHaveTextContent('No server changes have been saved')
+  expect(previewNotice).not.toHaveTextContent('wsireg-0.3.8')
   viewportHarness.applied.mockClear()
   await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
   expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 320 }))
