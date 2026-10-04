@@ -93,3 +93,7 @@ PR307 merged c37cf81 after all nine reviewed-head gates. Fresh main CI3716237638
 ## Revised handoff sources and shared-link return
 
 [Versioned Antigravity reconciliation](ANTIGRAVITY_V2_RECONCILIATION.md) preserves the original954 entries/29 aggregate claims and separately reviews the September28 variants, including reused IDs. [Unavailable shared-link return](tickets/shared-unavailable-return.md) records a separately reproduced caller gap, local repair and pending release. PR309 merged c569453 and fresh main passed all nine campaign gates. Verified production remains c37cf81; external closure requirements remain open.
+
+## Shared-return hosted coverage integration
+
+[Hosted matrix integration](tickets/shared-return-ci-matrix.md) records the explicit CI file-list omission discovered in the terminal PR310 log. Local32 new cases pass; existing hosted253 cases passed. Add the fixture without raising the16-minute budget, refresh provenance and require actual hosted coverage before protected delivery. Application source is unchanged; production remains c37cf81.
