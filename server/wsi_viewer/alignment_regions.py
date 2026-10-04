@@ -131,6 +131,37 @@ def _local_linear(
     return None
 
 
+def supported_regional_basis(
+    registration: dict[str, Any],
+    source_bounds: list[float],
+    point: list[float],
+    *,
+    inverse: bool = False,
+) -> dict[str, Any] | None:
+    """Reuse a regional basis only inside its accepted cells and original bounds."""
+    candidate = registration
+    try:
+        bounded_point = (
+            map_registration_point(registration, *point, inverse=True) if inverse else point
+        )
+        left, top, width, height = source_bounds
+        if not (
+            left <= bounded_point[0] <= left + width and top <= bounded_point[1] <= top + height
+        ):
+            return None
+        if inverse:
+            candidate = {**registration}
+            for key in ("triangles", "overviewTriangles"):
+                candidate[key] = [
+                    {**cell, "moving": cell["reference"], "reference": cell["moving"]}
+                    for cell in registration.get(key) or []
+                ]
+            candidate.pop("overviewFallback", None)
+        return candidate if _local_linear(candidate, point) is not None else None
+    except (AlignmentRejected, KeyError, ValueError, TypeError, np.linalg.LinAlgError):
+        return None
+
+
 def _tissue(
     path: Path, bounds: tuple[int, int, int, int]
 ) -> tuple[np.ndarray[Any, Any], tuple[int, int, int]]:

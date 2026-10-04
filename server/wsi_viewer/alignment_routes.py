@@ -44,6 +44,7 @@ from .alignment_regions import (
     RegionRejected,
     build_region_registration,
     slide_version,
+    supported_regional_basis,
     validate_anchors,
 )
 from .domain import SlideState
@@ -1393,6 +1394,18 @@ def register_alignment_routes(
                                 for cell in reverse.get(key) or []
                             ]
                         previous.pop("overviewFallback", None)
+            if len(payload.moving_points) == 1:
+                for region in _regional_corrections(database, item, members):
+                    pair = (region["sourceSlideId"], region["targetSlideId"])
+                    if pair not in {(source.id, target.id), (target.id, source.id)}:
+                        continue
+                    regional = supported_regional_basis(
+                        region["registration"], region["sourceBounds"],
+                        list(payload.moving_points[0]), inverse=pair[0] == target.id,
+                    )
+                    if regional is not None:
+                        previous = regional
+                        break
             try:
                 registration = build_region_registration(
                     source_metadata=source.slide_metadata or {},

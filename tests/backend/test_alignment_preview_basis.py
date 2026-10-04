@@ -144,3 +144,97 @@ def test_same_basis_or_independent_two_point_fit_saves_exact_preview(tmp_path, c
         )
         assert saved.status_code == 200, saved.text[:300]
         assert saved.json()["regionalCorrections"][0]["registration"] == preview["registration"]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_one_point_offset_preserves_active_regional_scale_and_rotation(tmp_path, reverse):
+    _correction_tiles(tmp_path)
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack, url = _stack(client, headers)
+        points = {
+            "movingPoints": [[150, 150], [250, 150]],
+            "referencePoints": [[170, 180], [290, 200]],
+        }
+        preview = client.post(
+            url + "/region-corrections",
+            headers=headers,
+            json=_request(stack["version"], **points),
+        ).json()["regionalCorrections"][0]
+        saved = client.post(
+            url + "/region-corrections",
+            headers=headers,
+            json=_request(
+                stack["version"],
+                operation="save",
+                **points,
+                sourceVersion=preview["sourceVersion"],
+                targetVersion=preview["targetVersion"],
+            ),
+        )
+        assert saved.status_code == 200, saved.text[:300]
+        next_points = {"movingPoints": [[180, 180]], "referencePoints": [[210, 227]]}
+        expected = [[1.2, -0.2], [0.2, 1.2]]
+        if reverse:
+            next_points = {
+                "sourceSlideId": "slide-1",
+                "targetSlideId": "slide-2",
+                "sourceBounds": [120, 120, 200, 200],
+                "movingPoints": [[200, 222]],
+                "referencePoints": [[185, 185]],
+            }
+            expected = [[1.2 / 1.48, 0.2 / 1.48], [-0.2 / 1.48, 1.2 / 1.48]]
+        adjusted = client.post(
+            url + "/region-corrections",
+            headers=headers,
+            json=_request(saved.json()["version"], **next_points),
+        )
+        assert adjusted.status_code == 200, adjusted.text[:300]
+        transform = adjusted.json()["regionalCorrections"][0]["registration"]["movingToReference"]
+        for actual, desired in zip(transform, expected, strict=True):
+            assert actual[:2] == pytest.approx(desired)
+
+
+@pytest.mark.parametrize("newer_supported", [False, True])
+def test_offset_uses_newest_supported_region_and_skips_unrelated_support(tmp_path, newer_supported):
+    _correction_tiles(tmp_path)
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack, url = _stack(client, headers)
+        version = stack["version"]
+        for points in (
+            {"movingPoints": [[150, 150], [250, 150]], "referencePoints": [[170, 180], [290, 200]]},
+            {"movingPoints": [[150, 150], [250, 150]], "referencePoints": [[170, 180], [250, 180]]}
+            if newer_supported
+            else {
+                "sourceBounds": [500, 300, 150, 150],
+                "movingPoints": [[550, 350], [600, 350]],
+                "referencePoints": [[560, 360], [600, 360]],
+            },
+        ):
+            preview = client.post(
+                url + "/region-corrections", headers=headers, json=_request(version, **points)
+            ).json()["regionalCorrections"][0]
+            saved = client.post(
+                url + "/region-corrections",
+                headers=headers,
+                json=_request(
+                    version,
+                    operation="save",
+                    **points,
+                    sourceVersion=preview["sourceVersion"],
+                    targetVersion=preview["targetVersion"],
+                ),
+            )
+            assert saved.status_code == 200, saved.text[:300]
+            version = saved.json()["version"]
+        adjusted = client.post(
+            url + "/region-corrections",
+            headers=headers,
+            json=_request(version, movingPoints=[[180, 180]], referencePoints=[[210, 227]]),
+        )
+        assert adjusted.status_code == 200, adjusted.text[:300]
+        transform = adjusted.json()["regionalCorrections"][0]["registration"]["movingToReference"]
+        expected = [[0.8, 0], [0, 0.8]] if newer_supported else [[1.2, -0.2], [0.2, 1.2]]
+        for actual, desired in zip(transform, expected, strict=True):
+            assert actual[:2] == pytest.approx(desired)

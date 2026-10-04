@@ -140,6 +140,11 @@ def test_region_save_revision_clear_and_background_maps_are_independent(tmp_path
         ).json()
         assert first.get("version") == stack["version"] + 1
         first_overlay = first["regionalCorrections"][0]
+        offset_preview = client.post(
+            url + "/region-corrections",
+            headers=headers,
+            json=_request(first["version"], referencePoints=[[160, 170]]),
+        ).json()["regionalCorrections"][0]
         second = client.post(
             url + "/region-corrections",
             headers=headers,
@@ -148,6 +153,7 @@ def test_region_save_revision_clear_and_background_maps_are_independent(tmp_path
                 operation="save",
                 regionId=first_overlay["regionId"],
                 referencePoints=[[160, 170]],
+                basisVersion=offset_preview["basisVersion"],
             ),
         ).json()
         assert second["version"] == first["version"] + 1
