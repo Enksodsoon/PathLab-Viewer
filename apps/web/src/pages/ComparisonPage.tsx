@@ -249,7 +249,15 @@ export function ComparisonPage() {
     hasInitialField.current = true
     initializedPanes.current = ''
     window.requestAnimationFrame(() => {
-      for (const [slideId, viewport] of viewports) handles.current.get(slideId)?.setImageViewport(viewport, 'restore-field')
+      for (const [slideId, viewport] of viewports) {
+        const handle = handles.current.get(slideId)
+        const available = !!handle && openedSlides.current.has(slideId)
+        handle?.setImageViewport(viewport, 'restore-field')
+        const actual = available ? handle.getImageViewport() : null
+        window.dispatchEvent(new CustomEvent('pathlab:alignment-restored', { detail: {
+          slideId, requestedViewport: { ...viewport }, actualViewport: actual ? { ...actual } : null,
+        } }))
+      }
     })
   }, [])
   const comparisonStatus = comparison?.status

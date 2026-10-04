@@ -9,6 +9,7 @@ type Point = [number, number]
 type RegistrationTriangle = NonNullable<SlideRegistration['triangles']>[number]
 type View = { centerX: number; centerY: number; imageZoom: number; rotation: number }
 type Application = { sourceSlideId: string; slideId: string; retainedOverview: boolean; regional: boolean; sourceViewport: View; viewport: View }
+type Restoration = { slideId: string; requestedViewport: View; actualViewport: View | null }
 
 // Independent barycentric oracle: this does not call the production map lookup.
 function inCell(cell: RegistrationTriangle, point: Point, reverse: boolean): Point | null {
@@ -26,8 +27,9 @@ test('alignment candidate support retains current overview and direct pane Reset
   let loadedTiles = 0
   page.on('response', response => { if (response.ok() && response.url().includes('/preview/slide_files/')) loadedTiles++ })
   await page.addInitScript(() => {
-    Object.assign(window, { alignmentApplications: [] })
+    Object.assign(window, { alignmentApplications: [], alignmentRestorations: [] })
     window.addEventListener('pathlab:alignment-applied', event => (window as unknown as { alignmentApplications: unknown[] }).alignmentApplications.push((event as CustomEvent).detail))
+    window.addEventListener('pathlab:alignment-restored', event => (window as unknown as { alignmentRestorations: unknown[] }).alignmentRestorations.push((event as CustomEvent).detail))
   })
   await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
   const seed = (...args: string[]) => JSON.parse(execFileSync(process.env.PATHLAB_E2E_PYTHON!, [path.resolve('../../scripts/seed_frontend_qa.py'), ...args], { encoding: 'utf8' }))
@@ -73,6 +75,7 @@ test('alignment candidate support retains current overview and direct pane Reset
   expect((native.evidence as Record<string, unknown>)?.phase).toBe('preview')
   const canonicalBefore = current.members[1].registration
   const rows = () => page.evaluate(() => (window as unknown as { alignmentApplications: Application[] }).alignmentApplications)
+  const restorations = () => page.evaluate(() => (window as unknown as { alignmentRestorations: Restoration[] }).alignmentRestorations)
   const viewFor = async (slideId: string) => {
     const last = (await rows()).findLast(row => row.sourceSlideId === slideId || row.slideId === slideId)!
     expect(last).toBeDefined()
@@ -159,12 +162,18 @@ test('alignment candidate support retains current overview and direct pane Reset
     return colors.size > 10
   }).length)).toBe(2)
   await page.screenshot({ path: testInfo.outputPath('candidate-retained-overview-original-pixels.png'), fullPage: true })
+  const restoreCount = (await restorations()).length
   await page.getByRole('button', { name: 'Restore saved alignment', exact: true }).click()
   await expect(page.getByText('Experimental alignment preview', { exact: true })).toHaveCount(0)
+  await expect.poll(async () => (await restorations()).slice(restoreCount).length).toBe(2)
+  const restoredFields = (await restorations()).slice(restoreCount)
   for (const [index, id] of [fixture.anchorId, fixture.sourceId].entries()) {
-    const restored = await viewFor(id)
-    expect(Math.abs(restored.centerX - savedViews[index].centerX)).toBeLessThan(0.01)
-    expect(Math.abs(restored.centerY - savedViews[index].centerY)).toBeLessThan(0.01)
+    const restored = restoredFields.find(row => row.slideId === id)!
+    expect(restored.actualViewport).not.toBeNull()
+    for (const field of ['centerX', 'centerY', 'imageZoom', 'rotation'] as const) {
+      expect(Math.abs(restored.requestedViewport[field] - savedViews[index][field])).toBeLessThan(0.01)
+      expect(Math.abs(restored.actualViewport![field] - restored.requestedViewport[field])).toBeLessThan(0.01)
+    }
   }
   expect((await getSet()).members[1].registration).toEqual(canonicalBefore)
   await page.getByText('Advanced', { exact: true }).click()
@@ -181,5 +190,5 @@ test('alignment candidate support retains current overview and direct pane Reset
   await expect(preview).toBeDisabled()
   await page.getByText('Advanced', { exact: true }).click()
   await page.screenshot({ path: testInfo.outputPath('candidate-source-invalidated.png'), fullPage: true })
-  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', resetReceipts, supportReceipts, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
+  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', resetReceipts, supportReceipts, restoredFields, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
 })

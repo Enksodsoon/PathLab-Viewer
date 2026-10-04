@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -13,12 +13,13 @@ const candidateInspectionMap = { coordinateReferenceId: 'slide-1', anchorSlideId
 const viewportHarness = vi.hoisted(() => ({ enabled: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), homed: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
-  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange, loadingMode, showLoadingMode, micronsPerPixel }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean, micronsPerPixel?: number | null }) => <button
+  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onDispose, onViewportChange, loadingMode, showLoadingMode, micronsPerPixel }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onDispose?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean, micronsPerPixel?: number | null }) => <button
     type="button"
     aria-label={`Viewer ${tileSource}`}
     data-mpp={micronsPerPixel ?? "relative"}
     data-loading-mode={loadingMode}
     data-loading-control={showLoadingMode === false ? 'hidden' : 'shown'}
+    onContextMenu={() => onDispose?.()}
     onClick={() => {
       if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current, ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: () => viewportHarness.homed(tileSource) })
       onOpen?.()
@@ -89,6 +90,44 @@ function candidatePreviewFixture() {
     manifest: { comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {}, candidates: [{ id: 'candidate-partial', slideId: 'slide-2', anchorSlideId: 'slide-1', setVersion: 1, engine: 'wsireg-0.3.8', status: 'ready', validationState: 'engineering_passed', currentSettings: true, currentPair: true, sourceSnapshotVersion: 'snapshot-moving', anchorSnapshotVersion: 'snapshot-reference', registration: { status: 'ready', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', coordinateReferenceId: 'slide-1', movingToReference: [[1, 0, 10], [0, 1, 0]], triangles: [cell(100, 10)] } }] },
   }
 }
+
+it.each(['candidate-divergent', 'candidate-missing', 'correction-divergent'])(
+  'reports actual restoration readback separately from requested fields: %s', async mode => {
+    const fixture = candidatePreviewFixture()
+    vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(
+      String(input).endsWith('/candidates') ? fixture.manifest
+        : String(input).endsWith('/jobs') ? [] : fixture.comparison,
+    ), { status: 200 }))
+    viewportHarness.enabled = true
+    const requested = { ...viewportHarness.current }
+    const user = userEvent.setup()
+    const restored: { slideId: string; requestedViewport: typeof requested; actualViewport: typeof requested | null }[] = []
+    const observe = (event: Event) => restored.push((event as CustomEvent).detail)
+    window.addEventListener('pathlab:alignment-restored', observe)
+    try {
+      render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+      await screen.findByText('Bound candidate set')
+      for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+      if (mode.startsWith('candidate')) {
+        await user.click(screen.getByText('Advanced'))
+        await user.click(screen.getByText('Registration engine candidates'))
+        await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+      } else await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+      const actual = { centerX: 900, centerY: 700, imageZoom: 0.1, rotation: 42 }
+      viewportHarness.current = actual
+      if (mode === 'candidate-missing') fireEvent.contextMenu(screen.getByLabelText('Viewer /tiles/2.dzi'))
+      restored.length = 0
+      await user.click(screen.getByRole('button', { name: mode.startsWith('candidate') ? 'Restore saved alignment' : 'Cancel correction' }))
+      await waitFor(() => expect(restored).toHaveLength(2))
+      expect(restored.map(row => row.slideId).sort()).toEqual(['slide-1', 'slide-2'])
+      for (const row of restored) {
+        expect(row.requestedViewport).toEqual(requested)
+        expect(row.actualViewport).toEqual(mode === 'candidate-missing' && row.slideId === 'slide-2' ? null : actual)
+        expect(row.actualViewport).not.toEqual(row.requestedViewport)
+      }
+    } finally { window.removeEventListener('pathlab:alignment-restored', observe) }
+  },
+)
 
 it('uses admitted Native overview outside candidate local support and restores the latest canonical map', async () => {
   const fixture = candidatePreviewFixture()
