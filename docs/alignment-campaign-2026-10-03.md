@@ -22,8 +22,11 @@ phase. Unavailable or resource-failed methods count as attempts, not successes.
 - Historical development draft: 134 requested pairs, provisionally deduplicated
   to 122 ordered pairs. These counts are pending immutable content deduplication.
   SHA256: `7ea93466cc00927c7085bdf299a9bcd4504445bbb220b255c76acb5062b2f952`.
-  These pairs have per-axis image calibration but no independent landmarks;
-  they cannot establish accuracy qualification.
+  The historical draft treated per-axis pixel-size values as micrometers.
+  The current metadata audit found missing unit declarations on at least one
+  source. Immutable preparation must verify original-header units or label
+  such values uncalibrated. These pairs have no independent landmarks and
+  cannot establish accuracy qualification.
   The private campaign manifest adds only the same explicit verified learned
   research-weight paths/hashes as screening; pair calibration and image pairs
   remain unchanged. Derived manifest SHA256:
@@ -33,10 +36,15 @@ phase. Unavailable or resource-failed methods count as attempts, not successes.
   Windows x64, Intel Core i5-12600 (6 cores, 12 logical processors),
   34,110,615,552 bytes installed memory.
 - Common isolated runtime: Python 3.12, NumPy 1.26.4, Pillow 12.3.0,
-  OpenCV headless 4.11.0.86, torch 2.14.1, VALIS 1.2.0, wsireg 0.3.10,
+  installed OpenCV headless distribution 4.11.0.86, torch 2.14.1, VALIS 1.2.0, wsireg 0.3.10,
   itk-elastix 0.25.4, HiSAlign 0.2.1 and DeeperHistReg 1.0.1.
   Upstream source pins and research-weight provenance remain in
   [alignment-recipes.md](alignment-recipes.md) and `deploy/alignment-sources.json`.
+  A post-run probe of this unchanged runtime reports loaded `cv2` 4.9.0 and
+  an additional installed `opencv-contrib-python-headless` 4.9.0.80.
+  The baseline fingerprint recorded distribution metadata, which does not
+  identify the loaded OpenCV binary. Original receipts remain unchanged;
+  future freezes must record both distribution and loaded-module versions.
 
 Neither screening image set supplies valid physical calibration. Its errors are
 relative image-diagonal errors, kept separate from micrometers. Calibrated Fast

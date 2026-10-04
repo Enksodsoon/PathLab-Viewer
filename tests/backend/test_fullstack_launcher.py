@@ -4,7 +4,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from http.client import BadStatusLine
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -14,7 +16,33 @@ from scripts.run_fullstack_tests import (
     WindowsJob,
     isolated_environment,
     reserve_ports,
+    wait_ready,
 )
+
+
+def test_readiness_recovers_from_partial_http_response(monkeypatch):
+    calls = 0
+
+    class ReadyResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+    def probe(url, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise BadStatusLine("partial loopback startup response")
+        return ReadyResponse()
+
+    monkeypatch.setattr("scripts.run_fullstack_tests.urlopen", probe)
+    monkeypatch.setattr("scripts.run_fullstack_tests.time.sleep", lambda _: None)
+    wait_ready("http://127.0.0.1:12345/readyz", SimpleNamespace(poll=lambda: None))
+    assert calls == 2
 
 
 def test_fullstack_discards_inherited_production_configuration(monkeypatch, tmp_path: Path) -> None:

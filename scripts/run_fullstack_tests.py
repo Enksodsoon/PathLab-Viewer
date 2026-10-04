@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 from contextlib import suppress
+from http.client import HTTPException
 from pathlib import Path
 from typing import BinaryIO
 from urllib.error import URLError
@@ -459,7 +460,7 @@ def wait_ready(url: str, process: ManagedProcess) -> None:
             with urlopen(url, timeout=2) as response:
                 if response.status == 200:
                     return
-        except (URLError, TimeoutError):
+        except (URLError, TimeoutError, HTTPException):
             pass
         time.sleep(0.2)
     raise RuntimeError("An isolated service did not become ready within 60 seconds")
