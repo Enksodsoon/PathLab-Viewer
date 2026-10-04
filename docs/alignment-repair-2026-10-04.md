@@ -134,3 +134,11 @@ Preparation receipts separate physically missing candidates, storage candidates
 and unverified original stages. Actual candidate format/reader/header checks are
 still pending resource-slot release; synthetic fixtures do not establish genuine
 OME reader support.
+
+
+Deduplication also includes the verified copied-source byte SHA256 and source
+kind, independently of regional reader availability. Different stored candidates
+with identical overview pixels remain separate cases; byte-identical candidates
+with identical frame, calibration, mask and regional semantics can deduplicate.
+Private paths and database slide identities do not enter this content identity.
+This binding does not establish the candidate's original acquisition stage.

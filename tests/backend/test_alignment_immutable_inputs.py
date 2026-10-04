@@ -321,3 +321,54 @@ def test_storage_ome_candidates_keep_copied_dzi_and_unverified_original_stage(
         candidate.write_bytes(b"changed")
         with pytest.raises(AlignmentRejected, match="digest mismatch"):
             worker._load_alignment_overview(root)
+
+
+@pytest.mark.parametrize("same_candidate_bytes", [False, True])
+def test_snapshot_dedup_binds_candidate_content_when_only_overview_is_available(
+    tmp_path, same_candidate_bytes
+):
+    import importlib.util
+    import sqlite3
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "scripts"
+        / "prepare_alignment_development_snapshots.py"
+    )
+    spec = importlib.util.spec_from_file_location("snapshot_candidate_identity", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    data = tmp_path / "data"
+    database = tmp_path / "input.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "create table slides(id text, sha256 text, slide_metadata text, original_filename text)"
+        )
+        connection.execute("create table comparison_sets(id text, member_slide_ids text)")
+        for name in ("a", "b"):
+            root = data / "private" / name
+            root.mkdir(parents=True)
+            (root / "slide.dzi").write_text(
+                '<Image TileSize="512" Overlap="1" Format="jpg" '
+                'xmlns="http://schemas.microsoft.com/deepzoom/2008">'
+                '<Size Width="100" Height="99"/></Image>'
+            )
+            Image.new("RGB", (100, 99), (140, 80, 120)).save(root / "thumbnail.jpg")
+            candidate = data / "originals" / name / "source.ome.tif"
+            candidate.parent.mkdir(parents=True)
+            candidate.write_bytes(b"same source bytes" if same_candidate_bytes else name.encode())
+            metadata = {"width": 100, "height": 99}
+            connection.execute(
+                "insert into slides values(?,?,?,?)",
+                (name, None, json.dumps(metadata), name + ".svs"),
+            )
+        connection.execute(
+            "insert into comparison_sets values(?,?)", ("stack", json.dumps(["a", "b"]))
+        )
+    output = tmp_path / "snapshots"
+    module.prepare(database, data, output, tile_cache_budget_bytes=0)
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["requestedOrderedPairs"] == 2
+    assert manifest["deduplicatedOrderedPairs"] == (0 if same_candidate_bytes else 2)
+    assert manifest["contentIdenticalSelfRequestsExcluded"] == (2 if same_candidate_bytes else 0)

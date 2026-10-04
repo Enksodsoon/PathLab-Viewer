@@ -432,6 +432,12 @@ def prepare(
             "calibration": list(mpp) if mpp else None,
             "tissueCrop": False,
             "regional": region,
+            "copiedSourceContent": {
+                "kind": original_info["kind"],
+                "sha256": original_info["sha256"],
+            }
+            if original_info.get("copiedBytesVerified") is True
+            else None,
         }
         sources[slide["id"]] = {
             "manifestSide": side,
