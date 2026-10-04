@@ -2,38 +2,38 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "9f7c52bca7c8453a6e9211a9d5f4edcf3ea59031f241b4b68738985a209a98b3",
-      "sizeBytes": 1449829
+      "sha256": "0dee5eceb4f7240f5df05dd58d03592fcbacf2a2bfa7907914f8f7820ab40657",
+      "sizeBytes": 1449487
     },
     {
       "path": "build.cdx.json",
-      "sha256": "5f0d487fc4c020dce3ebd326b3cda75b89d8dd69c8cd25864157588d1037577f",
-      "sizeBytes": 727821
+      "sha256": "d8933514647a49ea036ed0e39f6eae74c8feda6b3a701eb291cf43923c2fab0d",
+      "sizeBytes": 726291
     },
     {
       "path": "build.spdx.json",
-      "sha256": "7ad645b81017fab91c3dc4a32ee402ae8acccf6389ae8a0690cace6ea401e627",
-      "sizeBytes": 587931
+      "sha256": "b0b24e8a6e309901f056b6f0082d3f1ff8c3ab02eb07eedc885d25b676ccd30f",
+      "sizeBytes": 586800
     },
     {
       "path": "source.cdx.json",
-      "sha256": "6fab73aecd3e24f5a6552e07ce1bcf4213a66ce914fc88bf5352bbb5a87b9626",
-      "sizeBytes": 770375
+      "sha256": "169817211aa24e780eed822ecefbb624cd921d0f80a97a1d48157c6b54bfe950",
+      "sizeBytes": 768845
     },
     {
       "path": "source.spdx.json",
-      "sha256": "ad3440ea682e8e69490f233c5f196e23c695b8163e37766a4bb189ac00b92ddf",
-      "sizeBytes": 621581
+      "sha256": "07a4e0c4887d70f2f96f6a146ab5803d03eaf6e207e647d2ce730329ff5814cd",
+      "sizeBytes": 620450
     }
   ],
   "coverage": {
     "assetRecordIdsSha256": "7f883f9fd96259e5f10c472db1b3e885dc8935d193a294c35e3b4379678a6923",
     "assetRecords": 16,
-    "buildComponents": 574,
+    "buildComponents": 573,
     "currentShippedInputs": 176,
-    "dependencyRecordIdsSha256": "197946e1597a0c507280176f4982bd2158608be88bbe3c4b4358f8badb7d0f34",
-    "dependencyRecords": 582,
-    "sourceComponents": 612,
+    "dependencyRecordIdsSha256": "76c327e3dcf0614f763ecb6726d8d62b15e4f4b94f839413ed40a5d8fdfb646d",
+    "dependencyRecords": 581,
+    "sourceComponents": 611,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
     "toolchainRecords": 14
   },
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-04T05:36:02Z",
+  "generatedAt": "2026-10-04T07:14:14Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "a302735b803a7982c9476d6955f738a4f34e7df2",
+      "gitBlob": "6e66496c354488329faab050f2672b5425f51dc0",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "0e2407deec58c8e09aba0d4b3d8b59c4f081e065f2b99786679261c9af0b1a26",
-      "sizeBytes": 813556
+      "sha256": "fb54dd0c0d0a85886383beaad2aabcd1a938620f1376ec795fbe2b300f36ac86",
+      "sizeBytes": 812697
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -165,15 +165,15 @@
       "sizeBytes": 15900
     },
     {
-      "gitBlob": "dbc9ff22999a29b6582644621119d31b8c6b3c46",
+      "gitBlob": "c6aff4424b3dc8b04d7ad5a5124450ed0d97610c",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "8d7903f892ff0ae818f7db8c6179f2777745f797a604722c62eb5bac137ba0bb",
-      "sizeBytes": 30700
+      "sha256": "30838fa644cdaee7131f7c5b1ad08e5b622a8d56c6443a789cf98ab5720a30cb",
+      "sizeBytes": 37286
     },
     {
-      "gitBlob": "3880cfd2db8f12efe3304d37241909659686ceb4",
+      "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "437d9c17d70941b62fc38bc8a5cd300221249170cc0b082bd61ef393d698879e",
+      "sha256": "964dc9bc5a54c99a360cb8127c16185245b30d025a3aff51927cf0b568a65b55",
       "sizeBytes": 873277
     },
     {
@@ -1415,6 +1415,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "f9d6a2e412812dd12a871c9a22254f5a199e305f",
-  "subjectTree": "f973be432b91abaec862dd9eff89fcec8d788583"
+  "subjectCommit": "551500396700513372673fe0dff6a9963ce06497",
+  "subjectTree": "a6cc0e1ade095b5d85476706c3f977ae81faac31"
 }

@@ -476,15 +476,15 @@
       "version": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
     },
     {
-      "bom-ref": "dependency:github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e",
+      "bom-ref": "dependency:github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b187196cc803df7f5f0e"
+          "url": "https://github.com/docker/setup-buildx-action/tree/f87e5991a6d7451dcb8d9637bfbc97413f497069"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b187196cc803df7f5f0e"
+          "url": "https://github.com/docker/setup-buildx-action/tree/f87e5991a6d7451dcb8d9637bfbc97413f497069"
         }
       ],
       "licenses": [
@@ -496,7 +496,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e"
+          "value": "github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069"
         },
         {
           "name": "pathlab:role",
@@ -515,20 +515,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e",
+      "purl": "pkg:github/docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
       "type": "library",
-      "version": "37fe631027851001ddb9b187196cc803df7f5f0e"
+      "version": "f87e5991a6d7451dcb8d9637bfbc97413f497069"
     },
     {
-      "bom-ref": "dependency:github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
+      "bom-ref": "dependency:github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a"
+          "url": "https://github.com/docker/setup-qemu-action/tree/99012661954931238ded8c8b007157a8430204e1"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a"
+          "url": "https://github.com/docker/setup-qemu-action/tree/99012661954931238ded8c8b007157a8430204e1"
         }
       ],
       "licenses": [
@@ -540,7 +540,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a"
+          "value": "github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1"
         },
         {
           "name": "pathlab:role",
@@ -559,20 +559,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
+      "purl": "pkg:github/docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
       "type": "library",
-      "version": "1f40c72289eff860ee54a304f1438e3cff362e0a"
+      "version": "99012661954931238ded8c8b007157a8430204e1"
     },
     {
-      "bom-ref": "dependency:github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "bom-ref": "dependency:github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/analyze/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/analyze/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         }
       ],
       "licenses": [
@@ -584,7 +584,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "value": "github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "name": "pathlab:role",
@@ -603,20 +603,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "purl": "pkg:github/github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "type": "library",
-      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "version": "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
-      "bom-ref": "dependency:github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "bom-ref": "dependency:github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/init/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "url": "https://github.com/github/codeql-action/init/tree/2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         }
       ],
       "licenses": [
@@ -628,7 +628,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+          "value": "github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
         },
         {
           "name": "pathlab:role",
@@ -647,20 +647,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "purl": "pkg:github/github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
       "type": "library",
-      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "version": "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
-      "bom-ref": "dependency:github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065",
+      "bom-ref": "dependency:github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/grafana/setup-k6-action/tree/db07bd9765aac508ef18982e52ab937fe633a065"
+          "url": "https://github.com/grafana/setup-k6-action/tree/43b9fc21641a76002687994433dd586f56e791b1"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/grafana/setup-k6-action/tree/db07bd9765aac508ef18982e52ab937fe633a065"
+          "url": "https://github.com/grafana/setup-k6-action/tree/43b9fc21641a76002687994433dd586f56e791b1"
         }
       ],
       "licenses": [
@@ -672,7 +672,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065"
+          "value": "github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1"
         },
         {
           "name": "pathlab:role",
@@ -691,20 +691,20 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065",
+      "purl": "pkg:github/grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1",
       "type": "library",
-      "version": "db07bd9765aac508ef18982e52ab937fe633a065"
+      "version": "43b9fc21641a76002687994433dd586f56e791b1"
     },
     {
-      "bom-ref": "dependency:github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "bom-ref": "dependency:github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1"
+          "url": "https://github.com/pnpm/action-setup/tree/ea17c68df8912ef543352723c149a84f56e3d413"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1"
+          "url": "https://github.com/pnpm/action-setup/tree/ea17c68df8912ef543352723c149a84f56e3d413"
         }
       ],
       "licenses": [
@@ -716,7 +716,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1"
+          "value": "github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
         },
         {
           "name": "pathlab:role",
@@ -735,53 +735,9 @@
           "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
         }
       ],
-      "purl": "pkg:github/pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "purl": "pkg:github/pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
       "type": "library",
-      "version": "b906affcce14559ad1aafd4ab0e942779e9f58b1"
-    },
-    {
-      "bom-ref": "dependency:github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://github.com/pnpm/action-setup/tree/f40ffcd9367d9f12939873eb1018b921a783ffaa"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/pnpm/action-setup/tree/f40ffcd9367d9f12939873eb1018b921a783ffaa"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT"
-        }
-      ],
-      "name": "pnpm/action-setup",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "build-only"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "hosted-CI-only"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "BLOCKED"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[\"ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED\"]"
-        }
-      ],
-      "purl": "pkg:github/pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa",
-      "type": "library",
-      "version": "f40ffcd9367d9f12939873eb1018b921a783ffaa"
+      "version": "ea17c68df8912ef543352723c149a84f56e3d413"
     },
     {
       "bom-ref": "dependency:model-runtime:onnxruntime-web@1.29.0",
@@ -27130,13 +27086,12 @@
         "dependency:github-action:actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
         "dependency:github-action:actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
         "dependency:github-action:actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-        "dependency:github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e",
-        "dependency:github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
-        "dependency:github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-        "dependency:github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-        "dependency:github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065",
-        "dependency:github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
-        "dependency:github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa",
+        "dependency:github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069",
+        "dependency:github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1",
+        "dependency:github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+        "dependency:github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+        "dependency:github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1",
+        "dependency:github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
         "dependency:model-runtime:onnxruntime-web@1.29.0",
         "dependency:model-runtime:transformers.js@4.2.0",
         "dependency:model-runtime:webllm@0.2.84",
@@ -27732,7 +27687,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:f9d6a2e412812dd12a871c9a22254f5a199e305f"
+      "ref": "pathlab:source:551500396700513372673fe0dff6a9963ce06497"
     },
     {
       "dependsOn": [],
@@ -27780,31 +27735,27 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e"
+      "ref": "dependency:github-action:docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a"
+      "ref": "dependency:github-action:docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "ref": "dependency:github-action:github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938"
+      "ref": "dependency:github-action:github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065"
+      "ref": "dependency:github-action:grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1"
-    },
-    {
-      "dependsOn": [],
-      "ref": "dependency:github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa"
+      "ref": "dependency:github-action:pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
     },
     {
       "dependsOn": [],
@@ -30185,15 +30136,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:f9d6a2e412812dd12a871c9a22254f5a199e305f",
+      "bom-ref": "pathlab:source:551500396700513372673fe0dff6a9963ce06497",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/f9d6a2e412812dd12a871c9a22254f5a199e305f"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/551500396700513372673fe0dff6a9963ce06497"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/f9d6a2e412812dd12a871c9a22254f5a199e305f"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/551500396700513372673fe0dff6a9963ce06497"
         }
       ],
       "licenses": [
@@ -30224,13 +30175,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@f9d6a2e412812dd12a871c9a22254f5a199e305f",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@551500396700513372673fe0dff6a9963ce06497",
       "type": "application",
-      "version": "f9d6a2e412812dd12a871c9a22254f5a199e305f"
+      "version": "551500396700513372673fe0dff6a9963ce06497"
     },
-    "timestamp": "2026-10-04T05:36:02Z"
+    "timestamp": "2026-10-04T07:14:14Z"
   },
-  "serialNumber": "urn:uuid:f9d6a2e4-1281-4dd1-aa87-1c9a22254f5a",
+  "serialNumber": "urn:uuid:55150039-6700-4133-a267-3fe0dff6a996",
   "specVersion": "1.6",
   "version": 1
 }
