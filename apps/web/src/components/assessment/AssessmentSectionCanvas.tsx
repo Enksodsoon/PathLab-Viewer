@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, ArrowsInLineVertical, ArrowsOutLineVertical, CaretDown, CaretLeft, CaretRight, ChatCircleDots, CheckCircle, Copy, DotsSixVertical, Eye, Image, MagnifyingGlass, Plus, Trash, X } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import { authorableQuestionTypeRegistry, questionTypesByType } from '../../assessment/questionTypes'
 import { assessmentQuestionMedia, type AssessmentDocumentV2, type AssessmentItem, type AssessmentItemType, type AssessmentSection, type EligibleAssessmentSlide } from '../../assessment/types'
@@ -85,6 +85,7 @@ export function AssessmentSectionCanvas({ document, draftId = '', mediaScopeLabe
   const [dropTarget, setDropTarget] = useState('')
   const [message, setMessage] = useState('')
   const [starterOpen, setStarterOpen] = useState(false)
+  const starterTriggerRef = useRef<HTMLButtonElement>(null)
   const [templateName, setTemplateName] = useState('')
   const [templateStatus, setTemplateStatus] = useState('')
   const [templateBusy, setTemplateBusy] = useState(false)
@@ -261,10 +262,10 @@ export function AssessmentSectionCanvas({ document, draftId = '', mediaScopeLabe
     <header className="assessment-authoring-toolbar">
       <div><h2>Questions</h2><p>{document.sections.length} sections · {itemCount} questions · {issueCount ? `${issueCount} issues` : 'Ready to review'}</p></div>
       <div className="assessment-authoring-actions">
-        <button className="assessment-icon-action" type="button" aria-label="Assignment preview" title="Assignment preview" onClick={onPreview}><Eye aria-hidden="true" /></button>
+        <button className="assessment-icon-action" type="button" aria-label="Assignment preview" title="Assignment preview" onClick={(event) => { event.currentTarget.focus(); onPreview() }}><Eye aria-hidden="true" /></button>
         <button className="assessment-icon-action" type="button" aria-label="Expand all sections" title="Expand all sections" onClick={() => setCollapsed(new Set())}><ArrowsOutLineVertical aria-hidden="true" /></button>
         <button className="assessment-icon-action" type="button" aria-label="Collapse all sections" title="Collapse all sections" onClick={() => setCollapsed(new Set(document.sections.map((section) => section.id)))}><ArrowsInLineVertical aria-hidden="true" /></button>
-        <button type="button" aria-expanded={starterOpen} onClick={() => void openTemplateHub()}>Templates & import</button>
+        <button ref={starterTriggerRef} type="button" aria-expanded={starterOpen} onClick={() => void openTemplateHub()}>Templates & import</button>
         <button className="assessment-primary" type="button" onClick={addSection}><Plus aria-hidden="true" /> Add section</button>
       </div>
     </header>
@@ -272,7 +273,7 @@ export function AssessmentSectionCanvas({ document, draftId = '', mediaScopeLabe
       <header className="assessment-starter-header"><div><h3>Templates & import</h3><p>Reuse this assessment or bring in questions from another one.</p></div><button className="assessment-icon-action" type="button" aria-label="Close templates and import" onClick={() => setStarterOpen(false)}><X aria-hidden="true" /></button></header>
       <div className="assessment-reuse-actions">
         <article className="assessment-reuse-action assessment-reuse-action--create"><span className="assessment-reuse-icon"><Copy aria-hidden="true" /></span><div className="assessment-reuse-copy"><h4>Create template</h4><p>Save the current sections, questions, scoring, and media for later.</p></div><div className="assessment-template-create"><label><span className="visually-hidden">Template name</span><input aria-label="Template name" placeholder="Template name" value={templateName} onChange={(event) => { setTemplateName(event.target.value); setTemplateStatus('') }} /></label><button className="assessment-primary" type="button" disabled={!templateName.trim() || templateBusy || !onCreateTemplate} onClick={() => void createTemplate()}>{templateBusy ? 'Saving…' : 'Save template'}</button></div></article>
-        <article className="assessment-reuse-action"><span className="assessment-reuse-icon"><ArrowDown aria-hidden="true" /></span><div className="assessment-reuse-copy"><h4>Import assessment</h4><p>Review another assessment and choose only the questions you need.</p></div><button className="assessment-secondary-action" type="button" onClick={() => { setStarterOpen(false); onImport() }}>Choose assessment</button></article>
+        <article className="assessment-reuse-action"><span className="assessment-reuse-icon"><ArrowDown aria-hidden="true" /></span><div className="assessment-reuse-copy"><h4>Import assessment</h4><p>Review another assessment and choose only the questions you need.</p></div><button className="assessment-secondary-action" type="button" onClick={() => { starterTriggerRef.current?.focus(); setStarterOpen(false); onImport() }}>Choose assessment</button></article>
       </div>
       {templateStatus ? <p className="assessment-template-status" role="status">{templateStatus}</p> : null}
       <section className="assessment-template-library" aria-label="Your templates"><header><div><h3>Your templates</h3><p>Templates you create will appear here.</p></div><span>{templates.length}</span></header>{templatesLoading ? <div className="assessment-template-empty" role="status">Loading templates…</div> : templates.length ? <div className="assessment-template-grid">{templates.map((template) => { const questionCount = template.document.sections.reduce((total, section) => total + section.items.filter((item) => item.type !== 'section-information').length, 0); return <button key={template.id} type="button" onClick={() => { onDocumentChange((current) => ({ ...structuredClone(template.document), title: current.title })); setStarterOpen(false) }}><Copy aria-hidden="true" /><span><strong>{template.name}</strong><small>{template.document.sections.length} sections · {questionCount} questions</small></span><b>Use template</b></button> })}</div> : <div className="assessment-template-empty"><Copy aria-hidden="true" /><div><strong>No templates yet</strong><span>Create one from this assessment and it will be ready here.</span></div></div>}</section>

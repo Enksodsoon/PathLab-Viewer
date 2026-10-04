@@ -1,0 +1,82 @@
+{
+  "sha": "c570116a7b018620bd803266edca813701bc8f6f",
+  "ciRun": 37157146069,
+  "securityRun": 37157146107,
+  "deploymentRun": 37158209056,
+  "deploymentConclusion": "success",
+  "updatedAt": "2026-10-03T22:38:37Z",
+  "allNineLatestMainChecksPassed": true,
+  "restore": {
+    "archiveRoots": [
+      "delivery",
+      "originals",
+      "private",
+      "public"
+    ],
+    "fileBytes": 3286131731,
+    "fileCount": 106325,
+    "filesIntegrity": "restored",
+    "databaseIntegrity": "restored",
+    "schemaRevision": "20260907_0037",
+    "tableCount": 69
+  },
+  "health": {
+    "checkedAt": "2026-10-03T22:38:41.899344+00:00",
+    "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+    "results": [
+      {
+        "path": "/livez",
+        "status": 200,
+        "expected": 200,
+        "elapsedSeconds": 0.125
+      },
+      {
+        "path": "/readyz",
+        "status": 200,
+        "expected": 200,
+        "elapsedSeconds": 0.14
+      },
+      {
+        "path": "/api/v2/admin/assessment/drafts",
+        "status": 401,
+        "expected": 401,
+        "elapsedSeconds": 0.125
+      }
+    ],
+    "passed": true
+  },
+  "featureSettings": {
+    "classroom": true,
+    "annotations": false,
+    "adminAnnotationCanary": true,
+    "study": "existing gate retained"
+  },
+  "nativeAssessment": {
+    "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+    "descriptionMarker": "Atomic revisions and acknowledgment recovery release c570116 verified.",
+    "observations": [
+      "Browser Refresh loaded assessment",
+      "Native description edit acknowledged All changes saved",
+      "Browser Refresh retained marker, two questions and 2.502 points"
+    ],
+    "receipt": "var/production-c570116-native-save.md"
+  },
+  "nativeViewer": {
+    "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
+    "observations": [
+      "Refreshed Library loaded synthetic B thumbnail",
+      "Open viewer reached authenticated admin preview",
+      "3072 x 3072 patterned tiles, two saved rectangles and NO CHANGES rendered"
+    ]
+  },
+  "remaining": [
+    "Native production drag direct observation",
+    "Specific synthetic publication/learner-attempt and Cancel confirmations",
+    "External reported-secret rotation/provenance and actual OneDrive sync/sharing facts",
+    "Strict accountable software admission and two exact notice gaps",
+    "Requirement-by-requirement campaign closure"
+  ],
+  "limitations": "Positive native released save/reload and viewer checks only; failure/concurrency paths qualified locally/hosted, not injected into production. No clinical, physical-device, unrestricted capacity or zero-bug claim.",
+  "evidenceOrigin": "Protected GitHub workflow logs and fresh native signed-in Edge observations; no credential values or production failure injection.",
+  "completedAt": "2026-10-03T22:38:36Z"
+}

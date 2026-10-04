@@ -2,6 +2,7 @@ import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from wsi_viewer.assessment_routes import _parse_rows
 from wsi_viewer.config import Settings
@@ -10,13 +11,13 @@ from wsi_viewer.main import create_app
 from wsi_viewer.models import Organization, OrganizationMembership, Session, User
 
 
-def _client(tmp_path: Path) -> tuple[TestClient, str]:
+def _client(tmp_path: Path, *, database_url: str | None = None) -> tuple[TestClient, str]:
     settings = Settings(
         _env_file=None,
         service_role="assessment",
         assessment_enabled=True,
         identity_governance_enabled=True,
-        database_url=f"sqlite:///{tmp_path / 'assessment-admin.sqlite3'}",
+        database_url=database_url or f"sqlite:///{tmp_path / 'assessment-admin.sqlite3'}",
         data_root=tmp_path / "data",
         secret_key="assessment-test-secret-that-is-long-enough",
         secure_cookies=False,
@@ -112,6 +113,49 @@ def test_draft_autosave_conflict_preview_and_immutable_publish(tmp_path: Path) -
     published = client.post(f"/api/v2/admin/assessment/drafts/{draft['id']}/publish")
     assert published.status_code == 201
     assert published.json()["schema"] == "pathlab.assessment/1"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "code"),
+    [
+        ("options", ["Option A", "Option B"], "ASSESSMENT_OPTIONS_INVALID"),
+        ("answerKey", ["Option A"], "ASSESSMENT_ANSWER_KEY_INVALID"),
+        ("points", "invalid", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "NaN", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "Infinity", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "1e999999999", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "1000000000", "ASSESSMENT_POINTS_INVALID"),
+    ],
+)
+def test_invalid_publish_preserves_editable_draft_and_creates_no_version(
+    tmp_path: Path, field: str, value: object, code: str
+) -> None:
+    client, _ = _client(tmp_path)
+    document = _document()
+    document["items"][0][field] = value  # type: ignore[index]
+    created = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Synthetic malformed draft", "document": document},
+    )
+    assert created.status_code == 201
+    path = f"/api/v2/admin/assessment/drafts/{created.json()['id']}"
+    preflight = client.post(f"{path}/preflight")
+    assert preflight.status_code == 200
+    assert preflight.json()["valid"] is False
+    assert preflight.json()["errors"][0]["code"] == code
+    for action in ("preview", "publish"):
+        rejected = client.post(f"{path}/{action}")
+        assert rejected.status_code == 422
+        assert rejected.json()["detail"]["code"] == code
+    retained = client.get(path).json()
+    assert retained["document"] == document
+    assert retained["revision"] == 1
+    assert client.patch(
+        path, headers={"If-Match": "1"}, json={"document": _document()}
+    ).status_code == 200
+    published = client.post(f"{path}/publish")
+    assert published.status_code == 201
+    assert published.json()["version"] == 1
 
 
 def test_class_draft_context_is_persisted_listed_and_named(tmp_path: Path) -> None:

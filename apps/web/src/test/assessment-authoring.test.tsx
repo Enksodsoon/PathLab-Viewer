@@ -30,12 +30,12 @@ const api = vi.hoisted(() => ({
   setAssessmentAdministrationStatus: vi.fn(),
 }))
 
-vi.mock('../assessment/api', () => api)
+vi.mock('../assessment/api', async original => ({ ...await original<typeof import('../assessment/api')>(), ...api }))
 vi.mock('../theme/ThemeControl', () => ({
   ThemeControl: () => <div aria-label="Theme preference" />,
 }))
 vi.mock('../assessment/draftCache', () => ({
-  cacheAssessmentDraft: vi.fn(),
+  cacheAssessmentDraft: vi.fn().mockResolvedValue(undefined),
   readCachedAssessmentDraft: vi.fn().mockResolvedValue(null),
 }))
 beforeEach(() => {
@@ -388,7 +388,7 @@ it('adds accessible question cards and exposes publish presets', async () => {
   api.previewAssessmentDraft.mockRejectedValueOnce(new Error('Draft validation failed'))
   await userEvent.click(screen.getByRole('button', { name: 'Assignment preview' }))
   expect(await screen.findByRole('dialog', { name: 'Learner preview' })).toBeVisible()
-  expect(screen.getByRole('status')).toHaveTextContent('Previewing the current draft')
+  expect(within(screen.getByRole('dialog', { name: 'Learner preview' })).getByRole('status')).toHaveTextContent('Previewing the current draft')
   await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
   await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
   expect(screen.getByRole('radio', { name: /Practice/i })).toBeVisible()
@@ -443,9 +443,9 @@ it('keeps a 100-question assessment focused on one editable card at a time', asy
     prompt: `Question ${index + 1}`,
     points: '1',
     required: false,
-    options: ['Option A', 'Option B'],
-    answerKey: ['Option A'],
-    feedback: '',
+    options: [{ id: 'a', label: 'Option A' }, { id: 'b', label: 'Option B' }],
+    answerKey: { optionIds: ['a'] },
+    feedback: {},
   }))
   api.getAssessmentDraft.mockResolvedValue({
     id: 'draft-1', title: 'Large assessment', status: 'draft', revision: 1,
@@ -636,4 +636,23 @@ it('keeps created links pending until responses open and allows retry without re
   await userEvent.click(screen.getByRole('button', { name: 'Open responses' }))
   expect(await screen.findByText('Accepting responses. You can share this link.')).toBeVisible()
   expect(api.publishAssessmentDraft).toHaveBeenCalledTimes(1)
+})
+
+it.each([
+  { trigger: 'Assignment preview', dialog: 'Learner preview' },
+  { trigger: 'Publish', dialog: 'Publish assessment' },
+  { trigger: 'Import questions', dialog: 'Import assessment' },
+])('dismisses $dialog with Escape and returns focus to its trigger', async ({ trigger, dialog }) => {
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1']}><Routes>
+    <Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} />
+  </Routes></MemoryRouter>)
+  await screen.findByText('All changes saved')
+  const opener = screen.getByRole('button', { name: trigger })
+  await userEvent.click(opener)
+  expect(await screen.findByRole('dialog', { name: dialog })).toBeVisible()
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog', { name: dialog })).not.toBeInTheDocument()
+  expect(opener).toHaveFocus()
+  expect(api.publishAssessmentDraft).not.toHaveBeenCalled()
+  expect(api.importAssessmentQuestions).not.toHaveBeenCalled()
 })

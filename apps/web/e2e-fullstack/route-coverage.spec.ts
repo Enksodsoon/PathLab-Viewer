@@ -86,7 +86,7 @@ async function createDraft(page: Parameters<typeof signIn>[0], courseName: strin
 }
 
 test('every declared route renders; buttons and menus are inventoried and explored', async ({ page }, testInfo) => {
-  test.setTimeout(900_000)
+  test.setTimeout(1_800_000)
   const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   const sourceRoutes = [...appSource.matchAll(/<Route\s+path="([^"]+)"/g)].map((match) => match[1])
   expect(sourceRoutes, 'Route inventory must match App.tsx declarations').toEqual(declaredRoutePatterns)
@@ -99,6 +99,12 @@ test('every declared route renders; buttons and menus are inventoried and explor
   await waitForSlideConversion(page, routeSlideId)
   await page.reload()
   await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+  await page.getByRole('button', { name: `More actions for ${routeSlideName}`, exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Publish', exact: true }).click()
+  const publication = page.getByRole('dialog', { name: 'Confirm deidentification', exact: true })
+  await publication.getByRole('checkbox').check()
+  await publication.getByRole('button', { name: 'Publish 1 slide', exact: true }).click()
+  await expect(publication).toBeHidden()
 
   const routes = [
     { route: '/admin', marker: 'All slides' },
@@ -234,7 +240,11 @@ test('every declared route renders; buttons and menus are inventoried and explor
       ? page.getByText(item.marker, { exact: true }).first()
       : page.getByRole('heading', { name: item?.marker ?? 'All slides', exact: true }).first()
     await expect(marker, `Could not restore route ${target}`).toBeVisible()
-    if (target === '/admin') await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+    // The unmatched route redirects to Library too. Its heading appears before
+    // data settles, which can shift button positions during exploration.
+    if (target === '/admin' || !item) {
+      await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+    }
     if (item?.redirect) {
       await expect(page.getByRole('navigation', { name: 'Response views', exact: true })).toBeVisible()
     }
@@ -315,7 +325,9 @@ test('every declared route renders; buttons and menus are inventoried and explor
       }
       const target = buttonLocator.nth(targetIndex)
       if (!(await target.isEnabled())) {
-        activationEvidence.push({ route: entry.route, name, result: 'disabled-after-state-change' })
+        const observed = await target.evaluate((element) => element.getAttribute('aria-label')
+          || element.getAttribute('title') || element.textContent?.trim() || '(unnamed)')
+        activationEvidence.push({ route: entry.route, name, observed, result: 'disabled-after-state-change' })
         continue
       }
       const currentName = await target.evaluate((element) => element.getAttribute('aria-label')
@@ -331,7 +343,8 @@ test('every declared route renders; buttons and menus are inventoried and explor
         activationEvidence.push({ route: entry.route, routeIndex: index, name, observed: currentName, result: 'clicked', popup: button.popup, state })
         if (button.popup === 'menu') {
           const items = await page.getByRole('menu').last().getByRole('menuitem').allTextContents()
-          for (let menuIndex = 0; menuIndex < items.length; menuIndex += 1) {
+          for (const itemName of items) {
+            const menuItemName = itemName.trim().replace(/\s+/g, ' ')
             await loadRoute(index)
             const triggerIndex = await page.locator('button,[role="button"]').evaluateAll((elements, expectedName) => {
               const normalize = (value: string) => value
@@ -349,8 +362,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
             if (triggerIndex < 0) throw new Error(`Menu trigger disappeared: ${name}`)
             await page.locator('button,[role="button"]').nth(triggerIndex).click({ timeout: 5000 })
             const menu = page.getByRole('menu').last()
-            const menuItem = menu.getByRole('menuitem').nth(menuIndex)
-            const menuItemName = (await menuItem.innerText()).trim().replace(/\s+/g, ' ')
+            const menuItem = menu.getByRole('menuitem', { name: menuItemName, exact: true })
             if (/^(Move to Trash|Delete permanently|Restore)$/i.test(menuItemName)) {
               activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
                 result: 'covered-by-library-lifecycle.spec.ts' })
@@ -359,6 +371,12 @@ test('every declared route renders; buttons and menus are inventoried and explor
             if (/^Archive assessment$/i.test(menuItemName)) {
               activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
                 result: 'covered-by-assessment-types.spec.ts' })
+              continue
+            }
+            if (entry.route === '/admin' && /^More actions for /.test(name) && /^Unpublish$/i.test(menuItemName)) {
+              // Its lifecycle test verifies revocation without changing this menu inventory.
+              activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
+                result: 'covered-by-imaging-journey.spec.ts' })
               continue
             }
             if (!(await menuItem.isEnabled())) {

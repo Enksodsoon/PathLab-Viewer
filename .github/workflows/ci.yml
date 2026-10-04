@@ -70,9 +70,16 @@ jobs:
               git fetch --no-tags --depth=1 origin "${INVENTORY_SUBJECT}"
             fi
           done
+          if [[ -f docs/supply-chain/browser-distribution-receipt.json ]]; then
+            BROWSER_SUBJECT="$(python -c 'import json; print(json.load(open("docs/supply-chain/browser-distribution-receipt.json"))["subjectCommit"])')"
+            [[ "${BROWSER_SUBJECT}" =~ ^[0-9a-f]{40}$ ]] || exit 1
+            if ! git cat-file -e "${BROWSER_SUBJECT}^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "${BROWSER_SUBJECT}"
+            fi
+          fi
           python scripts/validate_dependency_inventory.py
           python scripts/validate_combine_errors_removal.py
-          ruff check scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py scripts/validate_combine_errors_removal.py tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
+          ruff check scripts/browser_distribution.py scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py scripts/validate_combine_errors_removal.py tests/backend/test_browser_distribution.py tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
       - name: Validate asset rights ledger
         run: |
           python scripts/validate_asset_rights_ledger.py
@@ -161,6 +168,8 @@ jobs:
           tests/backend/test_postgres_time_support.py
           tests/backend/test_postgres_sharing_lifecycle.py
           tests/backend/test_postgres_storage.py
+          tests/backend/test_postgres_assessment_scores.py
+          tests/backend/test_assessment_draft_concurrency.py
           tests/backend/test_study_aggregate_concurrency.py
           tests/backend/test_study_submission_concurrency.py
           tests/backend/test_security_admission.py
@@ -267,6 +276,17 @@ jobs:
       - run: node tests/supply-chain/test_tus_error_aggregation.mjs
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
+      - name: Verify qualified browser distribution against actual emitted bytes
+        run: |
+          if [[ -f docs/supply-chain/browser-distribution-receipt.json ]]; then
+            BROWSER_SUBJECT="$(python -c 'import json; print(json.load(open("docs/supply-chain/browser-distribution-receipt.json"))["subjectCommit"])')"
+            [[ "${BROWSER_SUBJECT}" =~ ^[0-9a-f]{40}$ ]] || exit 1
+            if ! git cat-file -e "${BROWSER_SUBJECT}^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "${BROWSER_SUBJECT}"
+            fi
+            python scripts/browser_distribution.py verify \
+              --dist apps/web/dist --packaged-legal-files
+          fi
       - name: Verify web distribution license files
         run: |
           cmp LICENSE apps/web/dist/LICENSE
@@ -303,7 +323,8 @@ jobs:
 
   browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The complete 240-case matrix takes about 13 minutes before setup/cleanup.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -318,12 +339,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium firefox webkit
       - name: Run authentication, library, Classroom and viewer browser matrix
+        timeout-minutes: 16
         env:
           PLAYWRIGHT_PORT: "5217"
         run: >-
           pnpm --dir apps/web exec playwright test
           e2e/annotation-responsive.spec.ts
           e2e/shared-viewer-responsive.spec.ts
+          e2e/shared-unavailable-return.spec.ts
           e2e/auth-responsive.spec.ts
           e2e/library-responsive.spec.ts
           e2e/classroom-disabled.spec.ts
@@ -339,7 +362,7 @@ jobs:
           e2e/study-download-audit.spec.ts
           --workers=2
       - name: Retain browser failure diagnostics
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-failure-diagnostics
@@ -372,7 +395,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium
       - name: Run disposable real imaging journey
-        run: python scripts/run_fullstack_tests.py
+        run: python scripts/run_fullstack_tests.py --report-dir "${RUNNER_TEMP}/fullstack-evidence"
+      - name: Retain synthetic full-stack diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fullstack-synthetic-diagnostics
+          path: ${{ runner.temp }}/fullstack-evidence/
+          if-no-files-found: warn
+          retention-days: 7
 
   containers:
     runs-on: ubuntu-24.04

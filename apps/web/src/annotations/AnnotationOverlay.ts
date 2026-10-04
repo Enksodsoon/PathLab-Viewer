@@ -1097,6 +1097,7 @@ export function attachAnnotationOverlay(
       target instanceof Element
       && target.matches('input, textarea, select, [contenteditable="true"]')
     ) return
+    if (event.ctrlKey || event.metaKey || event.altKey) return
     if (
       (event.code === 'Space' || event.key === ' ')
       && state.tool !== 'hand'

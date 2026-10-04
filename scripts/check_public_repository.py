@@ -141,7 +141,10 @@ LOCK_NAMES = {"pnpm-lock.yaml", "package-lock.json", "yarn.lock"}
 PNPM_PATCH_REFERENCE_LINES = {
     "pnpm-workspace.yaml": {
         "  openseadragon@6.1.0: patches/openseadragon@6.1.0.patch",
-    }
+    },
+    "docs/supply-chain/browser-distribution-receipt.json": {
+        '      "path": "patches/openseadragon@6.1.0.patch",',
+    },
 }
 
 Finding = tuple[str, int, str]

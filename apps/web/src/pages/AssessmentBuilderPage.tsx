@@ -2,8 +2,10 @@ import { ArrowCounterClockwise, Check, Desktop, DeviceMobile, DeviceTablet, Eye,
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
+import { ApiError } from '../api'
 
 import {
+  AssessmentHttpError,
   createAssessmentDraft,
   getAssessmentDraft,
   importAssessmentQuestions,
@@ -16,6 +18,8 @@ import {
   setAssessmentAdministrationStatus,
 } from '../assessment/api'
 import { cacheAssessmentDraft, readCachedAssessmentDraft } from '../assessment/draftCache'
+import { retainEditsAfterImport } from '../assessment/importRecovery'
+import { AssessmentDialog } from '../components/assessment/AssessmentDialog'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import { AssessmentQuestionCanvas } from '../components/assessment/AssessmentQuestionCanvas'
 import { AssessmentLearnerPreview } from '../components/assessment/AssessmentLearnerPreview'
@@ -36,6 +40,8 @@ export function AssessmentBuilderPage() {
   const requestedTab = searchParams.get('tab')
   const tab: 'questions' | 'settings' | 'responses' = requestedTab === 'responses' || requestedTab === 'settings' ? requestedTab : 'questions'
   const [saveState, setSaveState] = useState('Loading…')
+  const [retrySaveAvailable, setRetrySaveAvailable] = useState(false)
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(false)
   const [publishOpen, setPublishOpen] = useState(false)
   const [mode, setMode] = useState<'practice' | 'formative' | 'quiz'>('formative')
   const [cohortId, setCohortId] = useState(() => searchParams.get('classId') ?? '')
@@ -70,18 +76,31 @@ export function AssessmentBuilderPage() {
   const [importQuery, setImportQuery] = useState('')
   const [migrationBusy, setMigrationBusy] = useState(false)
   const revisionRef = useRef(0)
+  const savePendingRef = useRef<number | null>(null)
+  const loadGenerationRef = useRef(0)
+  const latestDocumentRef = useRef<AssessmentDocument | null>(null)
   const acknowledgedDocumentRef = useRef<AssessmentDocument | null>(null)
+  const saveStatusRef = useRef<HTMLSpanElement>(null)
   const items = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
   const questions = useMemo(() => items.filter((item) => item.type !== 'section-information'), [items])
   const totalPoints = useMemo(() => items.reduce((total, item) => total + (questionTypesByType[item.type].supportsScoring ? Number(item.points || 0) || 0 : 0), 0), [items])
 
   useEffect(() => {
     let cancelled = false
+    const generation = ++loadGenerationRef.current
     setSaveState('Loading…')
-    void Promise.all([getAssessmentDraft(draftId), readCachedAssessmentDraft(draftId)])
+    setRetrySaveAvailable(false)
+    setRecoveryUnavailable(false)
+    setImportSubmitting(false)
+    setImportOpen(false)
+    void Promise.all([getAssessmentDraft(draftId), readCachedAssessmentDraft(draftId).catch(() => {
+      if (!cancelled) setRecoveryUnavailable(true)
+      return null
+    })])
       .then(([server, cached]) => {
         if (cancelled) return
-        const recovered = cached && cached.revision > server.revision
+        const recovered = cached && (cached.revision > server.revision
+          || (cached.revision === server.revision && JSON.stringify(cached.document) !== JSON.stringify(server.document)))
         const selected = recovered ? cached : server
         revisionRef.current = server.revision
         acknowledgedDocumentRef.current = recovered ? null : server.document
@@ -102,21 +121,33 @@ export function AssessmentBuilderPage() {
           : 'All changes saved')
       })
       .catch(() => { if (!cancelled) setSaveState('Unable to open draft') })
-    return () => { cancelled = true }
+    return () => { cancelled = true; loadGenerationRef.current = generation + 1 }
   }, [draftId, loadRevision])
 
   useEffect(() => {
-    if (!draft) return
+    if (!draft || draft.id !== draftId) return
+    latestDocumentRef.current = draft.document
+    const generation = loadGenerationRef.current
     if (acknowledgedDocumentRef.current === draft.document) {
       acknowledgedDocumentRef.current = null
       return
     }
     setSaveState('Saving…')
-    void cacheAssessmentDraft(draft)
+    setRetrySaveAvailable(false)
+    const cacheLocalDraft = (value: AssessmentDraft) => {
+      void cacheAssessmentDraft(value).catch(() => {
+        if (generation === loadGenerationRef.current) setRecoveryUnavailable(true)
+      })
+    }
+    cacheLocalDraft(draft)
     const timer = window.setTimeout(() => {
+      if (generation !== loadGenerationRef.current || savePendingRef.current === generation) return
+      savePendingRef.current = generation
       const submittedDocument = draft.document
       void saveAssessmentDraft(draft.id, revisionRef.current, submittedDocument)
         .then((saved) => {
+          if (generation !== loadGenerationRef.current) return
+          savePendingRef.current = null
           revisionRef.current = saved.revision
           setDraft((current) => {
             if (current && current.document !== submittedDocument) {
@@ -125,13 +156,30 @@ export function AssessmentBuilderPage() {
             acknowledgedDocumentRef.current = saved.document
             return saved
           })
-          void cacheAssessmentDraft(saved)
-          setSaveState('All changes saved')
+          cacheLocalDraft(saved)
+          setSaveState(latestDocumentRef.current === submittedDocument ? 'All changes saved' : 'Saving…')
         })
-        .catch(() => setSaveState('Conflict: reload or duplicate'))
+        .catch((error: unknown) => {
+          if (generation !== loadGenerationRef.current) return
+          savePendingRef.current = null
+          const status = error instanceof AssessmentHttpError || error instanceof ApiError ? error.status : undefined
+          const messages: Record<number, string> = {
+            400: 'Changes not saved. Check the questions and settings.',
+            401: 'Changes not saved. Sign in again to save.',
+            403: 'Changes not saved. You do not have permission to save this draft.',
+            404: 'This draft is unavailable. Your changes remain in this tab.',
+            409: 'Conflict: reload or duplicate',
+            422: 'Changes not saved. Check the questions and settings.',
+            429: 'Save paused. Wait a moment, then retry.',
+          }
+          const retryable = status === undefined || status === 429 || status >= 500
+          setSaveState(status !== undefined && messages[status] ? messages[status]
+            : retryable ? 'Changes not saved. Try again.' : 'Changes not saved. Check the questions and settings.')
+          setRetrySaveAvailable(retryable)
+        })
     }, 750)
     return () => window.clearTimeout(timer)
-  }, [draft])
+  }, [draft, draftId])
 
   function updateDocument(update: (document: AssessmentDocument) => AssessmentDocument) {
     setDraft((current) => current ? { ...current, document: update(current.document) } : current)
@@ -269,21 +317,36 @@ export function AssessmentBuilderPage() {
   }
 
   async function importQuestions() {
-    if (!draft || !sourceId || importIds.size === 0) return
+    if (!draft || !sourceId || importIds.size === 0 || importSubmitting || saveState !== 'All changes saved') return
+    const generation = loadGenerationRef.current
+    if (savePendingRef.current === generation) return
+    const submittedDocument = draft.document
+    savePendingRef.current = generation
     setImportSubmitting(true)
     setImportMessage('')
     try {
       const saved = await importAssessmentQuestions(draft.id, sourceId, [...importIds], revisionRef.current)
+      if (generation !== loadGenerationRef.current) return
+      savePendingRef.current = null
       revisionRef.current = saved.revision
-      acknowledgedDocumentRef.current = saved.document
-      setDraft(saved)
+      const changed = latestDocumentRef.current !== submittedDocument
+      setDraft(current => {
+        if (current && current.document !== submittedDocument) {
+          return { ...saved, document: retainEditsAfterImport(current.document, submittedDocument, saved.document) }
+        }
+        acknowledgedDocumentRef.current = saved.document
+        return saved
+      })
       setImportOpen(false)
       setImportIds(new Set())
-      setSaveState('All changes saved')
+      setSaveState(changed ? 'Saving…' : 'All changes saved')
     } catch {
+      if (generation !== loadGenerationRef.current) return
+      savePendingRef.current = null
       setImportMessage('Questions could not be imported. Refresh the source and try again.')
+      if (latestDocumentRef.current !== submittedDocument) setDraft(current => current ? { ...current } : current)
     } finally {
-      setImportSubmitting(false)
+      if (generation === loadGenerationRef.current) setImportSubmitting(false)
     }
   }
 
@@ -310,6 +373,7 @@ export function AssessmentBuilderPage() {
   return <div className="assessment-builder">
     <AssessmentToolbar title={draft.document.title} />
     <h1 className="visually-hidden">{draft.document.title}</h1>
+    {recoveryUnavailable ? <p className="assessment-preview-notice" role="status">Local recovery unavailable. Keep this tab open until changes are saved.</p> : null}
     <section className="assessment-studio-header" aria-label="Assessment authoring commands">
       <div className="assessment-studio-identity">
         <label>
@@ -324,11 +388,17 @@ export function AssessmentBuilderPage() {
       <div className="assessment-studio-meta">
         <span><strong>{questions.length}</strong> {questions.length === 1 ? 'question' : 'questions'}</span>
         <span><strong>{totalPoints}</strong> {totalPoints === 1 ? 'point' : 'points'}</span>
-        <span className="assessment-save-state" data-state={saveState === 'All changes saved' ? 'saved' : 'pending'} aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
+        <span ref={saveStatusRef} role="status" tabIndex={-1} className="assessment-save-state" data-state={saveState === 'All changes saved' ? 'saved' : 'pending'} aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
       </div>
       <div className="assessment-studio-actions">
+        {retrySaveAvailable && draft.id === draftId ? <button type="button" onClick={() => {
+          saveStatusRef.current?.focus()
+          setRetrySaveAvailable(false)
+          setSaveState('Saving…')
+          setDraft((current) => current?.id === draftId ? { ...current } : current)
+        }}>Retry save</button> : null}
         {!isAssessmentV2(draft.document) ? <button type="button" disabled={migrationBusy} onClick={() => void migrateToV2()}>{migrationBusy ? 'Upgrading…' : 'Upgrade to sections'}</button> : null}
-        <button className="assessment-primary" type="button" onClick={openPublish}><PaperPlaneTilt aria-hidden="true" />Publish</button>
+        <button className="assessment-primary" type="button" onClick={(event) => { event.currentTarget.focus(); openPublish() }}><PaperPlaneTilt aria-hidden="true" />Publish</button>
       </div>
       <div className="assessment-tabs" role="tablist" aria-label="Assessment builder">
         {(['questions', 'responses', 'settings'] as const).map((value) =>
@@ -373,9 +443,9 @@ export function AssessmentBuilderPage() {
       </> : null}
     </main> : null}
     {tab === 'responses' ? <Suspense fallback={<main className="assessment-main"><p role="status">Loading responses…</p></main>}><AssessmentReportPage embedded /></Suspense> : null}
-    {preview ? <div className="assessment-preview-backdrop" onMouseDown={() => setPreview(null)}>
-      <div className="assessment-drawer assessment-preview-drawer" role="dialog" aria-modal="true" aria-label="Learner preview" onMouseDown={(event) => event.stopPropagation()}>
-        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Learner preview</span><h2>{preview.title}</h2></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close preview" onClick={() => setPreview(null)}><X aria-hidden="true" /></button></div></header>
+    {preview ? <AssessmentDialog label="Learner preview" onClose={() => setPreview(null)}>
+      <div className="assessment-drawer assessment-preview-drawer" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Learner preview</span><h2>{preview.title}</h2></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" aria-label="Close preview" onClick={() => setPreview(null)}><X aria-hidden="true" /></button></div></header>
         <div className="assessment-preview-device-controls" aria-label="Preview size">
           <button type="button" aria-label="Desktop preview" title="Desktop preview" aria-pressed={previewWidth === 1200} onClick={() => setPreviewWidth(1200)}><Desktop aria-hidden="true" /></button>
           <button type="button" aria-label="Tablet preview" title="Tablet preview" aria-pressed={previewWidth === 768} onClick={() => setPreviewWidth(768)}><DeviceTablet aria-hidden="true" /></button>
@@ -385,18 +455,18 @@ export function AssessmentBuilderPage() {
         {previewNotice ? <p className="assessment-preview-notice" role="status">{previewNotice}</p> : null}
         <div className="assessment-preview-stage"><div className="assessment-preview-body" style={{ maxWidth: previewWidth }} aria-label="Assignment preview questions">{assessmentItems(preview).length ? <AssessmentLearnerPreview document={preview} seed={`preview-${previewSeed}`} /> : <div className="assessment-preview-empty"><Eye aria-hidden="true" /><h3>No questions to preview</h3><p>Add a question to see the assignment preview.</p></div>}</div></div>
       </div>
-    </div> : null}
-    {publishOpen ? <div className="assessment-preview-backdrop" onMouseDown={() => setPublishOpen(false)}>
-      <div className="assessment-drawer assessment-builder-drawer" role="dialog" aria-modal="true" aria-label="Publish assessment" onMouseDown={(event) => event.stopPropagation()}>
-        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Publish settings</span><h2>{draft.document.title}</h2><p>Choose the learner mode, timing, and access controls.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close publish settings" onClick={() => setPublishOpen(false)}><X aria-hidden="true" /></button></div></header>
+    </AssessmentDialog> : null}
+    {publishOpen ? <AssessmentDialog label="Publish assessment" onClose={() => setPublishOpen(false)}>
+      <div className="assessment-drawer assessment-builder-drawer" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Publish settings</span><h2>{draft.document.title}</h2><p>Choose the learner mode, timing, and access controls.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" aria-label="Close publish settings" onClick={() => setPublishOpen(false)}><X aria-hidden="true" /></button></div></header>
         <div className="assessment-builder-drawer-body"><label>Mode<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="practice">Practice</option><option value="formative">Formative</option><option value="quiz">Quiz / Test</option></select></label>{mode !== 'practice' ? isAssessmentV2(draft.document) ? <fieldset><legend>Classes</legend>{classes.map((item) => <label key={item.id}><input type="checkbox" checked={classIds.has(item.id)} onChange={() => setClassIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} /> {item.name}</label>)}</fieldset> : <label>Class<select value={cohortId} onChange={(event) => setCohortId(event.target.value)}><option value="">Anonymous formative only</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label> : null}<label>Duration (minutes)<input type="number" min="1" max="240" value={duration / 60} onChange={(event) => setDuration(Number(event.target.value) * 60)} /></label><label>Attempts<input type="number" min="1" max="3" value={attempts} onChange={(event) => setAttempts(Number(event.target.value))} /></label>{mode === 'quiz' ? <label>Access code<input value={accessCode} placeholder="Leave blank to generate one-time codes" onChange={(event) => setAccessCode(event.target.value)} /></label> : null}<details><summary>Collection settings</summary><label><input type="checkbox" checked={manualAcceptance} onChange={(event) => setManualAcceptance(event.target.checked)} /> Accept new attempts</label><label>Scheduled close<input type="datetime-local" value={closesAt} onChange={(event) => setClosesAt(event.target.value)} /></label><label>Response limit<input type="number" min="1" max="500" value={responseLimit} onChange={(event) => setResponseLimit(event.target.value)} /></label><label>Closed message<textarea maxLength={1000} value={closedMessage} onChange={(event) => setClosedMessage(event.target.value)} /></label></details><details><summary>Learner release</summary><label>Timing<select value={releaseTiming} onChange={(event) => setReleaseTiming(event.target.value as 'immediate' | 'manual')}><option value="manual">Manual release</option><option value="immediate">Immediate when fully auto-graded</option></select></label>{Object.entries({ score: 'Score', answers: 'Correct answers', authored: 'Authored feedback', manual: 'Manual feedback', annotations: 'Released annotations' }).map(([key, label]) => <label key={key}><input type="checkbox" checked={releaseFields[key as keyof typeof releaseFields]} onChange={(event) => setReleaseFields((current) => ({ ...current, [key]: event.target.checked }))} /> {label}</label>)}</details><button className="assessment-primary" type="button" disabled={publishBusy || saveState !== 'All changes saved' || publishedAdministrations.length > 0} onClick={() => void publish()}>{publishBusy ? 'Publishing…' : 'Publish assignment'}</button>{publishError ? <p role="alert">{publishError}</p> : null}{publishedLink ? <p role="status">Assignment created: <a href={publishedLink}>{publishedLink}</a></p> : null}{publishedAdministrations.map((administration) => { const link = `${location.origin}/assessment/${administration.publicId}`; return <article className="assessment-published-link" key={administration.id}><QRCodeSVG value={link} size={112} level="M" aria-label="Assignment access QR code" /><div><p role="status">{openedAdministrations.has(administration.id) ? (manualAcceptance ? 'Accepting responses. You can share this link.' : 'Assignment open. New attempts are paused in collection settings.') : 'Not accepting responses yet. Open responses before sharing this link.'}</p>{!openedAdministrations.has(administration.id) ? <button type="button" disabled={Boolean(openingAdministration)} onClick={() => void openResponses(administration.id)}>{openingAdministration === administration.id ? 'Opening responses…' : 'Open responses'}</button> : null}<a href={link}>{link}</a>{administration.accessCode ? <strong>One-time access code: {administration.accessCode}</strong> : null}</div></article> })}</div>
       </div>
-    </div> : null}
-    {importOpen ? <div className="assessment-preview-backdrop" onMouseDown={() => setImportOpen(false)}>
-      <div className="assessment-drawer assessment-builder-drawer assessment-import-drawer" role="dialog" aria-modal="true" aria-label="Import assessment" onMouseDown={(event) => event.stopPropagation()}>
-        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Assessment library</span><h2>Import assessment</h2><p>Choose another assessment and copy all or selected questions into this form.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close import" onClick={() => setImportOpen(false)}><X aria-hidden="true" /></button></div></header>
-        <div className="assessment-builder-drawer-body">{importStatus === 'loading' ? <p role="status">Loading assessments…</p> : null}{importStatus === 'error' ? <div className="assessment-import-state" role="alert"><p>{importMessage}</p><button type="button" onClick={() => void openImport()}>Try again</button></div> : null}{importStatus === 'ready' && sources.length === 0 ? <div className="assessment-import-state"><strong>No source assessments available</strong><p>Create or duplicate another assessment before importing questions.</p></div> : null}{importStatus === 'ready' && sources.length > 0 ? <><label>Source assessment<select value={sourceId} onChange={(event) => { setSourceId(event.target.value); setImportIds(new Set()); setImportQuery('') }}><option value="">Choose an assessment</option>{sources.map((source) => <option key={source.id} value={source.id}>{source.title}</option>)}</select></label>{sourceId ? <><div className="assessment-import-tools"><label>Search questions<input type="search" value={importQuery} onChange={(event) => setImportQuery(event.target.value)} /></label><button type="button" onClick={() => { const source = sources.find((candidate) => candidate.id === sourceId); if (source) setImportIds(new Set(assessmentItems(source.document).filter((item) => item.prompt.toLocaleLowerCase().includes(importQuery.trim().toLocaleLowerCase())).map((item) => item.id))) }}>Select all shown</button><button type="button" disabled={importIds.size === 0} onClick={() => setImportIds(new Set())}>Clear</button></div><div className="assessment-import-question-list" aria-label="Questions available to import">{assessmentItems(sources.find((source) => source.id === sourceId)!.document).filter((item) => item.prompt.toLocaleLowerCase().includes(importQuery.trim().toLocaleLowerCase())).map((item) => <label key={item.id}><input type="checkbox" checked={importIds.has(item.id)} onChange={() => setImportIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} /> <span>{item.prompt || 'Untitled question'}</span></label>)}</div></> : <p className="assessment-import-hint">Choose an assessment to review its questions.</p>}{importMessage ? <p role="alert">{importMessage}</p> : null}<button className="assessment-primary" type="button" disabled={importIds.size === 0 || importSubmitting} onClick={() => void importQuestions()}>{importSubmitting ? 'Importing…' : `Import selected${importIds.size ? ` (${importIds.size})` : ''}`}</button></> : null}</div>
+    </AssessmentDialog> : null}
+    {importOpen ? <AssessmentDialog label="Import assessment" onClose={() => setImportOpen(false)}>
+      <div className="assessment-drawer assessment-builder-drawer assessment-import-drawer" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Assessment library</span><h2>Import assessment</h2><p>Choose another assessment and copy all or selected questions into this form.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" aria-label="Close import" onClick={() => setImportOpen(false)}><X aria-hidden="true" /></button></div></header>
+        <div className="assessment-builder-drawer-body">{importStatus === 'loading' ? <p role="status">Loading assessments…</p> : null}{importStatus === 'error' ? <div className="assessment-import-state" role="alert"><p>{importMessage}</p><button type="button" onClick={() => void openImport()}>Try again</button></div> : null}{importStatus === 'ready' && sources.length === 0 ? <div className="assessment-import-state"><strong>No source assessments available</strong><p>Create or duplicate another assessment before importing questions.</p></div> : null}{importStatus === 'ready' && sources.length > 0 ? <><label>Source assessment<select value={sourceId} onChange={(event) => { setSourceId(event.target.value); setImportIds(new Set()); setImportQuery('') }}><option value="">Choose an assessment</option>{sources.map((source) => <option key={source.id} value={source.id}>{source.title}</option>)}</select></label>{sourceId ? <><div className="assessment-import-tools"><label>Search questions<input type="search" value={importQuery} onChange={(event) => setImportQuery(event.target.value)} /></label><button type="button" onClick={() => { const source = sources.find((candidate) => candidate.id === sourceId); if (source) setImportIds(new Set(assessmentItems(source.document).filter((item) => item.prompt.toLocaleLowerCase().includes(importQuery.trim().toLocaleLowerCase())).map((item) => item.id))) }}>Select all shown</button><button type="button" disabled={importIds.size === 0} onClick={() => setImportIds(new Set())}>Clear</button></div><div className="assessment-import-question-list" aria-label="Questions available to import">{assessmentItems(sources.find((source) => source.id === sourceId)!.document).filter((item) => item.prompt.toLocaleLowerCase().includes(importQuery.trim().toLocaleLowerCase())).map((item) => <label key={item.id}><input type="checkbox" checked={importIds.has(item.id)} onChange={() => setImportIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} /> <span>{item.prompt || 'Untitled question'}</span></label>)}</div></> : <p className="assessment-import-hint">Choose an assessment to review its questions.</p>}{importMessage ? <p role="alert">{importMessage}</p> : null}{saveState !== 'All changes saved' ? <p className="assessment-import-hint" role="status">Save your changes before importing questions.</p> : null}<button className="assessment-primary" type="button" disabled={importIds.size === 0 || importSubmitting || saveState !== 'All changes saved'} onClick={() => void importQuestions()}>{importSubmitting ? 'Importing…' : `Import selected${importIds.size ? ` (${importIds.size})` : ''}`}</button></> : null}</div>
       </div>
-    </div> : null}
+    </AssessmentDialog> : null}
   </div>
 }

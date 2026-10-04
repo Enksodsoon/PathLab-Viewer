@@ -358,8 +358,98 @@ async function openAnnotationList() {
   if (trigger) fireEvent.click(trigger)
 }
 
+it.each([320, 1200])('keeps a dismissed inspector closed through save acknowledgements at width %s', async (width) => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  const pending = deferred<AnnotationBatchResult>()
+  const workflow = services({ batch: vi.fn(() => pending.promise) })
+  const onAttachmentChange = vi.fn()
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={workflow}
+      onAttachmentChange={onAttachmentChange}
+    />,
+  )
+  await attachAndDrawPoint(onAttachmentChange)
+  await openAnnotationList()
+  fireEvent.click(await screen.findByRole('button', { name: /point annotation/ }))
+  const inspector = await screen.findByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })
+  fireEvent.click(within(inspector).getByRole('button', { name: 'Close annotation inspector' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Save annotations' }))
+  await waitFor(() => expect(workflow.batch).toHaveBeenCalledOnce())
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  await act(async () => {
+    pending.resolve(successfulBatch(vi.mocked(workflow.batch).mock.calls[0][0]))
+    await pending.promise
+  })
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+})
+
+it.each([320, 1200])('keeps a dismissed inspector closed while undoing and redoing a selected annotation edit at width %s', async (width) => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({}, [record(101)])}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await openAnnotationList()
+  fireEvent.click(await screen.findByRole('button', { name: /Finding 101/ }))
+  const inspector = await screen.findByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })
+  fireEvent.change(within(inspector).getByRole('textbox', { name: 'Title' }), {
+    target: { value: 'Edited selected annotation' },
+  })
+  fireEvent.click(within(inspector).getByRole('button', { name: 'Close annotation inspector' }))
+  expect(screen.getByRole('button', { name: /Edited selected annotation/ })).toHaveClass('is-selected')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  expect(screen.getByRole('button', { name: /Finding 101/ })).toHaveClass('is-selected')
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+  expect(screen.getByRole('button', { name: /Edited selected annotation/ })).toHaveClass('is-selected')
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+})
+
 beforeEach(() => {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
+})
+
+it.each([320, 1200])('opens the inspector for a different annotation at width %s', async (width) => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({}, [record(101), record(102)])}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await openAnnotationList()
+  fireEvent.click(await screen.findByRole('button', { name: /Finding 101/ }))
+  const inspector = await screen.findByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })
+  fireEvent.click(within(inspector).getByRole('button', { name: 'Close annotation inspector' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: /Finding 102/ }))
+  expect(screen.getByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Finding 102')
 })
 
 afterEach(() => {
@@ -744,7 +834,7 @@ it('does not rerender or clone/filter 25,000 records for pointer coordinate upda
   ).length).toBeLessThanOrEqual(200)
 }, 30_000)
 
-it('ignores a slide A layer completion after slide B has replaced the workspace', async () => {
+it.each([false, true])('ignores a slide A layer completion after slide B replaces it; rejection=%s', async (reject) => {
   const slideALayer = { ...layerA, name: 'Slide A layer' }
   const slideBLayer = { ...layerA, id: layerB.id, name: 'Slide B layer' }
   const update = deferred<Awaited<ReturnType<AnnotationWorkspaceServices['updateLayer']>>>()
@@ -775,17 +865,51 @@ it('ignores a slide A layer completion after slide B has replaced the workspace'
   )
   await openInspector(true)
   await screen.findByRole('button', { name: 'Slide B layer' })
-  update.resolve({
-    version: 2,
-    layer: { ...slideALayer, visible: false },
-  })
   await act(async () => {
-    await update.promise
+    if (reject) update.reject(new Error('Old slide request failed'))
+    else update.resolve({ version: 2, layer: { ...slideALayer, visible: false } })
+    await update.promise.catch(() => undefined)
     await Promise.resolve()
   })
 
   expect(screen.getByRole('button', { name: 'Slide B layer' })).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Slide A layer' })).toBeNull()
+  expect(screen.queryByText(/Old slide request failed/)).not.toBeInTheDocument()
+  expect(screen.queryByText('Reloading annotations…')).not.toBeInTheDocument()
+  expect(slideA.getManifest).toHaveBeenCalledOnce()
+  expect(slideB.getManifest).toHaveBeenCalledOnce()
+})
+
+it.each(['reload', 'layer patch'])('cancels queued %s when the slide changes', async (action) => {
+  const slideALayer = { ...layerA, name: 'Slide A layer' }
+  const slideBLayer = { ...layerA, id: layerB.id, name: 'Slide B layer' }
+  const update = deferred<Awaited<ReturnType<AnnotationWorkspaceServices['updateLayer']>>>()
+  const slideA = services({ updateLayer: vi.fn(() => update.promise) }, [], [slideALayer])
+  const slideB = services({}, [], [slideBLayer])
+  const view = render(
+    <AnnotationWorkspace slideId="slide-a" slideName="Slide A" services={slideA}
+      onAttachmentChange={vi.fn()} />,
+  )
+  await openInspector(true)
+  const visible = await screen.findByRole('checkbox', { name: 'Show Slide A layer' })
+  fireEvent.click(visible)
+  await waitFor(() => expect(slideA.updateLayer).toHaveBeenCalledOnce())
+  if (action === 'reload') fireEvent.click(screen.getByRole('button', { name: 'Reload annotations' }))
+  else fireEvent.click(visible)
+
+  view.rerender(
+    <AnnotationWorkspace slideId="slide-b" slideName="Slide B" services={slideB}
+      onAttachmentChange={vi.fn()} />,
+  )
+  await openInspector(true)
+  await screen.findByRole('button', { name: 'Slide B layer' })
+  await act(async () => {
+    update.resolve({ version: 2, layer: { ...slideALayer, visible: false } })
+    await update.promise
+    await Promise.resolve()
+  })
+  expect(screen.getByRole('button', { name: 'Slide B layer' })).toBeVisible()
+  expect(slideA.updateLayer).toHaveBeenCalledOnce()
   expect(slideA.getManifest).toHaveBeenCalledOnce()
   expect(slideB.getManifest).toHaveBeenCalledOnce()
 })

@@ -13,8 +13,10 @@ from typing import Any
 import yaml
 
 try:
+    from scripts.browser_distribution import validate_applied_exclusions
     from scripts.generate_dependency_inventory import supplemental_notices
 except ModuleNotFoundError:
+    from browser_distribution import validate_applied_exclusions
     from generate_dependency_inventory import supplemental_notices
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -148,6 +150,7 @@ def validate(path: Path, subject: str | None = None) -> dict[str, Any]:
     if len(ids) != len(set(ids)):
         fail("inventory record identifiers must be unique")
     by_id = {record["id"]: record for record in records}
+    validate_applied_exclusions(records, ROOT, inventory["subjectCommit"])
     supplemental_receipts = json.loads(
         (ROOT / "docs/supply-chain/dependency-manual-inputs.json").read_text()
     ).get("supplementalNotices", [])

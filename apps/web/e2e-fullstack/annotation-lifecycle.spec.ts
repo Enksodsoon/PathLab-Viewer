@@ -10,6 +10,7 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
   const overlay = page.locator('.annotation-svg-overlay')
   const read = async () => (await (await page.request.get(`/api/v2/admin/annotations/slides/${id}/items?limit=1000`)).json())
+  const readManifest = async () => (await (await page.request.get(`/api/v2/admin/annotations/slides/${id}/manifest`)).json())
   let count = 0
   const touch = isMobile ? await page.context().newCDPSession(page) : null
   for (const [tool, gesture] of [['Point marker', 'point'], ['Rectangle', 'drag'], ['Ellipse', 'drag'],
@@ -103,12 +104,62 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await expect(lockedLayer).not.toBeChecked()
   await visibleLayer.click()
   await expect(visibleLayer).toBeChecked()
-  await page.getByRole('button', { name: 'Move Layer 2 up', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Move Layer 2 up', exact: true })).toBeDisabled()
-  await page.getByRole('button', { name: 'Move Layer 2 down', exact: true }).click()
-  await page.getByRole('slider', { name: 'Layer 2 opacity', exact: true }).press('ArrowLeft')
-  await page.getByRole('button', { name: 'Reload annotations', exact: true }).click()
+  await expect.poll(async () => {
+    const layer = (await readManifest()).layers.find((item: { name: string }) => item.name === 'Layer 2')
+    return layer && { sortOrder: layer.sortOrder, visible: layer.visible, locked: layer.locked }
+  }).toEqual({ sortOrder: 1, visible: true, locked: false })
+  let releaseLayerUpdate!: () => void
+  const layerUpdateGate = new Promise<void>((resolve) => { releaseLayerUpdate = resolve })
+  let patchStarted!: () => void
+  const layerPatchStarted = new Promise<void>((resolve) => { patchStarted = resolve })
+  let patchReleased = false
+  let heldReorder = false
+  const layerRoute = `**/api/v2/admin/annotations/slides/${id}/layers/*`
+  await page.route(layerRoute, async (route) => {
+    if (!heldReorder && route.request().method() === 'PATCH'
+      && route.request().postDataJSON()?.sortOrder === 0) {
+      heldReorder = true
+      const response = await route.fetch()
+      patchStarted()
+      await layerUpdateGate
+      await route.fulfill({ response })
+      return
+    }
+    await route.continue()
+  })
+  let manifestRequestsWhilePatchHeld = 0
+  const reloadPath = `/api/v2/admin/annotations/slides/${id}/manifest`
+  const trackReload = (request: import('@playwright/test').Request) => {
+    if (request.method() === 'GET' && new URL(request.url()).pathname === reloadPath) {
+      if (!patchReleased) manifestRequestsWhilePatchHeld++
+    }
+  }
+  try {
+    await page.getByRole('button', { name: 'Move Layer 2 up', exact: true }).click()
+    await layerPatchStarted
+    await expect(page.getByRole('button', { name: 'Move Layer 2 up', exact: true })).toBeDisabled()
+    await page.getByRole('button', { name: 'Move Layer 2 down', exact: true }).click()
+    await page.getByRole('slider', { name: 'Layer 2 opacity', exact: true }).press('ArrowLeft')
+    page.on('request', trackReload)
+    await page.getByRole('button', { name: 'Reload annotations', exact: true }).click()
+    await page.waitForTimeout(250)
+    expect(manifestRequestsWhilePatchHeld).toBe(0)
+  } finally {
+    patchReleased = true
+    releaseLayerUpdate()
+    page.off('request', trackReload)
+  }
   await expect(page.locator('.annotation-operation-status')).toHaveText('Annotations reloaded from server')
+  await page.unroute(layerRoute)
+  await expect.poll(async () => {
+    const layer = (await readManifest()).layers.find((item: { name: string }) => item.name === 'Layer 2')
+    return layer && {
+      sortOrder: layer.sortOrder,
+      visible: layer.visible,
+      locked: layer.locked,
+      opacity: layer.opacity,
+    }
+  }).toEqual({ sortOrder: 1, visible: true, locked: false, opacity: 0.95 })
   await expect(page.getByRole('slider', { name: 'Layer 2 opacity', exact: true })).toHaveValue('0.95')
   let exported = ''
   let geojson = ''
@@ -127,6 +178,7 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await page.getByRole('button', { name: 'Confirm annotation import', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('ANNOTATION_IMPORT_ID_CONFLICT')
   expect((await read()).total).toBe(count)
+  if (isMobile) await inspector.getByRole('button', { name: 'Close annotation inspector', exact: true }).click()
   await page.getByRole('button', { name: 'Retry annotations', exact: true }).click()
   await expect(page.getByRole('alert')).not.toBeVisible()
   await expect(page.locator('.annotation-operation-status')).toHaveText(/^Annotations ready/)
@@ -141,4 +193,44 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await page.getByRole('button', { name: 'Open annotations', exact: true }).click()
   await page.getByRole('searchbox', { name: 'Search annotations', exact: true }).fill('QA persisted annotation')
   await expect(page.getByRole('button', { name: /QA persisted annotation/ }).first()).toBeVisible()
+})
+
+
+test('320px annotation commands open inspector and acknowledge edits across reload', async ({ page, isMobile }, info) => {
+  await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
+  const id = await uploadSyntheticSlide(page, process.env.PATHLAB_E2E_OME!, 'QA narrow annotation commands')
+  await waitForSlideConversion(page, id)
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto(`/admin/preview/${id}`)
+  await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+  const toggle = page.getByRole('button', { name: 'Open annotation inspector', exact: true })
+  await toggle.click()
+  const inspector = page.getByRole('dialog', { name: 'Annotation inspector', exact: true })
+  await expect(inspector).toBeVisible()
+  await inspector.getByRole('button', { name: 'Close annotation inspector', exact: true }).click()
+  await expect(toggle).toBeFocused()
+  await page.getByRole('button', { name: 'More annotation tools', exact: true }).click()
+  await page.getByRole('button', { name: 'Point marker', exact: true }).click()
+  const overlay = page.locator('.annotation-svg-overlay')
+  const box = (await overlay.boundingBox())!
+  const point = [box.x + box.width * .75, box.y + box.height * .55] as [number, number]
+  const saved = page.waitForResponse((response) => response.request().method() === 'POST'
+    && new URL(response.url()).pathname === `/api/v2/admin/annotations/slides/${id}/batch` && response.ok())
+  if (isMobile) await page.touchscreen.tap(...point)
+  else await page.mouse.click(...point)
+  expect((await saved).status()).toBe(200)
+  await page.getByRole('button', { name: 'Open annotations', exact: true }).click()
+  const createdRow = page.locator('[data-annotation-row]')
+  await expect(createdRow).toHaveCount(1)
+  await createdRow.click()
+  await expect(inspector).toBeVisible()
+  const title = 'QA 320px persisted title'
+  await inspector.getByRole('textbox', { name: 'Title', exact: true }).fill(title)
+  await inspector.getByRole('button', { name: 'Close annotation inspector', exact: true }).click()
+  const status = page.getByLabel('Annotation commands', { exact: true }).getByRole('status')
+  await expect(status).toHaveText('Saved')
+  await page.reload()
+  await page.getByRole('button', { name: 'Open annotations', exact: true }).click()
+  await expect(page.getByRole('button', { name: new RegExp(title) })).toBeVisible()
+  await info.attach('narrow-annotation-commands.png', { body: await page.screenshot(), contentType: 'image/png' })
 })

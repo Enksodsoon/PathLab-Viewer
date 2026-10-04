@@ -543,6 +543,22 @@ button.library-storage-meter:focus-visible {
   align-items: center;
 }
 
+.folder-tree {
+  position: relative;
+}
+
+/* Keep native drag targets stationary when the top-level target appears. */
+.folder-tree-row.folder-tree-root-drop {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  inset-inline: 0;
+  bottom: calc(100% + 3px);
+  z-index: 1;
+  background: var(--surface);
+  border: 1px dashed var(--primary);
+}
+
 .folder-tree-row {
   min-height: 36px;
   display: grid;

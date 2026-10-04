@@ -625,12 +625,12 @@ export function AnnotationWorkspace({
     const result = pipeline.promise
       .catch(() => undefined)
       .then(() => {
-        requireCurrentWorkspace(generation)
+        if (!isCurrentWorkspace(generation)) return
         return operation()
       })
     pipeline.promise = result.catch(() => undefined)
     return result
-  }, [requireCurrentWorkspace])
+  }, [isCurrentWorkspace])
 
   const loadRemote = useCallback(async (
     store: AnnotationStore,
@@ -968,8 +968,10 @@ export function AnnotationWorkspace({
 
   useEffect(() => {
     const inspector = inspectorRef.current
-    if (!isMobile || !inspectorOpen || !inspector) return
+    if (!inspectorOpen || !inspector) return
     const trigger = inspectorTriggerRef.current
+    // Desktop uses a non-modal panel, but closing it must still return focus.
+    if (!isMobile) return () => trigger?.focus()
     const focusable = focusableElements(inspector)
     focusable[0]?.focus()
     const trap = (event: KeyboardEvent) => {
@@ -1105,9 +1107,12 @@ export function AnnotationWorkspace({
     setMoreToolsOpen(false)
   }, [])
 
+  // Store snapshots clone selection even when only save status or geometry changes.
+  // Preserve order because the first selected annotation is the primary selection.
+  const inspectorSelectionKey = JSON.stringify([...(storeState?.selection ?? [])])
   useEffect(() => {
-    if ((storeState?.selection.size ?? 0) > 0) setInspectorOpen(true)
-  }, [storeState?.selection])
+    if (inspectorSelectionKey !== '[]') setInspectorOpen(true)
+  }, [inspectorSelectionKey])
 
   const flush = useCallback(async (
     generation = workspaceGenerationRef.current,
@@ -1178,6 +1183,7 @@ export function AnnotationWorkspace({
         localStore.paste()
         return
       }
+      if (event.ctrlKey || event.metaKey || event.altKey) return
       const shortcutTool = SHORTCUT_TO_TOOL.get(event.key.toLowerCase())
       if (shortcutTool) {
         event.preventDefault()
@@ -1220,20 +1226,25 @@ export function AnnotationWorkspace({
   const reload = async (
     generation = workspaceGenerationRef.current,
     localStore = storeRef.current,
+    skipLayerQueue = false,
   ) => {
-    if (!localStore) return
-    setOperationStatus('Reloading annotations…')
-    try {
-      const version = await loadRemote(localStore, generation)
-      requireCurrentWorkspace(generation, localStore)
-      autosaveRef.current?.reset(version)
-      await discardPersistedDraft()
-      requireCurrentWorkspace(generation, localStore)
-      setOperationStatus('Annotations reloaded from server')
-    } catch (caught) {
-      if (caught instanceof StaleWorkspaceOperationError) return
-      setError(caught instanceof Error ? caught.message : 'Reload failed')
+    if (!localStore || !isCurrentWorkspace(generation, localStore)) return
+    const run = async () => {
+      setOperationStatus('Reloading annotations…')
+      try {
+        const version = await loadRemote(localStore, generation)
+        requireCurrentWorkspace(generation, localStore)
+        autosaveRef.current?.reset(version)
+        await discardPersistedDraft()
+        requireCurrentWorkspace(generation, localStore)
+        setOperationStatus('Annotations reloaded from server')
+      } catch (caught) {
+        if (caught instanceof StaleWorkspaceOperationError) return
+        setError(caught instanceof Error ? caught.message : 'Reload failed')
+      }
     }
+    if (skipLayerQueue) await run()
+    else await serializeLayerMutation(generation, run)
   }
 
   const resolveConflict = async (choice: ConflictChoice) => {
@@ -1314,7 +1325,8 @@ export function AnnotationWorkspace({
         }
         setOperationStatus(`${layer.name} created`)
       } catch (caught) {
-        if (caught instanceof StaleWorkspaceOperationError) return
+        if (caught instanceof StaleWorkspaceOperationError
+          || !isCurrentWorkspace(generation, expectedStore)) return
         setError(caught instanceof Error ? caught.message : 'Layer could not be created')
       }
     })
@@ -1342,9 +1354,10 @@ export function AnnotationWorkspace({
         requireCurrentWorkspace(generation, expectedStore)
         autosaveRef.current?.reset(version)
       } catch (caught) {
-        if (caught instanceof StaleWorkspaceOperationError) return
+        if (caught instanceof StaleWorkspaceOperationError
+          || !isCurrentWorkspace(generation, expectedStore)) return
         setError(caught instanceof Error ? caught.message : 'Layer update failed')
-        await reload(generation, expectedStore)
+        await reload(generation, expectedStore, true)
       }
     })
   }
@@ -1382,9 +1395,10 @@ export function AnnotationWorkspace({
         requireCurrentWorkspace(generation, expectedStore)
         autosaveRef.current?.reset(loadedVersion)
       } catch (caught) {
-        if (caught instanceof StaleWorkspaceOperationError) return
+        if (caught instanceof StaleWorkspaceOperationError
+          || !isCurrentWorkspace(generation, expectedStore)) return
         setError(caught instanceof Error ? caught.message : 'Layer reorder failed')
-        await reload(generation, expectedStore)
+        await reload(generation, expectedStore, true)
       }
     })
   }

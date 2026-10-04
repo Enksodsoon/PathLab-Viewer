@@ -420,6 +420,18 @@
       ]
     },
     {
+      "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.12.tgz",
+      "checksum": "sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==",
+      "id": "npm:brace-expansion@5.0.12",
+      "notices": [
+        {
+          "member": "package/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e",
+          "sha256": "9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e"
+        }
+      ]
+    },
+    {
       "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.9.tgz",
       "checksum": "sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==",
       "id": "npm:brace-expansion@5.0.9",
@@ -1510,6 +1522,18 @@
       ]
     },
     {
+      "artifact": "https://registry.npmjs.org/undici/-/undici-8.10.2.tgz",
+      "checksum": "sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==",
+      "id": "npm:undici@8.10.2",
+      "notices": [
+        {
+          "member": "package/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
+          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+        }
+      ]
+    },
+    {
       "artifact": "https://registry.npmjs.org/universalify/-/universalify-2.0.1.tgz",
       "checksum": "sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==",
       "id": "npm:universalify@2.0.1",
@@ -2053,6 +2077,18 @@
       ]
     },
     {
+      "artifact": "https://files.pythonhosted.org/packages/02/a5/5197bfd06417837ac079921c66fa6393f1dea3557272a263cebfef69e432/pyjwt-2.15.0.tar.gz",
+      "checksum": "sha256:b11c5f9791d7bf51c2b39a81ed669f6b2dbbd669df2942f6c60167e9e3d1abe4",
+      "id": "pypi:pyjwt@2.15.0",
+      "notices": [
+        {
+          "member": "pyjwt-2.15.0/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5",
+          "sha256": "797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5"
+        }
+      ]
+    },
+    {
       "artifact": "https://files.pythonhosted.org/packages/6a/53/ed9d74092561d4b01a2ef1349d52cdbc135e526c245f366b089cfca6de49/python_dotenv-1.2.3.tar.gz",
       "checksum": "sha256:a20a594dabeaa385725aa239d5244871c143ecb356add8a20fcf23773a6c3a35",
       "id": "pypi:python-dotenv@1.2.3",
@@ -2090,6 +2126,23 @@
           "member": "pyyaml-6.0.3/LICENSE",
           "path": "docs/supply-chain/notice-material/sha256/8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4",
           "sha256": "8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4"
+        }
+      ]
+    },
+    {
+      "artifact": "https://files.pythonhosted.org/packages/34/26/f5d29e25ffdb535afef2d35cdb55b325298f96debd670da4c325e08d70f4/setuptools-83.0.0.tar.gz",
+      "checksum": "sha256:025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef",
+      "id": "pypi:setuptools@83.0.0",
+      "notices": [
+        {
+          "member": "setuptools-83.0.0/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741",
+          "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+        },
+        {
+          "member": "setuptools-83.0.0/setuptools/config/NOTICE",
+          "path": "docs/supply-chain/notice-material/sha256/2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8",
+          "sha256": "2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8"
         }
       ]
     },
@@ -2160,6 +2213,18 @@
           "member": "typing_inspection-0.4.4/LICENSE",
           "path": "docs/supply-chain/notice-material/sha256/804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3",
           "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3"
+        }
+      ]
+    },
+    {
+      "artifact": "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz",
+      "checksum": "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63",
+      "id": "pypi:urllib3@2.8.0",
+      "notices": [
+        {
+          "member": "urllib3-2.8.0/LICENSE.txt",
+          "path": "docs/supply-chain/notice-material/sha256/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686",
+          "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
         }
       ]
     },
