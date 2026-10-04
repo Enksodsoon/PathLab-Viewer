@@ -148,7 +148,7 @@ def campaign(
                 number = len(list(attempt_root.glob("attempt-*"))) + 1
                 artifact_dir = attempt_root / f"attempt-{number:04d}"
                 admission_seconds = time.monotonic() - admission_started
-                remaining = max(1, int(600 - admission_seconds))
+                remaining = max(0, int(600 - admission_seconds))
                 if remaining > 0:
                     result = run_warm_bounded(
                         Path(pair["reference"]["path"]),

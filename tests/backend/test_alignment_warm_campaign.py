@@ -92,3 +92,47 @@ def test_changed_runtime_invalidates_previous_receipts(controller, tmp_path, mon
     controller.campaign(_manifest(), tmp_path, frozen_manifest_sha="c" * 64, source_head="d" * 40)
     assert len(calls) == 288
     assert len(list((tmp_path / "cache").glob("*.json"))) == 288
+
+
+def test_exhausted_admission_records_two_failures_without_supervisor_call(
+    controller, tmp_path, monkeypatch
+):
+    clock = iter(
+        value for n in range(144) for value in (n * 1000, n * 1000 + 0.5, n * 1000 + 600.5)
+    )
+    monkeypatch.setattr(controller.time, "monotonic", lambda: next(clock))
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("exhausted admission must not invoke the child supervisor")
+
+    monkeypatch.setattr(controller, "run_warm_bounded", forbidden)
+    report = controller.campaign(
+        _manifest(), tmp_path, frozen_manifest_sha="c" * 64, source_head="d" * 40
+    )
+    assert len(report["rows"]) == 144
+    assert sum(len(row["invocations"]) for row in report["rows"]) == 288
+    assert all(
+        invocation["invocationExecuted"] is False
+        and invocation["failureType"] == "AdmissionBudgetExhausted"
+        for row in report["rows"]
+        for invocation in row["invocations"]
+    )
+
+
+def test_fractional_admission_grant_rounds_down_without_extending_deadline(
+    controller, tmp_path, monkeypatch
+):
+    clock = iter(value for n in range(144) for value in (n * 1000, n * 1000 + 0.25, n * 1000 + 0.5))
+    monkeypatch.setattr(controller.time, "monotonic", lambda: next(clock))
+    calls = []
+
+    def trial(*args, **kwargs):
+        calls.append(kwargs)
+        return {"terminalContainmentVerified": True, "invocations": []}
+
+    monkeypatch.setattr(controller, "run_warm_bounded", trial)
+    controller.campaign(_manifest(), tmp_path, frozen_manifest_sha="c" * 64, source_head="d" * 40)
+    assert len(calls) == 144
+    assert all(call["timeout_seconds"] == 599 for call in calls)
+    assert [call["absolute_deadline"] for call in calls] == [n * 1000 + 600 for n in range(144)]
+    assert all(call["settings"]["timeoutSeconds"] == 600 for call in calls)
