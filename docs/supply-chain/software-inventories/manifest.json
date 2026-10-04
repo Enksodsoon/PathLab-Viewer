@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "93c2948c86a5185cc2a04ec9cf3107a37bd9059f62ccd3d3316612c0ec89de87",
+      "sha256": "63ccf1fb2824615af89cf14c820dbafb0ac0fedb5e3d5e222bde62b9f762fd4e",
       "sizeBytes": 734963
     },
     {
       "path": "build.spdx.json",
-      "sha256": "4f205604ea4068bfea7e2f3bba327af09a33aeac46858507f8ae3f6822fb5453",
+      "sha256": "98d0a0a4995b60982fc16ad7d16cb1d7d8b0d14ea5b9bfa4f50181246cb028a2",
       "sizeBytes": 594081
     },
     {
       "path": "source.cdx.json",
-      "sha256": "c0ff238227faf24642952161814112ef4184f9f99ff65ca72f5cf4a129a92395",
+      "sha256": "f884c0a531fb32b7b04bfe699d1d8ec071fb09b738ac53fb9a27a06dfad3c9d3",
       "sizeBytes": 777517
     },
     {
       "path": "source.spdx.json",
-      "sha256": "494ac3740966180b899e7fe65493aec8705c62478f442af381b5cfc8fc7dc2f1",
+      "sha256": "080561cfe8ba30e343d6310a00012b51e9cce2043b9c07ca7e0e5f1ac400ba9f",
       "sizeBytes": 627731
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-04T11:27:14Z",
+  "generatedAt": "2026-10-04T13:50:11Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -129,9 +129,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "61ffde1b37f6daa1c290fc3e2efc65afa3fba6db",
+      "gitBlob": "f5ca6417c37d337f9c199f206e08ab9e414460f0",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "3cb321eae7ec494e0e91afd5b03603cf9e09c165a7828272d44f384a6a5a076a",
+      "sha256": "0607c063f7fddd709e8e30d84e4f4f33eaa006b0f4f6476cabe7491379a50a06",
       "sizeBytes": 833657
     },
     {
@@ -183,9 +183,9 @@
       "sizeBytes": 37287
     },
     {
-      "gitBlob": "d348d9c1903add6db3fd2e07faadebb1a623d048",
+      "gitBlob": "02426df0c91196be281b07e0f1aab2447d4db43c",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "0905d4851c37bc582436ceb231dae0f50455612b837cb733d6937182894b5a53",
+      "sha256": "7c54cfb0b20abc0e7e398f7022140e20507e2b04d4c056f821b95da69faf8056",
       "sizeBytes": 881008
     },
     {
@@ -1610,6 +1610,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "90b5f8327a52de082f77f6776d2aa2e5b71c98bd",
-  "subjectTree": "311f3e4deedb9e571e93c72adea8b3d97fb53100"
+  "subjectCommit": "8a5c75123eccf9ca6a291d3a62ac1129cf49c027",
+  "subjectTree": "5503a7b2805a15fc84f3a6d863e625341a584e61"
 }
