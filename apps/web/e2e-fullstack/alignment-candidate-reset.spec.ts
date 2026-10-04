@@ -126,9 +126,32 @@ test('alignment candidate support retains current overview and direct pane Reset
     resetReceipts.push({ method: method === 'pointer' && testInfo.project.use.hasTouch ? 'touch' : method, bounds, panned, resetView, applied: (await rows()).at(-1) })
   }
   const savedViews = await Promise.all([viewFor(fixture.anchorId), viewFor(fixture.sourceId)])
-  await page.getByText('Advanced', { exact: true }).click()
-  await page.getByText('Registration engine candidates', { exact: true }).click()
+  const advancedSummary = page.getByText('Advanced', { exact: true })
+  const candidatesSummary = page.getByText('Registration engine candidates', { exact: true })
   const preview = page.getByRole('button', { name: `Preview ${candidate.engine} for ${current.members[1].displayName}` })
+  const advancedKeyboardReceipts: unknown[] = []
+  if (!testInfo.project.use.hasTouch) {
+    await advancedSummary.focus()
+    await expect(advancedSummary).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(candidatesSummary).toBeVisible()
+    await expect(advancedSummary).toBeFocused()
+    await candidatesSummary.click()
+    await expect(preview).toBeVisible()
+    await expect(preview).toBeEnabled()
+    await candidatesSummary.click()
+    await expect(preview).not.toBeVisible()
+    await advancedSummary.focus()
+    await page.keyboard.press('Space')
+    await expect(candidatesSummary).not.toBeVisible()
+    await expect(advancedSummary).toBeFocused()
+    advancedKeyboardReceipts.push({
+      openKey: 'Enter', closeKey: 'Space', candidateControlsVisibleWhileOpen: true,
+      candidateSectionHiddenAfterClose: true, focusRetainedOnSummary: true,
+    })
+  }
+  await advancedSummary.click()
+  await candidatesSummary.click()
   await expect(preview).toBeEnabled()
   await expect(page.getByRole('button', { name: `Promote ${candidate.engine} for ${current.members[1].displayName}` })).toBeDisabled()
   await preview.click()
@@ -190,5 +213,5 @@ test('alignment candidate support retains current overview and direct pane Reset
   await expect(preview).toBeDisabled()
   await page.getByText('Advanced', { exact: true }).click()
   await page.screenshot({ path: testInfo.outputPath('candidate-source-invalidated.png'), fullPage: true })
-  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', resetReceipts, supportReceipts, restoredFields, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
+  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', resetReceipts, advancedKeyboardReceipts, supportReceipts, restoredFields, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
 })
