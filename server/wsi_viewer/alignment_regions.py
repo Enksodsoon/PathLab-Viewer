@@ -27,7 +27,12 @@ class RegionRejected(ValueError):
 
 
 def slide_version(slide: Slide) -> str:
-    """Bind content and the original pixel/physical frame to an opaque snapshot."""
+    """Bind content and the original pixel/physical frame to an opaque snapshot.
+
+    Without a checksum, the model's general updated_at is the only persisted
+    revision marker. Cosmetic edits conservatively invalidate that fallback;
+    pixel changes must advance it. Checksum-bound maps ignore cosmetic edits.
+    """
     content = slide.sha256
     if not content:
         timestamp = slide.updated_at

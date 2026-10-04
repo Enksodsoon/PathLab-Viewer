@@ -24,7 +24,15 @@ def registration_frame_current(
     *,
     source_metadata: dict[str, Any] | None = None,
     anchor_metadata: dict[str, Any] | None = None,
+    source_snapshot_version: str | None = None,
+    anchor_snapshot_version: str | None = None,
 ) -> bool:
+    for key, snapshot in (
+        ("sourceSnapshotVersion", source_snapshot_version),
+        ("anchorSnapshotVersion", anchor_snapshot_version),
+    ):
+        if snapshot is not None and value.get(key) != snapshot:
+            return False
     settings = value.get("engineSettings") or {}
     if not isinstance(settings, dict):
         return False
@@ -72,6 +80,8 @@ def current_registration(
     anchor_case_id: str | None = None,
     source_metadata: dict[str, Any] | None = None,
     anchor_metadata: dict[str, Any] | None = None,
+    source_snapshot_version: str | None = None,
+    anchor_snapshot_version: str | None = None,
     input_frame_current: bool = True,
 ) -> dict[str, Any] | None:
     if not value:
@@ -95,7 +105,11 @@ def current_registration(
         and value.get("anchorVersion") not in {None, anchor_version}
     )
     incompatible_source |= not input_frame_current or not registration_frame_current(
-        value, source_metadata=source_metadata, anchor_metadata=anchor_metadata
+        value,
+        source_metadata=source_metadata,
+        anchor_metadata=anchor_metadata,
+        source_snapshot_version=source_snapshot_version,
+        anchor_snapshot_version=anchor_snapshot_version,
     )
     if str(value.get("provenance", "")).startswith(("manual", "automatic")):
         incompatible_source |= (
@@ -136,6 +150,8 @@ def current_registration(
                 anchor_version=value.get("anchorVersion"),
                 source_metadata=source_metadata,
                 anchor_metadata=anchor_metadata,
+                source_snapshot_version=source_snapshot_version,
+                anchor_snapshot_version=anchor_snapshot_version,
             )
             if (
                 not compatible

@@ -268,6 +268,8 @@ def _live_input_frame_current(
         registration,
         source_metadata=source.slide_metadata or {},
         anchor_metadata=anchor.slide_metadata or {},
+        source_snapshot_version=slide_version(source) if not source.sha256 else None,
+        anchor_snapshot_version=slide_version(anchor) if not anchor.sha256 else None,
     ):
         return False
     settings = registration.get("engineSettings") or {}
@@ -1540,6 +1542,14 @@ def register_alignment_routes(
             "anchorVersion": members[anchor_id].sha256,
             "sourceFrameVersion": metadata_frame_digest(members[slide_id].slide_metadata or {}),
             "anchorFrameVersion": metadata_frame_digest(members[anchor_id].slide_metadata or {}),
+            **(
+                {"sourceSnapshotVersion": slide_version(members[slide_id])}
+                if not members[slide_id].sha256 else {}
+            ),
+            **(
+                {"anchorSnapshotVersion": slide_version(members[anchor_id])}
+                if not members[anchor_id].sha256 else {}
+            ),
             "anchorSlideId": anchor_id,
             "coordinateReferenceId": anchor_id,
             "movingToReference": transform.tolist(),
@@ -1568,6 +1578,12 @@ def register_alignment_routes(
             anchor_case_id=members[anchor_id].case_id,
             source_metadata=members[slide_id].slide_metadata or {},
             anchor_metadata=members[anchor_id].slide_metadata or {},
+            input_frame_current=_live_input_frame_current(
+                item.registrations.get(slide_id) or {},
+                members[slide_id],
+                members[anchor_id],
+                storage,
+            ),
         )
         overview = (previous or {}).get("overviewFallback") or previous
         if (
