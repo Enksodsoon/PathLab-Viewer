@@ -63,7 +63,25 @@ method qualification are tracked separately in
 
 ## Remaining qualification limits
 
-Windows x64 is the measured platform. This host has no available Docker Linux
+Post-screening repairs have separate evidence from the frozen baseline above.
+The [ordered-pane browser receipt](alignment-results/ui-navigation-2026-10-04/matrix-observations.json)
+records 192 supported navigation samples and 48 unsupported fields across four
+browsers, with hidden references, reversed navigation, declared unit conversion,
+unequal per-axis calibration and rotation. These mathematical fixtures verify
+actual OpenSeadragon coordinates and rendered pixels, not anatomical matching.
+The mobile run additionally verifies 24 scale-notice/control bounds checks;
+desktop receipts explicitly bind the code before the final notice/bar repair.
+
+An [actual Linux x64 stdlib containment receipt](alignment-results/platform-2026-10-04/linux-containment-x64.json)
+records four successful completion, root-exit, timeout and cancellation cases.
+Each verifies terminal state for two descendants, including a TERM-resistant
+grandchild in a new process group, while preserving an unrelated process.
+This proves owned-session cleanup on WSL2/Python 3.14.4; it does not verify the
+heavy registration runtime or ARM64. Descendants that create another session
+require the deployment's cgroup boundary. The owned fixture processes exited;
+Ubuntu remains running because an unrelated shell's ownership was uncertain.
+
+Registration performance is measured on Windows x64. This host has no available Docker Linux
 engine, so Linux ARM64 runtime validation remains pending. PostgreSQL-dependent
 checks and optional-runtime skips are not counted as passes. Published screening
 landmarks lack physical calibration; local development slide calibration lacks

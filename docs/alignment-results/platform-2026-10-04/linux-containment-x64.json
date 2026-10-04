@@ -1,0 +1,40 @@
+{
+  "schema": "pathlab-linux-containment-smoke/1",
+  "measuredAtUtc": "2026-10-04T07:26:05Z",
+  "python": "3.14.4",
+  "kernel": "6.18.33.2-microsoft-standard-WSL2",
+  "architecture": "x86_64",
+  "gitHead": "2c2db249901d41739c1ef2773ac25572052e8a8a",
+  "smokeSha256": "3d6129723e636ffd7f15e793b46fe67ede5ac5e2e317bf418229f2ecb5adf980",
+  "helperSha256": "ef28deac6da58248b477c7c8a4e68d1119193b3d750219d39d8b9d2a0b1fd2d8",
+  "cases": [
+    {
+      "termResistantNewProcessGroup": true,
+      "descendantsTerminal": 2,
+      "unrelatedProcessUnaffected": true,
+      "mode": "normal"
+    },
+    {
+      "termResistantNewProcessGroup": true,
+      "descendantsTerminal": 2,
+      "unrelatedProcessUnaffected": true,
+      "mode": "root-exit"
+    },
+    {
+      "termResistantNewProcessGroup": true,
+      "descendantsTerminal": 2,
+      "unrelatedProcessUnaffected": true,
+      "mode": "timeout"
+    },
+    {
+      "termResistantNewProcessGroup": true,
+      "descendantsTerminal": 2,
+      "unrelatedProcessUnaffected": true,
+      "mode": "cancel"
+    }
+  ],
+  "scope": "owned-session; descendants creating a new session require cgroup containment",
+  "arm64": "pending CI",
+  "fixtureProcessesRemaining": 0,
+  "ubuntuLifecycle": "Originally stopped; started for this stdlib probe; remains running because ownership of startup login/root-bash shell is uncertain. Root instructed preservation."
+}
