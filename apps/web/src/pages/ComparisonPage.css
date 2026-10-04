@@ -69,3 +69,6 @@
 @media (prefers-reduced-motion: reduce) {
   .comparison-shell *, .comparison-shell *::before, .comparison-shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Keep scale explanations above the rotation and scale-bar controls in narrow panes. */
+.comparison-shell .comparison-relative-scale { bottom: 72px; max-width: calc(100% - 24px); width: fit-content; box-sizing: border-box; font: 11px/1.3 var(--font-ui); overflow-wrap: anywhere; }

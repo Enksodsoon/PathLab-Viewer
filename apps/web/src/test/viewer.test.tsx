@@ -97,7 +97,7 @@ function publicSlideResponse() {
     state: 'published',
     tileSource: '/tiles/public-1/slide.dzi',
     thumbnailUrl: '/tiles/public-1/thumbnail.jpg',
-    metadata: { width: 24970, height: 31087, physicalSizeX: 0.5476 },
+    metadata: { width: 24970, height: 31087, physicalSizeX: 0.5476, physicalSizeY: 0.5476, physicalSizeUnit: 'um' },
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
@@ -495,6 +495,7 @@ it('loads public metadata and exposes responsive viewer controls', async () => {
           width: 24970,
           height: 31087,
           physicalSizeX: 0.5476,
+          physicalSizeY: 0.5476,
           physicalSizeUnit: 'MICROMETER',
         },
       }),
@@ -533,7 +534,7 @@ it('keeps the authenticated private-preview API branch intact', async () => {
         errorMessage: null,
         tileSource: '/api/v1/admin/slides/private-1/tiles/slide.dzi',
         thumbnailUrl: '/api/v1/admin/slides/private-1/thumbnail',
-        metadata: { width: 2048, height: 1024, physicalSizeX: 0.5 },
+        metadata: { width: 2048, height: 1024, physicalSizeX: 0.5, physicalSizeY: 0.5, physicalSizeUnit: 'um' },
         annotationsEnabled: false,
         annotationVersion: 0,
         createdAt: '2026-07-26T00:00:00Z',
@@ -763,4 +764,45 @@ it.each(['/tiles/s/0/0_0.jpg', '/_pathlab_ome/7/0_0.jpg'])('samples slow tile re
     cleanup()
     Object.defineProperty(globalThis, 'PerformanceObserver', { configurable: true, value: previous })
   }
+})
+
+it('uses the horizontal screen axis for an anisotropic scale bar after rotation', () => {
+  const onScaleChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" micronsPerPixel={0.25} micronsPerPixelY={0.5} onReady={() => {}} onScaleChange={onScaleChange} />)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(90)
+  emitViewerEvent('open')
+  const [microns, width] = onScaleChange.mock.calls.at(-1)!
+  expect(microns / width).toBeCloseTo(0.5 / 2)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(0)
+})
+
+it('refreshes the anisotropic physical scale immediately on rotation', () => {
+  const onScaleChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" micronsPerPixel={0.25} micronsPerPixelY={0.5} onReady={() => {}} onScaleChange={onScaleChange} />)
+  emitViewerEvent('open')
+  expect(onScaleChange.mock.calls.at(-1)![0] / onScaleChange.mock.calls.at(-1)![1]).toBeCloseTo(0.25 / 2)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(90)
+  try {
+    emitViewerEvent('rotate')
+    expect(onScaleChange).toHaveBeenCalledTimes(2)
+    const [microns, width] = onScaleChange.mock.calls.at(-1)!
+    expect(microns / width).toBeCloseTo(0.5 / 2)
+  } finally { osdMock.viewer.viewport.getRotation.mockReturnValue(0) }
+})
+
+it('reports actual visible image bounds alongside user navigation coordinates', () => {
+  const onViewportChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={() => {}} onViewportChange={onViewportChange} />)
+  fireEvent.pointerDown(document.querySelector('.osd-surface')!)
+  emitViewerEvent('animation-finish')
+  expect(onViewportChange).toHaveBeenCalledWith(expect.objectContaining({ visibleBounds: [-200, -150, 400, 300], centerX: 0, centerY: 0, imageZoom: 2 }), undefined)
+})
+
+it.each([{ size: 0.25, unit: 'um' }, { size: 250, unit: 'nm' }, { size: 0.00025, unit: 'mm' }])('renders the same physical scale bar for declared $unit metadata', async ({ size, unit }) => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ publicId: 'public-1', displayName: 'Calibrated image', state: 'published', tileSource: '/tiles/public-1/slide.dzi', metadata: { width: 640, height: 480, physicalSizeX: size, physicalSizeY: size, physicalSizeUnit: unit } }), { status: 200 })))
+  render(<ThemeProvider><MemoryRouter initialEntries={['/slide/public-1']}><Routes><Route path="/slide/:publicId" element={<ViewerPage />} /></Routes></MemoryRouter></ThemeProvider>)
+  await screen.findByText('Calibrated image')
+  act(() => emitViewerEvent('open'))
+  expect(screen.getByText('10 µm')).toBeVisible()
+  expect(document.querySelector('.scale-bar i')).toHaveStyle({ width: '80px' })
 })

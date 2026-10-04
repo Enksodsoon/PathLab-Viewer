@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import OpenSeadragon from 'openseadragon'
+import { horizontalMicronsPerPixel } from '../calibration'
 
 import {
   initialViewerNetworkState,
@@ -44,6 +45,7 @@ interface Props {
   posterUrl?: string | null
   onReady: (handle: ViewerHandle) => void
   micronsPerPixel?: number | null
+  micronsPerPixelY?: number | null
   onScaleChange?: (microns: number, width: number) => void
   onViewerAttach?: ViewerAttachmentCallback
   networkProfile?: ViewerNetworkProfile
@@ -79,6 +81,7 @@ export function OpenSeadragonViewer({
   posterUrl,
   onReady,
   micronsPerPixel,
+  micronsPerPixelY,
   onScaleChange,
   onViewerAttach,
   networkProfile,
@@ -97,6 +100,7 @@ export function OpenSeadragonViewer({
   const onReadyRef = useRef(onReady)
   const modeRef = useRef<ViewerLoadingMode>('auto')
   const micronsPerPixelRef = useRef(micronsPerPixel)
+  const micronsPerPixelYRef = useRef(micronsPerPixelY)
   const onScaleChangeRef = useRef(onScaleChange)
   const attachmentCallbackRef = useRef(onViewerAttach)
   const networkProfileRef = useRef(networkProfile)
@@ -195,6 +199,7 @@ export function OpenSeadragonViewer({
     tileSourceRef.current = tileSource
     onReadyRef.current = onReady
     micronsPerPixelRef.current = micronsPerPixel
+    micronsPerPixelYRef.current = micronsPerPixelY
     onScaleChangeRef.current = onScaleChange
     viewportChangeRef.current = onViewportChange
     onOpenRef.current = onOpen
@@ -222,6 +227,7 @@ export function OpenSeadragonViewer({
     attachViewerAttachment,
     detachViewerAttachment,
     micronsPerPixel,
+    micronsPerPixelY,
     onReady,
     onScaleChange,
     onViewportChange,
@@ -344,7 +350,8 @@ export function OpenSeadragonViewer({
         const reportScale = onScaleChangeRef.current
         if (!viewer || !scale || !reportScale) return
         const imageZoom = viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true))
-        const micronsPerScreenPixel = scale / imageZoom
+        const horizontalScale = horizontalMicronsPerPixel([scale, micronsPerPixelYRef.current ?? scale], viewer.viewport.getRotation())
+        const micronsPerScreenPixel = horizontalScale / imageZoom
         const microns = niceScale(micronsPerScreenPixel * 90)
         reportScale(microns, microns / micronsPerScreenPixel)
       }
@@ -430,7 +437,9 @@ export function OpenSeadragonViewer({
       const reportViewport = () => {
         if (!viewer || (!navigationTransaction.current && !userNavigation.current)) return
         const center = viewer.viewport.viewportToImageCoordinates(viewer.viewport.getCenter(true))
+        const imageBounds = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds(true))
         viewportChangeRef.current?.({
+          visibleBounds: [imageBounds.x, imageBounds.y, imageBounds.width, imageBounds.height],
           centerX: center.x,
           centerY: center.y,
           imageZoom: viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)),
@@ -462,7 +471,7 @@ export function OpenSeadragonViewer({
       viewer.addHandler('pan', scheduleViewportReport)
       viewer.addHandler('zoom', scheduleViewportReport)
       viewer.addHandler('after-resize', () => { window.requestAnimationFrame(() => { if (viewerRef.current === readyViewer) updateScale() }) })
-      viewer.addHandler('rotate', () => { if (!applyingViewport.current) reportViewport() })
+      viewer.addHandler('rotate', () => { if (!applyingViewport.current) { updateScale(); reportViewport() } })
       viewer.addHandler('open-failed', () => {
         reportLoadingError()
         scheduleReconnect()

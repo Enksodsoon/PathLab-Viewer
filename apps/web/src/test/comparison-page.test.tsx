@@ -8,9 +8,10 @@ import { ComparisonPage } from '../pages/ComparisonPage'
 const viewportHarness = vi.hoisted(() => ({ enabled: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
-  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange, loadingMode, showLoadingMode }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean }) => <button
+  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange, loadingMode, showLoadingMode, micronsPerPixel }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean, micronsPerPixel?: number | null }) => <button
     type="button"
     aria-label={`Viewer ${tileSource}`}
+    data-mpp={micronsPerPixel ?? "relative"}
     data-loading-mode={loadingMode}
     data-loading-control={showLoadingMode === false ? 'hidden' : 'shown'}
     onClick={() => {
@@ -34,7 +35,7 @@ beforeEach(() => {
     id: 'set-1', name: 'Multi-stain set', referenceSlideId: 'slide-1', status: 'ready', version: 1,
     members: Array.from({ length: 5 }, (_, index) => ({
       slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
-      tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25 },
+      tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
       registration: index === 0 ? null : index === 4
         ? { status: 'rejected', provenance: 'automatic' }
         : { status: 'ready', provenance: 'automatic', movingToReference: [[1, 0, 0], [0, 1, 0]], movingSupport: null, referenceSupport: null, triangles: [{ moving: [[0, 0], [1000, 0], [0, 800]], reference: [[0, 0], [1000, 0], [0, 800]] }] },
@@ -251,7 +252,7 @@ it('shows durable automatic alignment progress for every stack member', async ()
       id: 'set-1', name: 'Renal Test', referenceSlideId: 'slide-1', status: 'running', version: 4,
       members: Array.from({ length: 4 }, (_, index) => ({
         slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: ['H&E', 'PAS', 'Silver', 'Trichrome'][index],
-        tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25 },
+        tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: index === 1 ? { status: 'approximate', provenance: 'automatic', overviewTriangles: [] } : null,
       })),
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
@@ -279,8 +280,8 @@ it('keeps the current map usable while a replacement registration runs', async (
     : new Response(JSON.stringify({
       id: 'set-1', name: 'Rerunning set', referenceSlideId: 'slide-1', status: 'running', version: 2,
       members: [
-        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
-        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] } },
+        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] } },
       ],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
 
@@ -301,8 +302,8 @@ it('does not offer promotion for a locally unqualified engine map', async () => 
       candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'current', settingsDigest: 'current', currentSettings: true, status: 'ready', validationState: 'engineering_passed', registration: { status: 'ready', provenance: 'automatic-candidate', evidence: { hisalignLocalEvidenceQualified: false } }, evidence: {}, artifactSha256: null, failureReason: null, createdAt: '2026-09-28T00:00:00Z' }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     return new Response(JSON.stringify({ id: 'set-1', name: 'Unsafe candidate set', referenceSlideId: 'slide-1', status: 'partial', version: 1, members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
-      { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+      { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
     ] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
   const user = userEvent.setup()
@@ -364,8 +365,8 @@ it.each([{ status: 'partial', currentSettings: true }, { status: 'running', curr
     return new Response(JSON.stringify({
       id: 'set-1', name: setReads > 1 ? 'Refreshed preview set' : 'Candidate preview set', referenceSlideId: 'slide-1', status, version: 1,
       members: [
-        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
-        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: savedRegistration },
+        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
+        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: savedRegistration },
       ],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
@@ -473,9 +474,9 @@ it('labels short overview gaps approximate instead of freezing the linked pane',
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Mixed evidence set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
       {
-        slideId: 'slide-2', displayName: 'Silver', stain: 'Silver', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 },
+        slideId: 'slide-2', displayName: 'Silver', stain: 'Silver', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: {
           status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [],
           overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }],
@@ -498,9 +499,9 @@ it('automatically uses and labels an order-preserving component overview', async
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Ordered component set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
       {
-        slideId: 'slide-2', displayName: 'Silver', stain: 'Silver', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 },
+        slideId: 'slide-2', displayName: 'Silver', stain: 'Silver', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: {
           status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [],
           overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }],
@@ -523,9 +524,9 @@ it('automatically uses and labels a whole-slide structural overview', async () =
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Whole-slide structural set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
-      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null },
       {
-        slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1030, height: 860, physicalSizeX: 0.25 },
+        slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1030, height: 860, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' },
         registration: {
           status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1.08, 10]], triangles: [],
           overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 550]] }],
@@ -746,7 +747,7 @@ it('lets an administrator save a direct serial-section anchor and queue registra
     alignmentConfig: { anchors: { 'slide-4': 'slide-3' } },
     members: Array.from({ length: 5 }, (_, index) => ({
       slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
-      tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null,
+      tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.25, physicalSizeUnit: 'um' }, registration: null,
     })),
   }
   vi.mocked(fetch).mockImplementation(async (_input, init) => init?.method === 'PATCH'
@@ -831,4 +832,63 @@ it('keeps native overview preview-only and benchmarks its explicit availability 
   expect(screen.getByRole('button', { name: 'Promote native-v12 for Slide 2' })).toBeEnabled()
   await user.click(screen.getByRole('button', { name: 'Benchmark engines' }))
   await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith('/benchmark') && JSON.parse(String(init?.body)).engines.includes('native-overview-v6'))).toBe(true))
+})
+
+it.each([{ value: 250, unit: 'nm' }, { value: 0.00025, unit: 'mm' }, { value: 0.25, unit: 'UnitsLength.MICROMETER' }])('uses equivalent declared $unit calibration for physical zoom and scale bars', async ({ value, unit }) => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const result = await (await originalFetch(input, init)).json()
+    if (result.members) {
+      result.members[0].metadata = { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.5, physicalSizeUnit: 'um' }
+      result.members[1].metadata = { width: 1000, height: 800, physicalSizeX: value, physicalSizeY: value * 2, physicalSizeUnit: unit }
+    }
+    return new Response(JSON.stringify(result), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', expect.objectContaining({ imageZoom: 2 })))
+  expect(screen.getByLabelText('Viewer /tiles/2.dzi')).toHaveAttribute('data-mpp', '0.25')
+  expect(screen.queryByText(/Approximate physical scale/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/cannot match both/)).not.toBeInTheDocument()
+})
+
+it.each([undefined, 'pixels', 'furlongs'])('keeps undeclared or unknown %s units relative', async (unit) => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const result = await (await originalFetch(input, init)).json()
+    if (result.members) for (const member of result.members) member.metadata = { ...member.metadata, physicalSizeX: 250, physicalSizeY: 250, physicalSizeUnit: unit }
+    return new Response(JSON.stringify(result), { status: 200 })
+  })
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  expect(screen.getByLabelText('Viewer /tiles/2.dzi')).toHaveAttribute('data-mpp', 'relative')
+  expect(screen.getAllByText(/Relative scale:/)).toHaveLength(2)
+})
+
+it('matches horizontal physical scale using both axes and the mapped target rotation', async () => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const result = await (await originalFetch(input, init)).json()
+    if (result.members) {
+      result.members[0].metadata = { width: 1000, height: 800, physicalSizeX: 0.25, physicalSizeY: 0.5, physicalSizeUnit: 'um' }
+      result.members[1].metadata = { width: 1000, height: 800, physicalSizeX: 500, physicalSizeY: 2000, physicalSizeUnit: 'nm' }
+      result.members[1].registration.triangles = [{ moving: [[0, 0], [1000, 0], [0, 800]], reference: [[1000, 0], [1000, 1000], [200, 0]] }]
+    }
+    return new Response(JSON.stringify(result), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 600, centerY: 250, imageZoom: 2, rotation: 90 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', expect.objectContaining({ imageZoom: 2, rotation: 180 })))
+  expect(screen.getAllByText('Approximate physical scale · horizontal only')).toHaveLength(2)
 })

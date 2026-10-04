@@ -15,6 +15,8 @@ export interface SlideMetadata {
   physicalSizeX?: number | null
   physicalSizeY?: number | null
   physicalSizeUnit?: string | null
+  physicalSizeXUnit?: string | null
+  physicalSizeYUnit?: string | null
 }
 
 export interface AdminSlide {

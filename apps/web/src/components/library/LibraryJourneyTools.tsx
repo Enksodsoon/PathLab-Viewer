@@ -1,3 +1,4 @@
+import { normalizedMicronsPerPixel } from '../../calibration'
 import { useEffect, useRef, useState } from 'react'
 import { getPrivateSlide } from '../../api'
 import type { AdminSlide, LibrarySlide } from '../../types'
@@ -66,7 +67,7 @@ export function LibraryJourneyTools({ slides, selected, quickLook, onQuickLook, 
       {quickLook ? <>
         <p className="library-quicklook-metadata">{[quickLook.organSite, quickLook.stain, quickLook.diagnosis].filter(Boolean).join(' · ') || 'Whole-slide image'}</p>
         <div className="library-quicklook-stage">
-          {failed ? <div role="alert"><p>Preview could not load. Your session may have expired or the slide may be unavailable.</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry preview</button></div> : preview ? <OpenSeadragonViewer key={preview.id} tileSource={preview.tileSource ?? ''} onReady={() => {}} posterUrl={preview.thumbnailUrl} micronsPerPixel={preview.metadata?.physicalSizeX} /> : <Loader label="Opening preview…" />}
+          {failed ? <div role="alert"><p>Preview could not load. Your session may have expired or the slide may be unavailable.</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry preview</button></div> : preview ? <OpenSeadragonViewer key={preview.id} tileSource={preview.tileSource ?? ''} onReady={() => {}} posterUrl={preview.thumbnailUrl} micronsPerPixel={normalizedMicronsPerPixel(preview.metadata)?.[0]} micronsPerPixelY={normalizedMicronsPerPixel(preview.metadata)?.[1]} /> : <Loader label="Opening preview…" />}
         </div>
         <button type="button" className="button primary library-quicklook-open" onClick={() => { onQuickLook(null); onPreview(quickLook) }}>Open viewer</button>
       </> : null}

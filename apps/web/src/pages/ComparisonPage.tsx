@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, benchmarkComparisonSet, cancelComparisonRegistration, correctComparisonSet, correctComparisonRegion, getComparisonCandidates, getComparisonJobs, getComparisonSet, getSharedComparisonSet, promoteComparisonCandidate, registerComparisonSet, reregisterComparisonSet, updateComparisonSet } from '../api'
 import { mapStackPoint, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, type Support } from '../alignment'
+import { horizontalMicronsPerPixel, normalizedMicronsPerPixel } from '../calibration'
 import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
 import { ComparisonCandidateReceipt } from '../components/ComparisonCandidateReceipt'
@@ -199,6 +200,7 @@ export function ComparisonPage() {
   const [linked, setLinked] = useState(true)
   const [unlinkedPanes, setUnlinkedPanes] = useState<Set<string>>(() => new Set())
   const [approximatePanes, setApproximatePanes] = useState<Set<string>>(() => new Set())
+  const [physicalScaleLimitedPanes, setPhysicalScaleLimitedPanes] = useState<Set<string>>(() => new Set())
   const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('matched')
   const [zoomMode, setZoomMode] = useState<ZoomMode>('physical')
   const [trayOpen, setTrayOpen] = useState(false)
@@ -444,6 +446,7 @@ export function ComparisonPage() {
     const approximate: string[] = []
     const approximateIds = new Set<string>()
     const suspendedIds = new Set<string>()
+    const physicalScaleLimitedIds = new Set<string>()
     for (const targetId of panes) {
       if (targetId === source.slideId) continue
       if (unlinkedPanes.has(targetId)) continue
@@ -465,15 +468,25 @@ export function ComparisonPage() {
         continue
       }
       if (mapped.approximate) { approximate.push(target.displayName); approximateIds.add(targetId) }
-      const sourceMpp = source.metadata?.physicalSizeX
-      const targetMpp = target.metadata?.physicalSizeX
+      const targetRotation = normalizeRotation(snapshot.rotation + mapped.rotation)
+      const sourceCalibration = normalizedMicronsPerPixel(source.metadata)
+      const targetCalibration = normalizedMicronsPerPixel(target.metadata)
+      const sourceMpp = sourceCalibration && horizontalMicronsPerPixel(sourceCalibration, snapshot.rotation)
+      const targetMpp = targetCalibration && horizontalMicronsPerPixel(targetCalibration, targetRotation)
       const zoomScale = zoomMode === 'physical' && sourceMpp && targetMpp
         ? targetMpp / sourceMpp
         : mapped.zoomScale
+      if (zoomMode === 'physical' && sourceCalibration && targetCalibration && sourceMpp && targetMpp) {
+        const verticalRatio = horizontalMicronsPerPixel(targetCalibration, targetRotation + 90) / horizontalMicronsPerPixel(sourceCalibration, snapshot.rotation + 90)
+        if (Math.abs(verticalRatio / zoomScale - 1) > 1e-6) {
+          physicalScaleLimitedIds.add(source.slideId)
+          physicalScaleLimitedIds.add(targetId)
+        }
+      }
       const targetViewport = {
         centerX: mapped.point[0], centerY: mapped.point[1],
         imageZoom: snapshot.imageZoom * zoomScale,
-        rotation: normalizeRotation(snapshot.rotation + mapped.rotation),
+        rotation: targetRotation,
       }
       savedViewports.current.set(targetId, targetViewport)
       const targetHandle = handles.current.get(targetId)
@@ -491,6 +504,7 @@ export function ComparisonPage() {
           } }))
       }
     }
+    setPhysicalScaleLimitedPanes(physicalScaleLimitedIds)
     setSuspendedPanes(suspendedIds)
     setApproximatePanes(approximateIds)
     setNavigationNotice(suspended.length
@@ -803,7 +817,7 @@ export function ComparisonPage() {
         <button type="button" className="comparison-link-control" disabled={!!correction || !!grouping} aria-label={linked ? 'Views linked' : 'Views independent'} aria-pressed={linked} onClick={() => { alignmentPreferenceExplicit.current = true; setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}><Link weight="bold" aria-hidden="true" /> Sync</button>
         {!publicId ? <button type="button" disabled={!!correction || !!grouping || panes.length < 2} onClick={() => startCorrection(true)}><Crosshair weight="bold" aria-hidden="true" /> Adjust region</button> : null}
       </div>
-      <details className="comparison-setup-menu" open={advancedOpen} onToggle={event => setAdvancedOpen(event.currentTarget.open)}><summary><SlidersHorizontal weight="bold" aria-hidden="true" /> Advanced</summary><div>        <label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction || !!grouping} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; alignmentPreferenceExplicit.current = true; hasInitialField.current = false; initializedPanes.current = ''; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Best available</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label>        <label className="comparison-toolbar-field"><span>Zoom</span><select disabled={!!correction || !!grouping} aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">Equal µm/pixel</option><option value="tissue">Fit corresponding tissue</option></select></label><button type="button" onClick={resetView}><ArrowCounterClockwise weight="bold" aria-hidden="true" /> Reset view</button>
+      <details className="comparison-setup-menu" open={advancedOpen} onToggle={event => setAdvancedOpen(event.currentTarget.open)}><summary><SlidersHorizontal weight="bold" aria-hidden="true" /> Advanced</summary><div>        <label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction || !!grouping} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; alignmentPreferenceExplicit.current = true; hasInitialField.current = false; initializedPanes.current = ''; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Best available</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label>        <label className="comparison-toolbar-field"><span>Zoom</span><select disabled={!!correction || !!grouping} aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">{panes.every(id => normalizedMicronsPerPixel(comparison.members.find(member => member.slideId === id)?.metadata)) ? 'Equal horizontal µm/pixel' : 'Relative scale (calibration unavailable)'}</option><option value="tissue">Fit corresponding tissue</option></select></label><button type="button" onClick={resetView}><ArrowCounterClockwise weight="bold" aria-hidden="true" /> Reset view</button>
         {!publicId ? <><button type="button" disabled={registering || !!correction || !!grouping || registrationPending} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued' } : current); setNotice('Automatic alignment queued. The current map remains active until its replacement succeeds.') }).catch(() => setNotice('Automatic alignment could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Run automatic alignment again'}</button>
         {['queued', 'running'].includes(comparison.status) || benchmarkActivity ? <button type="button" disabled={registering} onClick={() => { setRegistering(true); void cancelComparisonRegistration(comparison.id).then(() => setNotice('Registration cancellation requested.')).catch(() => setNotice('Registration could not be cancelled.')).finally(() => setRegistering(false)) }}>Cancel registration</button> : null}
         <button type="button" aria-label="Groups" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => setGrouping({ referenceId: comparison.referenceSlideId, anchors: Object.fromEntries(comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId).map((member) => [member.slideId, comparison.alignmentConfig?.anchors?.[member.slideId] ?? member.registration?.anchorSlideId ?? comparison.referenceSlideId])) })}>Reference groups</button>
@@ -919,11 +933,12 @@ export function ComparisonPage() {
               restoreNavigationAfterCorrection.current = false
               window.requestAnimationFrame(resetView)
             }
-          }} micronsPerPixel={member.metadata?.physicalSizeX} onScaleChange={(microns, width) => setScaleBars((current) => ({ ...current, [slideId]: { microns, width } }))} onViewportChange={(snapshot, transactionId) => { savedViewports.current.set(slideId, snapshot); synchronize(member, snapshot, transactionId) }} networkProfile={{ initialJobLimit: 2, maximumJobLimit: Math.max(1, Math.floor(8 / panes.length)) }} />
+          }} micronsPerPixel={normalizedMicronsPerPixel(member.metadata)?.[0]} micronsPerPixelY={normalizedMicronsPerPixel(member.metadata)?.[1]} onScaleChange={(microns, width) => setScaleBars((current) => ({ ...current, [slideId]: { microns, width } }))} onViewportChange={(snapshot, transactionId) => { savedViewports.current.set(slideId, snapshot); synchronize(member, snapshot, transactionId) }} networkProfile={{ initialJobLimit: 2, maximumJobLimit: Math.max(1, Math.floor(8 / panes.length)) }} />
           {(correction || (paneLinked && aligned && !suspended)) ? <div className="comparison-crosshair" aria-hidden="true" /> : null}
           {scaleBars[slideId] ? <div className="comparison-scale-bar" style={{ width: scaleBars[slideId].width }}><i /><span>{scaleBars[slideId].microns >= 1000 ? `${scaleBars[slideId].microns / 1000} mm` : `${scaleBars[slideId].microns} µm`}</span></div> : null}
 
-          {!member.metadata?.physicalSizeX ? <small className="comparison-relative-scale">Relative scale: physical pixel size unavailable</small> : null}
+          {((linked && zoomMode === 'physical' && alignmentMode !== 'independent' && physicalScaleLimitedPanes.has(slideId)) || normalizedMicronsPerPixel(member.metadata)?.[0] !== normalizedMicronsPerPixel(member.metadata)?.[1]) ? <small className="comparison-relative-scale">{linked && zoomMode === 'physical' && alignmentMode !== 'independent' && physicalScaleLimitedPanes.has(slideId) ? 'Approximate physical scale · horizontal only' : 'Horizontal scale · anisotropic pixels'}</small> : null}
+          {!normalizedMicronsPerPixel(member.metadata)?.[0] ? <small className="comparison-relative-scale">Relative scale: physical calibration unavailable</small> : null}
         </section>
       })}
     </main></div>

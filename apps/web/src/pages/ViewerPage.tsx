@@ -9,6 +9,7 @@ import {
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, getPrivateSlide, getPublicSlide } from '../api'
+import { normalizedMicronsPerPixel } from '../calibration'
 import { adminSignInPath } from '../authReturnPath'
 import { ignoresShortcut, readLibraryContext } from '../components/library/viewerNavigation'
 import '../components/library/viewerJourney.css'
@@ -128,7 +129,7 @@ export function ViewerPage() {
   if (loadError === 'unavailable') return <main className="viewer-message"><Brand />{returnLink}<div><h1>This slide is unavailable</h1><p>The link may be incorrect, private, or removed.</p></div></main>
   if (loadError === 'retryable') return <main className="viewer-message"><Brand />{returnLink}<div><h1>This slide could not be opened</h1><p>PathLab could not reach the slide service. Check your connection and try again.</p><button className="button primary" type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</button></div></main>
   if (!slide) return <main className="viewer-message"><Brand />{returnLink}<Loader label="Opening slide…" size="large" inline /></main>
-  const scale = slide.metadata?.physicalSizeX
+  const scale = normalizedMicronsPerPixel(slide.metadata)?.[0]
   const annotationsEnabled = Boolean(
     slideId
     && 'id' in slide
@@ -156,6 +157,7 @@ export function ViewerPage() {
         posterUrl={slide.thumbnailUrl}
         onReady={ready}
         micronsPerPixel={scale}
+        micronsPerPixelY={normalizedMicronsPerPixel(slide.metadata)?.[1]}
         onScaleChange={updateScale}
         onViewerAttach={annotationsEnabled ? annotationAttachment : undefined}
       />
@@ -189,7 +191,8 @@ export function ViewerPage() {
         <button aria-label="Home view" title="Home view" onClick={() => controls.current?.home()}><Home /></button>
         <button aria-label="Fullscreen" title="Fullscreen" onClick={() => controls.current?.fullscreen()}><Expand /></button>
       </nav>
-      {scale && <div className="scale-bar"><i style={{ width: `${scaleInfo.width}px` }} /><span>{scaleInfo.microns.toLocaleString()} µm</span></div>}
+      {!scale && <div className="scale-bar"><span>Relative scale: physical calibration unavailable</span></div>}
+      {scale && <div className="scale-bar" title={scale !== normalizedMicronsPerPixel(slide.metadata)?.[1] ? 'Horizontal physical scale (anisotropic pixels)' : undefined}><i style={{ width: `${scaleInfo.width}px` }} /><span>{scaleInfo.microns.toLocaleString()} µm{scale !== normalizedMicronsPerPixel(slide.metadata)?.[1] ? ' (horizontal)' : ''}</span></div>}
     </main>
   </div>
 }
