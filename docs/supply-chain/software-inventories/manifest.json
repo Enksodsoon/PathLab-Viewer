@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "ffebd7cfa44aa93ee00e63d53ff500641e94b06944f63291b4baf44a195eb357",
+      "sha256": "0b838253ab5ecae2853dc785e0587968068aa49b643363e4ff871de2d6b9d420",
       "sizeBytes": 736302
     },
     {
       "path": "build.spdx.json",
-      "sha256": "b22c5a4faa64089e2149f6dfd774d8a27e4b136474f2e191cf7dd63d819bb569",
+      "sha256": "5ef2321f75def40464e3d8099e6cb41bdb419c11d0447e7c0a920e0406d28cef",
       "sizeBytes": 595251
     },
     {
       "path": "source.cdx.json",
-      "sha256": "596866d7e0cce31e28d6b1dffc6be2a6b3a435b3c03d0afe53057324dcf71a2b",
+      "sha256": "34643495b32648feae00216f421ba4b6c2d9d13495be5df6af1e4e30dc6bab58",
       "sizeBytes": 778856
     },
     {
       "path": "source.spdx.json",
-      "sha256": "f2a81355cdabf7a32d0bbbd8ae0d93301c38cda6da677e8ea35dd43bfde98ca3",
+      "sha256": "766d7a59638c9f15d8f317d1f960675b77d7db8ac51b93a6bb7598f1f998a493",
       "sizeBytes": 628901
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-08T12:38:14Z",
+  "generatedAt": "2026-10-08T12:53:53Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -129,9 +129,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "495a899157933162c3d9b297524714c816a8d5b4",
+      "gitBlob": "3ba8b20374a1384c6b069c4b6603fe151dbf9345",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "99f874096f74e43abc65a58d3a1292c76e14c634c5ba451cfc2ae50ec45f82b6",
+      "sha256": "41fac40955e8303bef612a631d2f81835e329092720e195de69662179b93e8f4",
       "sizeBytes": 833073
     },
     {
@@ -153,9 +153,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "d73b00e86983d89fe3b0484bf442d0871766b879",
+      "gitBlob": "937661d6f19b1666c315dd187571b7df04b2f131",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "af2d6d7639a550d8d23a48372140d2721b33ca28647b090d54d5f9073be01bcd",
+      "sha256": "4a3dc46eeceead70ecd5591322c0415fb7a03ab9b546d66c6e440d3bff2acac3",
       "sizeBytes": 41635
     },
     {
@@ -183,9 +183,9 @@
       "sizeBytes": 37287
     },
     {
-      "gitBlob": "68f36cda81065d04d54627f6e42656308a2b84a7",
+      "gitBlob": "735eb7ffb92fa67b43845ac78163effeee9a65d3",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "125d5fa131c8fa9983240cdc4a872f2100b92e4354002ca112d9e6445807877c",
+      "sha256": "e833306d4be0870ab1f57b10df1d51eeb701e8b63affb4f9b1754567f150f7f2",
       "sizeBytes": 881008
     },
     {
@@ -1622,6 +1622,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "99f8c1e96c79dc6f19951c05d061d245ca511489",
-  "subjectTree": "324d7f6105493c8e85c35ca4cc02634a2200f8cc"
+  "subjectCommit": "812bb92319b2f9b4c8b496bdff950f3c8d51f4b0",
+  "subjectTree": "7ecdf817f4695eca42e5436eaad587916be104e0"
 }
