@@ -7,6 +7,7 @@ The slide pyramids and canonical automatic maps remain unchanged.
 from __future__ import annotations
 
 import hashlib
+import heapq
 import json
 import math
 from datetime import UTC
@@ -166,12 +167,38 @@ def _tissue(
     path: Path, bounds: tuple[int, int, int, int]
 ) -> tuple[np.ndarray[Any, Any], tuple[int, int, int]]:
     image, frame = read_region(path, bounds, maximum=512)
-    rgb = np.asarray(image.convert("RGB"), dtype=np.int16)
-    darkest = rgb.min(axis=2)
-    chroma = rgb.max(axis=2) - darkest
-    mask = ((darkest < 205) | ((darkest < 225) & (chroma > 8))).astype(np.uint8)
-    # A conservative margin around glass avoids interpolation onto unsupported pixels.
-    return cv2.erode(mask, np.ones((3, 3), np.uint8)), frame
+    rgb = np.asarray(image.convert("RGB"), dtype=np.uint8)
+    # Keep alignment._structure's foreground predicate, without its component
+    # size filters or closing: a correction ROI may contain small, thin tissue,
+    # and closing would connect separate fragments across external glass.
+    density = 255 - rgb.min(axis=2)
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    mask = ((density >= 10) & ((hsv[:, :, 1] >= 6) | (gray < 235))).astype(np.uint8)
+    # White lumina are support only when enclosed by one tissue component.
+    # Bound holes in both original pixels and decoded pixels, so downsampling
+    # never silently fills a large cavity. Exterior glass is never dilated.
+    _, tissue_labels = cv2.connectedComponents(mask, connectivity=8)
+    count, holes, stats, _ = cv2.connectedComponentsWithStats(1 - mask, connectivity=8)
+    for label in range(1, count):
+        x, y, width, height, _ = stats[label]
+        if (
+            x == 0
+            or y == 0
+            or x + width == mask.shape[1]
+            or y + height == mask.shape[0]
+            or max(width, height) > 8
+            or max(width, height) * frame[2] > 16
+        ):
+            continue
+        section = np.s_[y - 1 : y + height + 1, x - 1 : x + width + 1]
+        hole = (holes[section] == label).astype(np.uint8)
+        rim = cv2.dilate(hole, np.ones((3, 3), np.uint8)) != 0
+        neighbors = np.unique(tissue_labels[section][rim & (hole == 0)])
+        neighbors = neighbors[neighbors != 0]
+        if len(neighbors) == 1:
+            mask[section][hole != 0] = 1
+    return mask, frame
 
 
 def _polygon_supported(
@@ -185,9 +212,25 @@ def _polygon_supported(
         or (local[:, 1] >= mask.shape[0]).any()
     ):
         return False
-    selected = np.zeros_like(mask)
-    cv2.fillConvexPoly(selected, np.rint(local).astype(np.int32), 1)
-    return bool(selected.any() and np.all(mask[selected != 0] != 0))
+    raster = np.rint(local).astype(np.int32)
+    low = np.maximum(raster.min(axis=0), 0)
+    high = np.minimum(raster.max(axis=0) + 1, [mask.shape[1], mask.shape[0]])
+    if (high <= low).any():
+        return False
+    selected = np.zeros((high[1] - low[1], high[0] - low[0]), dtype=np.uint8)
+    cv2.fillConvexPoly(selected, raster - low, 1)
+    cropped = mask[low[1] : high[1], low[0] : high[0]]
+    return bool(selected.any() and np.all(cropped[selected != 0] != 0))
+
+
+def _support_near_cell(
+    points: np.ndarray[Any, Any], mask: np.ndarray[Any, Any], frame: tuple[int, int, int]
+) -> bool:
+    """Prune empty cells; this is not sufficient to accept a supported cell."""
+    local = (points - np.asarray(frame[:2])) / frame[2]
+    low = np.maximum(np.floor(local.min(axis=0)).astype(int), 0)
+    high = np.minimum(np.ceil(local.max(axis=0)).astype(int) + 1, [mask.shape[1], mask.shape[0]])
+    return bool((high > low).all() and mask[low[1] : high[1], low[0] : high[0]].any())
 
 
 def build_region_registration(
@@ -287,14 +330,38 @@ def build_region_registration(
     target_mask, target_frame = _tissue(target_path, (*target_low, *target_high))
     triangles: list[dict[str, Any]] = []
     xs, ys = np.linspace(left, left + width, 17), np.linspace(top, top + height, 17)
-    for x0, x1 in zip(xs[:-1], xs[1:], strict=True):
-        for y0, y1 in zip(ys[:-1], ys[1:], strict=True):
-            cell = np.asarray([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
-            mapped = cell @ linear.T + transform[:, 2]
-            if not _polygon_supported(cell, source_mask, source_frame) or not _polygon_supported(
-                mapped, target_mask, target_frame
-            ):
-                continue
+    pending = [
+        (x0, y0, x1, y1, 0)
+        for x0, x1 in zip(xs[:-1], xs[1:], strict=True)
+        for y0, y1 in zip(ys[:-1], ys[1:], strict=True)
+    ]
+
+    def point_priority(cell: tuple[Any, ...]) -> int:
+        x0, y0, x1, y1, _ = cell
+        return int(
+            np.sum(
+                (moving[:, 0] >= x0)
+                & (moving[:, 0] <= x1)
+                & (moving[:, 1] >= y0)
+                & (moving[:, 1] <= y1)
+            )
+        )
+
+    # Refine near selected landmarks first. All accepted cells still require
+    # every covered raster pixel supported on both slides; no nearby affine
+    # continuation is admitted. Visit/output/depth caps bound sparse masks.
+    prioritized = [(-point_priority(cell), index, cell) for index, cell in enumerate(pending)]
+    heapq.heapify(prioritized)
+    next_index = len(prioritized)
+    visits = 0
+    while prioritized and visits < 8192 and len(triangles) < 2048:
+        _, _, (x0, y0, x1, y1, depth) = heapq.heappop(prioritized)
+        visits += 1
+        cell = np.asarray([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+        mapped = cell @ linear.T + transform[:, 2]
+        if _polygon_supported(cell, source_mask, source_frame) and _polygon_supported(
+            mapped, target_mask, target_frame
+        ):
             for indices in ([0, 1, 2], [0, 2, 3]):
                 triangles.append(
                     {
@@ -304,6 +371,21 @@ def build_region_registration(
                         "provenance": "manual-region",
                     }
                 )
+        elif (
+            depth < 6
+            and max(x1 - x0, y1 - y0) > source_frame[2]
+            and _support_near_cell(cell, source_mask, source_frame)
+            and _support_near_cell(mapped, target_mask, target_frame)
+        ):
+            mid_x, mid_y = (x0 + x1) / 2, (y0 + y1) / 2
+            children = [
+                (a, b, c, d, depth + 1)
+                for a, c in ((x0, mid_x), (mid_x, x1))
+                for b, d in ((y0, mid_y), (mid_y, y1))
+            ]
+            for child in children:
+                heapq.heappush(prioritized, (-point_priority(child), next_index, child))
+                next_index += 1
     if not triangles:
         raise RegionRejected("REGION_SUPPORT_UNAVAILABLE")
     registration = {
@@ -335,6 +417,8 @@ def build_region_registration(
             "basis": basis,
             "calibrated": bool(calibrated),
             "anatomicallyQualified": False,
+            "supportPolicy": "foreground-envelope-bounded-holes-adaptive-cells/1",
+            "supportCellVisits": visits,
             **({"basisVersion": basis_version} if basis_version is not None else {}),
         },
     }
