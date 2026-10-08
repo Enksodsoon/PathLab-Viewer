@@ -179,7 +179,6 @@ jobs:
           PATHLAB_DATABASE_URL: postgresql+psycopg://pathlab_test:pathlab_test@127.0.0.1:5432/pathlab_test
           PATHLAB_RELEASE_SHA: ${{ github.sha }}
           PATHLAB_BACKUP_SIGNING_KEY: synthetic-ci-postgres-backup-key-32-bytes
-          PATHLAB_BACKUP_LOCK_DIR: ${{ runner.temp }}/pathlab-backup-lock
           POSTGRES_DB: pathlab_test
           POSTGRES_USER: pathlab_test
         run: |
@@ -203,7 +202,6 @@ jobs:
           PATHLAB_RELEASE_SHA: ${{ github.sha }}
           PATHLAB_SECRET_KEY: synthetic-ci-migration-signing-key-32-bytes
           PATHLAB_BACKUP_SIGNING_KEY: synthetic-ci-postgres-backup-key-32-bytes
-          PATHLAB_BACKUP_LOCK_DIR: ${{ runner.temp }}/pathlab-backup-lock
         run: |
           set -euo pipefail
           mapfile -t POSTGRES_CONTAINERS < <(docker ps --filter publish=5432 --format '{{.ID}}')
