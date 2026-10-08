@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T01:14:36.972067Z",
+  "generatedAt": "2026-10-08T01:30:09.235790Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -11129,18 +11129,18 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz",
+      "artifact": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz",
       "blockers": [],
-      "checksum": "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==",
+      "checksum": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
       "checksumVerified": true,
       "distribution": "not-bundled-tooling",
       "ecosystem": "npm",
-      "id": "npm:source-map-js@1.2.1",
+      "id": "npm:source-map-js@1.2.2",
       "license": "BSD-3-Clause",
       "manifestRefs": [
         "pnpm-lock.yaml"
       ],
-      "metadataSha256": "1c1b52a45c32bbef699e289853684c5c34ce24715c26552e03519009bc4a454c",
+      "metadataSha256": "2a7a225c550e3a0e75f9af72a635e33d7b2e4a0fca4f596679a2775971f53ed6",
       "name": "source-map-js",
       "noticeFiles": [
         {
@@ -11151,8 +11151,8 @@
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "build-only",
-      "source": "https://registry.npmjs.org/source-map-js/1.2.1",
-      "version": "1.2.1"
+      "source": "https://registry.npmjs.org/source-map-js/1.2.2",
+      "version": "1.2.2"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -18032,9 +18032,9 @@
   "schema": "pathlab.dependency-inventory/1",
   "sources": [
     {
-      "gitBlob": "58a780cce56476840fa7e0b76379d7f4d1aca146",
+      "gitBlob": "de613bf10f01fc2033f8ce403ff841d139f69366",
       "path": "pnpm-lock.yaml",
-      "sha256": "0ef2042017000189d5c68b74458f39ebee36184e1dfe89180802646c2a44f17e"
+      "sha256": "7f30b2cf101d9ee035e65a560af0de2eb87f82a59ddb756c4d0a1faf09bf8436"
     },
     {
       "gitBlob": "1c8765745591537d9df9aa69b26030f2834179f6",
@@ -18052,9 +18052,9 @@
       "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
-      "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
+      "gitBlob": "2462116837508e5b7b318cc2e42b5cb594f88ffe",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "964dc9bc5a54c99a360cb8127c16185245b30d025a3aff51927cf0b568a65b55"
+      "sha256": "eb37ac1ca2eed96db78e9e99c7f602de7c57acce8c47a3051ad96754f63ad67d"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19047,6 +19047,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "001103b7fcd04b09a6ba25e8ef1be24e4944926c",
-  "subjectTree": "41ca03b01c84289f0fc36c7d7da94ab3fa99ed6f"
+  "subjectCommit": "6e4050bcfb89bf99c28021e14a27f64eab928d90",
+  "subjectTree": "4609b2d62aa1628f7e6dd0f48d3991452dbeda39"
 }
