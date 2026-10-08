@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "429a7bf2a6844d5d4194de0b47bb67b903368cf4",
-  "subjectTree": "61d341f5624d5c5bd9155feb4eb27cc656b538e3",
+  "subjectCommit": "3c05a8caf555ab1ff464ed72cc7e8022097f99c3",
+  "subjectTree": "f56b12a1eaf9ce44285001917c71aafc2ce0fe06",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -49,7 +49,7 @@
     },
     {
       "path": "apps/web/e2e-fullstack/alignment-candidate-reset.spec.ts",
-      "gitBlob": "08074936a807f197ec5bab7dfd314ec1e708f5cd"
+      "gitBlob": "4bf5e5da452a87b64562bbd03a9f464df5622b94"
     },
     {
       "path": "apps/web/e2e-fullstack/alignment-large-odd.spec.ts",
@@ -1432,7 +1432,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "a4a913ba4999078b1610ffe9942b4f16a33132ecb91f2e1ec4cc7fd4b7fc22a0",
+  "sourceInputSetSha256": "772f9d9a34633e7ad549972e1d60d81245dca46a18230ac44f77bc3987b5ec16",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
@@ -8215,13 +8215,13 @@
     },
     {
       "path": "models/qwen3-0.6b-int4/manifest.json",
-      "bytes": 397,
-      "sha256": "599a81b95d15b3f551dc51d38bd4200ceee9d4d73b271046e22b557928a485ea"
+      "bytes": 386,
+      "sha256": "ae59096099b63ed30f4175f9c73bab0ba806548ea0a5912c1f740c05331efa6f"
     },
     {
       "path": "theme-init.js",
-      "bytes": 706,
-      "sha256": "b2ed548f6daef8b3ab217bcfdbf58a033bb652a89813809e687ffbca6bab3d41"
+      "bytes": 686,
+      "sha256": "90e3e0838dd6b0e1b1dded46c4e8074137112bb15948946d7a573aa3519a62f7"
     }
   ],
   "prebuiltInputs": [
