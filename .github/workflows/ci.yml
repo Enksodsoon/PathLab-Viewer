@@ -491,6 +491,39 @@ jobs:
           --entrypoint python
           pathlab-viewer-alignment:ci
           scripts/alignment_image_smoke.py
+      - name: Execute ARM64 owned-session descendant and RSS smoke
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          cid_directory=$(mktemp -d "${RUNNER_TEMP}/alignment-stdlib-arm64.XXXXXX")
+          cidfile="$cid_directory/container.cid"
+          test ! -e "$cidfile"
+          cleanup() {
+            status=$?
+            trap - EXIT
+            if [[ ! -s "$cidfile" ]]; then
+              echo "Container admission returned no CID; creation/cleanup state unproved; no unknown container removed." >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+            else
+              cid=$(<"$cidfile")
+              if [[ ! "$cid" =~ ^[a-f0-9]{64}$ ]]; then
+                echo "Invalid owned CID receipt; cleanup unproved; no container removed." >&2
+                if [[ "$status" -eq 0 ]]; then status=1; fi
+              elif ! timeout --kill-after=5s 10s docker rm -f "$cid" >/dev/null; then
+                echo "Owned-container removal failed; cleanup unproved." >&2
+                if [[ "$status" -eq 0 ]]; then status=1; fi
+              fi
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          timeout --signal=TERM --kill-after=15s 240s \
+            docker run --cidfile "$cidfile" --platform linux/arm64 \
+            --memory 512m --cpus 1.75 \
+            --mount type=bind,source="$PWD/scripts/alignment_containment_smoke.py",target=/app/scripts/alignment_containment_smoke.py,readonly \
+            --entrypoint python \
+            pathlab-viewer-alignment:ci \
+            scripts/alignment_containment_smoke.py
       - name: Build ARM64 web image
         run: >-
           docker buildx build --platform linux/arm64

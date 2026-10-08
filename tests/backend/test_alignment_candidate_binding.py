@@ -1,7 +1,7 @@
 """Candidate preview requires affirmative bindings beyond adapter currency."""
 
 from copy import deepcopy
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from test_alignment_api import _client, _headers
@@ -35,6 +35,8 @@ def _bound_candidate(client, stack, *, null_sha=False):
             }
             row.source_version = row.anchor_version = None
             database.flush()
+            database.refresh(source)
+            database.refresh(anchor)
         row.registration = {
             **row.registration,
             "engine": row.engine,
@@ -59,6 +61,32 @@ def _bound_candidate(client, stack, *, null_sha=False):
 
 def _manifest(client, url):
     return client.get(url + "/candidates").json()["candidates"][0]
+
+
+def test_null_sha_fixture_binds_persisted_per_row_update_timestamps(tmp_path, monkeypatch):
+    with _client(tmp_path, enabled=True) as client:
+        stack, _ = _stack(client, _headers(client))
+        # Distinct clock ticks expose SQLite executemany's in-memory/default
+        # synchronization difference even on Windows clocks with coarser ticks.
+        ticks = iter(range(1000))
+
+        class PerRowClock:
+            @staticmethod
+            def now(timezone):
+                return datetime(2026, 10, 8, 12, 0, 0, tzinfo=timezone) + timedelta(
+                    microseconds=next(ticks)
+                )
+
+        monkeypatch.setattr("wsi_viewer.models.datetime", PerRowClock)
+        candidate_id, _, _ = _bound_candidate(client, stack, null_sha=True)
+        with session_factory(client.app.state.settings)() as database:
+            row = database.get(ComparisonRegistrationCandidate, candidate_id)
+            timestamps = set()
+            for name, side in (("slide-2", "source"), ("slide-1", "anchor")):
+                slide = database.get(Slide, name)
+                timestamps.add(slide.updated_at.microsecond)
+                assert row.registration[f"{side}SnapshotVersion"] == slide_version(slide)
+            assert len(timestamps) == 2
 
 
 def test_fresh_candidate_projects_verified_tokens_without_mutating_rows_or_canonical(tmp_path):
