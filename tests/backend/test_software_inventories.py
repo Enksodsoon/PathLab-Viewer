@@ -36,8 +36,8 @@ def test_checked_in_software_inventories_reconcile_and_repeat() -> None:
         "buildComponents": manifest["coverage"]["buildComponents"],
         "currentShippedInputs": manifest["coverage"]["currentShippedInputs"],
         "dependencyRecordIdsSha256": manifest["coverage"]["dependencyRecordIdsSha256"],
-        "dependencyRecords": 585,
-        "sourceComponents": 615,
+        "dependencyRecords": 584,
+        "sourceComponents": 614,
         "toolchainRecordIdsSha256": manifest["coverage"]["toolchainRecordIdsSha256"],
         "toolchainRecords": 14,
     }
@@ -65,7 +65,7 @@ def test_browser_absence_does_not_erase_source_notice_or_admission() -> None:
             encoding="utf-8"
         )
     assert manifest["releaseAdmission"] == "BLOCKED"
-    assert manifest["coverage"]["currentShippedInputs"] == 177
+    assert manifest["coverage"]["currentShippedInputs"] == 176
 
 
 def test_generation_is_byte_identical_across_directories(tmp_path: Path) -> None:

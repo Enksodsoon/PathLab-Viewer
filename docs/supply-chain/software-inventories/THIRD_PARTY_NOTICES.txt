@@ -23886,16 +23886,16 @@ Blockers: NONE
 Notice files:
   - aiosignal-1.4.0/LICENSE sha256:6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6
 
-ID: pypi:alembic@1.19.1
+ID: pypi:alembic@1.20.0
 Name: alembic
-Version: 1.19.1
+Version: 1.20.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/alembic/1.19.1/json
+Source: https://pypi.org/pypi/alembic/1.20.0/json
 Blockers: NONE
 Notice files:
-  - alembic-1.19.1/LICENSE sha256:6e68d94a03a0e3e327ddf3e86d1ebedc14eece3922022618fc246a36296fd0cc
-BEGIN NOTICE alembic-1.19.1/LICENSE
+  - alembic-1.20.0/LICENSE sha256:6e68d94a03a0e3e327ddf3e86d1ebedc14eece3922022618fc246a36296fd0cc
+BEGIN NOTICE alembic-1.20.0/LICENSE
 Copyright 2009-2026 Michael Bayer.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -23916,7 +23916,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-END NOTICE alembic-1.19.1/LICENSE
+END NOTICE alembic-1.20.0/LICENSE
 
 ID: pypi:annotated-doc@0.0.5
 Name: annotated-doc
@@ -23986,16 +23986,16 @@ SOFTWARE.
 
 END NOTICE annotated_types-0.8.0/LICENSE
 
-ID: pypi:anyio@4.14.2
+ID: pypi:anyio@4.15.1
 Name: anyio
-Version: 4.14.2
+Version: 4.15.1
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/anyio/4.14.2/json
+Source: https://pypi.org/pypi/anyio/4.15.1/json
 Blockers: NONE
 Notice files:
-  - anyio-4.14.2/LICENSE sha256:5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0
-BEGIN NOTICE anyio-4.14.2/LICENSE
+  - anyio-4.15.1/LICENSE sha256:5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0
+BEGIN NOTICE anyio-4.15.1/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2018 Alex Grönholm
@@ -24017,7 +24017,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-END NOTICE anyio-4.14.2/LICENSE
+END NOTICE anyio-4.15.1/LICENSE
 
 ID: pypi:argon2-cffi-bindings@26.1.0
 Name: argon2-cffi-bindings
@@ -24599,16 +24599,6 @@ language: text
 
 END NOTICE click-8.5.0/docs/license.md
 
-ID: pypi:colorama@0.4.6
-Name: colorama
-Version: 0.4.6
-License: BSD License
-Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/colorama/0.4.6/json
-Blockers: NONE
-Notice files:
-  - colorama-0.4.6/LICENSE.txt sha256:cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318
-
 ID: pypi:crc32c@2.8
 Name: crc32c
 Version: 2.8
@@ -24621,24 +24611,24 @@ Notice files:
   - crc32c-2.8/LICENSE.google-crc32c sha256:a1f30b77c01e0995fa32a00119e00749e8731ee8a3c4c3549bce74083c72b0b6
   - crc32c-2.8/LICENSE.slice-by-8 sha256:7890b6a914d1a5164dad78d642f20b4565d128f3375f75b861133026ad016d07
 
-ID: pypi:cryptography@50.0.1
+ID: pypi:cryptography@50.0.2
 Name: cryptography
-Version: 50.0.1
+Version: 50.0.2
 License: Apache-2.0 OR BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/cryptography/50.0.1/json
+Source: https://pypi.org/pypi/cryptography/50.0.2/json
 Blockers: NONE
 Notice files:
-  - cryptography-50.0.1/LICENSE sha256:3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb
-  - cryptography-50.0.1/LICENSE.APACHE sha256:aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe
-  - cryptography-50.0.1/LICENSE.BSD sha256:602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb
-BEGIN NOTICE cryptography-50.0.1/LICENSE
+  - cryptography-50.0.2/LICENSE sha256:3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb
+  - cryptography-50.0.2/LICENSE.APACHE sha256:aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe
+  - cryptography-50.0.2/LICENSE.BSD sha256:602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb
+BEGIN NOTICE cryptography-50.0.2/LICENSE
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
 under the terms of *both* these licenses.
 
-END NOTICE cryptography-50.0.1/LICENSE
-BEGIN NOTICE cryptography-50.0.1/LICENSE.APACHE
+END NOTICE cryptography-50.0.2/LICENSE
+BEGIN NOTICE cryptography-50.0.2/LICENSE.APACHE
 
                                  Apache License
                            Version 2.0, January 2004
@@ -24842,8 +24832,8 @@ BEGIN NOTICE cryptography-50.0.1/LICENSE.APACHE
    See the License for the specific language governing permissions and
    limitations under the License.
 
-END NOTICE cryptography-50.0.1/LICENSE.APACHE
-BEGIN NOTICE cryptography-50.0.1/LICENSE.BSD
+END NOTICE cryptography-50.0.2/LICENSE.APACHE
+BEGIN NOTICE cryptography-50.0.2/LICENSE.BSD
 Copyright (c) Individual contributors.
 All rights reserved.
 
@@ -24872,18 +24862,18 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE cryptography-50.0.1/LICENSE.BSD
+END NOTICE cryptography-50.0.2/LICENSE.BSD
 
-ID: pypi:fastapi@0.142.1
+ID: pypi:fastapi@0.142.4
 Name: fastapi
-Version: 0.142.1
+Version: 0.142.4
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/fastapi/0.142.1/json
+Source: https://pypi.org/pypi/fastapi/0.142.4/json
 Blockers: NONE
 Notice files:
-  - fastapi-0.142.1/LICENSE sha256:4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e
-BEGIN NOTICE fastapi-0.142.1/LICENSE
+  - fastapi-0.142.4/LICENSE sha256:4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e
+BEGIN NOTICE fastapi-0.142.4/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2018 Sebastián Ramírez
@@ -24906,7 +24896,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-END NOTICE fastapi-0.142.1/LICENSE
+END NOTICE fastapi-0.142.4/LICENSE
 
 ID: pypi:frozenlist@1.8.0
 Name: frozenlist
@@ -24917,100 +24907,6 @@ Source: https://pypi.org/pypi/frozenlist/1.8.0/json
 Blockers: NONE
 Notice files:
   - frozenlist-1.8.0/LICENSE sha256:6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6
-
-ID: pypi:greenlet@3.5.5
-Name: greenlet
-Version: 3.5.5
-License: MIT AND PSF-2.0
-Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/greenlet/3.5.5/json
-Blockers: NONE
-Notice files:
-  - greenlet-3.5.5/LICENSE sha256:769831d6e5dfaf2c20802faccff1fafb4c2025dd8f6253dfa47fcad59d4d0979
-  - greenlet-3.5.5/LICENSE.PSF sha256:e5ff3c23c110e494cd7d736c10fd96d462457bafeca310840db6527298c7d46b
-BEGIN NOTICE greenlet-3.5.5/LICENSE
-The following files are derived from Stackless Python and are subject to the
-same license as Stackless Python:
-
-	src/greenlet/slp_platformselect.h
-	files in src/greenlet/platform/ directory
-
-See LICENSE.PSF and http://www.stackless.com/ for details.
-
-Unless otherwise noted, the files in greenlet have been released under the
-following MIT license:
-
-Copyright (c) Armin Rigo, Christian Tismer and contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-END NOTICE greenlet-3.5.5/LICENSE
-BEGIN NOTICE greenlet-3.5.5/LICENSE.PSF
-PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
---------------------------------------------
-
-1. This LICENSE AGREEMENT is between the Python Software Foundation
-("PSF"), and the Individual or Organization ("Licensee") accessing and
-otherwise using this software ("Python") in source or binary form and
-its associated documentation.
-
-2. Subject to the terms and conditions of this License Agreement, PSF hereby
-grants Licensee a nonexclusive, royalty-free, world-wide license to reproduce,
-analyze, test, perform and/or display publicly, prepare derivative works,
-distribute, and otherwise use Python alone or in any derivative version,
-provided, however, that PSF's License Agreement and PSF's notice of copyright,
-i.e., "Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-2011 Python Software Foundation; All Rights Reserved" are retained in Python
-alone or in any derivative version prepared by Licensee.
-
-3. In the event Licensee prepares a derivative work that is based on
-or incorporates Python or any part thereof, and wants to make
-the derivative work available to others as provided herein, then
-Licensee hereby agrees to include in any such work a brief summary of
-the changes made to Python.
-
-4. PSF is making Python available to Licensee on an "AS IS"
-basis.  PSF MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
-IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, PSF MAKES NO AND
-DISCLAIMS ANY REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS
-FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF PYTHON WILL NOT
-INFRINGE ANY THIRD PARTY RIGHTS.
-
-5. PSF SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF PYTHON
-FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS AS
-A RESULT OF MODIFYING, DISTRIBUTING, OR OTHERWISE USING PYTHON,
-OR ANY DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
-
-6. This License Agreement will automatically terminate upon a material
-breach of its terms and conditions.
-
-7. Nothing in this License Agreement shall be deemed to create any
-relationship of agency, partnership, or joint venture between PSF and
-Licensee.  This License Agreement does not grant permission to use PSF
-trademarks or trade name in a trademark sense to endorse or promote
-products or services of Licensee, or any third party.
-
-8. By copying, installing or otherwise using Python, Licensee
-agrees to be bound by the terms and conditions of this License
-Agreement.
-
-END NOTICE greenlet-3.5.5/LICENSE.PSF
 
 ID: pypi:h11@0.16.0
 Name: h11
@@ -25230,7 +25126,17 @@ Source: https://pypi.org/pypi/idna/3.19/json
 Blockers: NONE
 Notice files:
   - idna-3.19/LICENSE.md sha256:1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04
-BEGIN NOTICE idna-3.19/LICENSE.md
+
+ID: pypi:idna@3.20
+Name: idna
+Version: 3.20
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/idna/3.20/json
+Blockers: NONE
+Notice files:
+  - idna-3.20/LICENSE.md sha256:1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04
+BEGIN NOTICE idna-3.20/LICENSE.md
 BSD 3-Clause License
 
 Copyright (c) 2013-2026, Kim Davies and contributors.
@@ -25263,7 +25169,7 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE idna-3.19/LICENSE.md
+END NOTICE idna-3.20/LICENSE.md
 
 ID: pypi:itsdangerous@2.2.0
 Name: itsdangerous
@@ -25325,16 +25231,16 @@ Blockers: NONE
 Notice files:
   - jmespath-1.0.1/LICENSE.txt sha256:66b313cce80ed0623fc7db3f24863a0c80fd83eb341a46b57864158ae74faa56
 
-ID: pypi:lxml@6.1.2
+ID: pypi:lxml@6.1.3
 Name: lxml
-Version: 6.1.2
+Version: 6.1.3
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/lxml/6.1.2/json
+Source: https://pypi.org/pypi/lxml/6.1.3/json
 Blockers: NONE
 Notice files:
-  - lxml-6.1.2/LICENSE.txt sha256:8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855
-BEGIN NOTICE lxml-6.1.2/LICENSE.txt
+  - lxml-6.1.3/LICENSE.txt sha256:8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855
+BEGIN NOTICE lxml-6.1.3/LICENSE.txt
 BSD 3-Clause License
 
 Copyright (c) 2004 Infrae. All rights reserved.
@@ -25367,18 +25273,18 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE lxml-6.1.2/LICENSE.txt
+END NOTICE lxml-6.1.3/LICENSE.txt
 
-ID: pypi:mako@1.4.1
+ID: pypi:mako@1.4.3
 Name: mako
-Version: 1.4.1
+Version: 1.4.3
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/mako/1.4.1/json
+Source: https://pypi.org/pypi/mako/1.4.3/json
 Blockers: NONE
 Notice files:
-  - mako-1.4.1/LICENSE sha256:8c1d171bc5d341ad9cd33d5e2c39b96a82c7bd49b3ae89a470c37e5822232054
-BEGIN NOTICE mako-1.4.1/LICENSE
+  - mako-1.4.3/LICENSE sha256:8c1d171bc5d341ad9cd33d5e2c39b96a82c7bd49b3ae89a470c37e5822232054
+BEGIN NOTICE mako-1.4.3/LICENSE
 Copyright 2006-2026 the Mako authors and contributors <see AUTHORS file>.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -25399,7 +25305,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-END NOTICE mako-1.4.1/LICENSE
+END NOTICE mako-1.4.3/LICENSE
 
 ID: pypi:markupsafe@3.0.3
 Name: markupsafe
@@ -25461,21 +25367,21 @@ Blockers: NONE
 Notice files:
   - multidict-6.7.1/LICENSE sha256:93d11a968e2f0f36373c40811ff6d20e173f58c3cab5884cd6617bbfd795492a
 
-ID: pypi:numpy@2.5.2
+ID: pypi:numpy@2.5.3
 Name: numpy
-Version: 2.5.2
+Version: 2.5.3
 License: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/numpy/2.5.2/json
+Source: https://pypi.org/pypi/numpy/2.5.3/json
 Blockers: NONE
 Notice files:
-  - numpy-2.5.2/.spin/LICENSE sha256:990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b
-  - numpy-2.5.2/LICENSE.txt sha256:1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491
-  - numpy-2.5.2/doc/source/license.rst sha256:563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256
-  - numpy-2.5.2/numpy/ma/LICENSE sha256:05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6
-  - numpy-2.5.2/numpy/random/LICENSE.md sha256:103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f
-  - numpy-2.5.2/vendored-meson/meson/COPYING sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
-BEGIN NOTICE numpy-2.5.2/.spin/LICENSE
+  - numpy-2.5.3/.spin/LICENSE sha256:990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b
+  - numpy-2.5.3/LICENSE.txt sha256:1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491
+  - numpy-2.5.3/doc/source/license.rst sha256:563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256
+  - numpy-2.5.3/numpy/ma/LICENSE sha256:05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6
+  - numpy-2.5.3/numpy/random/LICENSE.md sha256:103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f
+  - numpy-2.5.3/vendored-meson/meson/COPYING sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+BEGIN NOTICE numpy-2.5.3/.spin/LICENSE
 BSD 3-Clause License
 
 Copyright (c) 2021--2022, Scientific Python project
@@ -25506,8 +25412,8 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE numpy-2.5.2/.spin/LICENSE
-BEGIN NOTICE numpy-2.5.2/LICENSE.txt
+END NOTICE numpy-2.5.3/.spin/LICENSE
+BEGIN NOTICE numpy-2.5.3/LICENSE.txt
 Copyright (c) 2005-2025, NumPy Developers.
 All rights reserved.
 
@@ -25539,8 +25445,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE numpy-2.5.2/LICENSE.txt
-BEGIN NOTICE numpy-2.5.2/doc/source/license.rst
+END NOTICE numpy-2.5.3/LICENSE.txt
+BEGIN NOTICE numpy-2.5.3/doc/source/license.rst
 *************
 NumPy license
 *************
@@ -25548,8 +25454,8 @@ NumPy license
 .. include:: ../../LICENSE.txt
    :literal:
 
-END NOTICE numpy-2.5.2/doc/source/license.rst
-BEGIN NOTICE numpy-2.5.2/numpy/ma/LICENSE
+END NOTICE numpy-2.5.3/doc/source/license.rst
+BEGIN NOTICE numpy-2.5.3/numpy/ma/LICENSE
 * Copyright (c) 2006, University of Georgia and Pierre G.F. Gerard-Marchant
 * All rights reserved.
 * Redistribution and use in source and binary forms, with or without
@@ -25574,8 +25480,8 @@ BEGIN NOTICE numpy-2.5.2/numpy/ma/LICENSE
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-END NOTICE numpy-2.5.2/numpy/ma/LICENSE
-BEGIN NOTICE numpy-2.5.2/numpy/random/LICENSE.md
+END NOTICE numpy-2.5.3/numpy/ma/LICENSE
+BEGIN NOTICE numpy-2.5.3/numpy/random/LICENSE.md
 **This software is dual-licensed under the The University of Illinois/NCSA
 Open Source License (NCSA) and The 3-Clause BSD License**
 
@@ -25648,8 +25554,8 @@ Many parts of this module have been derived from original sources,
 often the algorithm's designer. Component licenses are located with 
 the component code.
 
-END NOTICE numpy-2.5.2/numpy/random/LICENSE.md
-BEGIN NOTICE numpy-2.5.2/vendored-meson/meson/COPYING
+END NOTICE numpy-2.5.3/numpy/random/LICENSE.md
+BEGIN NOTICE numpy-2.5.3/vendored-meson/meson/COPYING
 
                                  Apache License
                            Version 2.0, January 2004
@@ -25853,7 +25759,7 @@ BEGIN NOTICE numpy-2.5.2/vendored-meson/meson/COPYING
    See the License for the specific language governing permissions and
    limitations under the License.
 
-END NOTICE numpy-2.5.2/vendored-meson/meson/COPYING
+END NOTICE numpy-2.5.3/vendored-meson/meson/COPYING
 
 ID: pypi:oci-cli@3.94.1
 Name: oci-cli
@@ -28293,17 +28199,17 @@ Blockers: NONE
 Notice files:
   - python-dateutil-2.9.0.post0/LICENSE sha256:ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e
 
-ID: pypi:python-dotenv@1.2.3
+ID: pypi:python-dotenv@1.2.4
 Name: python-dotenv
-Version: 1.2.3
+Version: 1.2.4
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/python-dotenv/1.2.3/json
+Source: https://pypi.org/pypi/python-dotenv/1.2.4/json
 Blockers: NONE
 Notice files:
-  - python_dotenv-1.2.3/LICENSE sha256:80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9
-  - python_dotenv-1.2.3/docs/license.md sha256:80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9
-BEGIN NOTICE python_dotenv-1.2.3/LICENSE
+  - python_dotenv-1.2.4/LICENSE sha256:80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9
+  - python_dotenv-1.2.4/docs/license.md sha256:80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9
+BEGIN NOTICE python_dotenv-1.2.4/LICENSE
 Copyright (c) 2014, Saurabh Kumar (python-dotenv), 2013, Ted Tieken (django-dotenv-rw), 2013, Jacob Kaplan-Moss (django-dotenv)
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -28332,8 +28238,8 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE python_dotenv-1.2.3/LICENSE
-BEGIN NOTICE python_dotenv-1.2.3/docs/license.md
+END NOTICE python_dotenv-1.2.4/LICENSE
+BEGIN NOTICE python_dotenv-1.2.4/docs/license.md
 Copyright (c) 2014, Saurabh Kumar (python-dotenv), 2013, Ted Tieken (django-dotenv-rw), 2013, Jacob Kaplan-Moss (django-dotenv)
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -28362,7 +28268,7 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE python_dotenv-1.2.3/docs/license.md
+END NOTICE python_dotenv-1.2.4/docs/license.md
 
 ID: pypi:python-pkcs11@0.9.4
 Name: python-pkcs11
@@ -28481,18 +28387,18 @@ Blockers: NONE
 Notice files:
   - six-1.17.0/LICENSE sha256:4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0
 
-ID: pypi:sqlalchemy@2.0.52
+ID: pypi:sqlalchemy@2.1.4
 Name: sqlalchemy
-Version: 2.0.52
+Version: 2.1.4
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/sqlalchemy/2.0.52/json
+Source: https://pypi.org/pypi/sqlalchemy/2.1.4/json
 Blockers: NONE
 Notice files:
-  - sqlalchemy-2.0.52/LICENSE sha256:e862bb5b904fb5513c3e14288d7a25a12eb0ecc7847a0a965d310e9a955e7cb9
-  - sqlalchemy-2.0.52/doc/build/copyright.rst sha256:4a0179c4ef9fb2c7464215c8c48686fe326a3dfcf34752ab41cd91e93a7cac87
-  - sqlalchemy-2.0.52/doc/copyright.html sha256:0c691797527763df1d52d1dcac62911ba31b7555b1dba27208c935377ac7d5d9
-BEGIN NOTICE sqlalchemy-2.0.52/LICENSE
+  - sqlalchemy-2.1.4/LICENSE sha256:e862bb5b904fb5513c3e14288d7a25a12eb0ecc7847a0a965d310e9a955e7cb9
+  - sqlalchemy-2.1.4/doc/build/copyright.rst sha256:4a0179c4ef9fb2c7464215c8c48686fe326a3dfcf34752ab41cd91e93a7cac87
+  - sqlalchemy-2.1.4/doc/copyright.html sha256:6670ed05df2d5d38d9976fd5ae6377a8da1431f0f8e7031c18b7aab8f3e495cd
+BEGIN NOTICE sqlalchemy-2.1.4/LICENSE
 Copyright 2005-2026 SQLAlchemy authors and contributors <see AUTHORS file>.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -28513,8 +28419,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-END NOTICE sqlalchemy-2.0.52/LICENSE
-BEGIN NOTICE sqlalchemy-2.0.52/doc/build/copyright.rst
+END NOTICE sqlalchemy-2.1.4/LICENSE
+BEGIN NOTICE sqlalchemy-2.1.4/doc/build/copyright.rst
 :orphan:
 
 ====================
@@ -28543,8 +28449,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 DEALINGS IN THE SOFTWARE.
 
 
-END NOTICE sqlalchemy-2.0.52/doc/build/copyright.rst
-BEGIN NOTICE sqlalchemy-2.0.52/doc/copyright.html
+END NOTICE sqlalchemy-2.1.4/doc/build/copyright.rst
+BEGIN NOTICE sqlalchemy-2.1.4/doc/copyright.html
 <!DOCTYPE html>
 
 
@@ -28560,7 +28466,7 @@ BEGIN NOTICE sqlalchemy-2.0.52/doc/copyright.html
     
     Appendix:  Copyright
  &mdash;
-    SQLAlchemy 2.0 Documentation
+    SQLAlchemy 2.1 Documentation
 
         </title>
 
@@ -28585,7 +28491,7 @@ BEGIN NOTICE sqlalchemy-2.0.52/doc/copyright.html
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
         <link rel="copyright" title="Copyright" href="#" />
-    <link rel="top" title="SQLAlchemy 2.0 Documentation" href="index.html" />
+    <link rel="top" title="SQLAlchemy 2.1 Documentation" href="index.html" />
     <!-- end layout.mako headers -->
 
 
@@ -28617,14 +28523,14 @@ BEGIN NOTICE sqlalchemy-2.0.52/doc/copyright.html
 <div id="docs-top-navigation-container" class="body-background">
 <div id="docs-header">
     <div id="docs-version-header">
-        Release: <span class="version-num">2.0.52</span>
+        Release: <span class="version-num">2.1.4</span>
 
 
-        | Release Date: August 11, 2026
+        | Release Date: October 7, 2026
 
     </div>
 
-    <h1><a href="index.html">SQLAlchemy 2.0 Documentation</a></h1>
+    <h1><a href="index.html">SQLAlchemy 2.1 Documentation</a></h1>
 
 </div>
 </div>
@@ -28636,7 +28542,7 @@ BEGIN NOTICE sqlalchemy-2.0.52/doc/copyright.html
 
 
         <div id="docs-sidebar-popout">
-            <h3><a href="index.html">SQLAlchemy 2.0 Documentation</a></h3>
+            <h3><a href="index.html">SQLAlchemy 2.1 Documentation</a></h3>
             <p id="sidebar-topnav">
                 <a href="index.html">Home</a>
             </p>
@@ -28664,7 +28570,7 @@ BEGIN NOTICE sqlalchemy-2.0.52/doc/copyright.html
 
         
         <h3>
-            <a href="index.html" title="SQLAlchemy 2.0 Documentation">SQLAlchemy 2.0 Documentation</a>
+            <a href="index.html" title="SQLAlchemy 2.1 Documentation">SQLAlchemy 2.1 Documentation</a>
         </h3>
 
         <ul>
@@ -28759,7 +28665,7 @@ DEALINGS IN THE SOFTWARE.</p>
 
         Created using <a href="https://www.sphinx-doc.org">Sphinx</a> 9.1.0.
 
-    Documentation last generated: Tue 11 Aug 2026 03:03:13 PM  EDT
+    Documentation last generated: Wed 07 Oct 2026 01:28:54 PM  EDT
 
     </div>
 </div>
@@ -28794,18 +28700,18 @@ DEALINGS IN THE SOFTWARE.</p>
 
 
 
-END NOTICE sqlalchemy-2.0.52/doc/copyright.html
+END NOTICE sqlalchemy-2.1.4/doc/copyright.html
 
-ID: pypi:starlette@1.6.0
+ID: pypi:starlette@1.7.0
 Name: starlette
-Version: 1.6.0
+Version: 1.7.0
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/starlette/1.6.0/json
+Source: https://pypi.org/pypi/starlette/1.7.0/json
 Blockers: NONE
 Notice files:
-  - starlette-1.6.0/LICENSE.md sha256:dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf
-BEGIN NOTICE starlette-1.6.0/LICENSE.md
+  - starlette-1.7.0/LICENSE.md sha256:dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf
+BEGIN NOTICE starlette-1.7.0/LICENSE.md
 Copyright © 2018, [Encode OSS Ltd](https://www.encode.io/).
 All rights reserved.
 
@@ -28834,7 +28740,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE starlette-1.6.0/LICENSE.md
+END NOTICE starlette-1.7.0/LICENSE.md
 
 ID: pypi:terminaltables@3.1.10
 Name: terminaltables
@@ -29236,16 +29142,16 @@ Blockers: NONE
 Notice files:
   - urllib3-2.8.0/LICENSE.txt sha256:130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686
 
-ID: pypi:uvicorn@0.52.4
+ID: pypi:uvicorn@0.54.0
 Name: uvicorn
-Version: 0.52.4
+Version: 0.54.0
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/uvicorn/0.52.4/json
+Source: https://pypi.org/pypi/uvicorn/0.54.0/json
 Blockers: NONE
 Notice files:
-  - uvicorn-0.52.4/LICENSE.md sha256:efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371
-BEGIN NOTICE uvicorn-0.52.4/LICENSE.md
+  - uvicorn-0.54.0/LICENSE.md sha256:efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371
+BEGIN NOTICE uvicorn-0.54.0/LICENSE.md
 Copyright © 2017-present, [Encode OSS Ltd](https://www.encode.io/).
 All rights reserved.
 
@@ -29274,7 +29180,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-END NOTICE uvicorn-0.52.4/LICENSE.md
+END NOTICE uvicorn-0.54.0/LICENSE.md
 
 ID: pypi:uvloop@0.23.0
 Name: uvloop
@@ -29980,16 +29886,16 @@ The externally maintained libraries used by libuv are:
 
 END NOTICE uvloop-0.23.0/vendor/libuv/LICENSE-extra
 
-ID: pypi:watchfiles@1.2.0
+ID: pypi:watchfiles@1.3.0
 Name: watchfiles
-Version: 1.2.0
+Version: 1.3.0
 License: MIT License
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/watchfiles/1.2.0/json
+Source: https://pypi.org/pypi/watchfiles/1.3.0/json
 Blockers: NONE
 Notice files:
-  - watchfiles-1.2.0/LICENSE sha256:4fd78355b67ce2677ede9fb6f63a250f377bb7e22088136a5f4699adb4bc069f
-BEGIN NOTICE watchfiles-1.2.0/LICENSE
+  - watchfiles-1.3.0/LICENSE sha256:4fd78355b67ce2677ede9fb6f63a250f377bb7e22088136a5f4699adb4bc069f
+BEGIN NOTICE watchfiles-1.3.0/LICENSE
 The MIT License (MIT)
 
 Copyright (c) 2017 to present Samuel Colvin
@@ -30012,7 +29918,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-END NOTICE watchfiles-1.2.0/LICENSE
+END NOTICE watchfiles-1.3.0/LICENSE
 
 ID: pypi:wcwidth@0.8.2
 Name: wcwidth

@@ -20430,21 +20430,21 @@
       "version": "1.4.0"
     },
     {
-      "bom-ref": "dependency:pypi:alembic@1.19.1",
+      "bom-ref": "dependency:pypi:alembic@1.20.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/16/2b/e4153978368de59918115c9e01d3ebf58a558a7285efa7e960c383c4b59a/alembic-1.19.1.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/ed/aa/02910bdb8e2f1444f6654d5b296cd827d126f82209050ee7b1000f92ac4b/alembic-1.20.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/alembic/1.19.1/json"
+          "url": "https://pypi.org/pypi/alembic/1.20.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "e0fca0518118c78acc493e31bcb5402f190057aaf6df8b5b95ce94c4789cf648"
+          "content": "db505480647bc60386c5369402f4a57a506b7539c9e9ef5e270d45cbbe4939bf"
         }
       ],
       "licenses": [
@@ -20456,7 +20456,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:alembic@1.19.1"
+          "value": "pypi:alembic@1.20.0"
         },
         {
           "name": "pathlab:role",
@@ -20475,9 +20475,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/alembic@1.19.1",
+      "purl": "pkg:pypi/alembic@1.20.0",
       "type": "library",
-      "version": "1.19.1"
+      "version": "1.20.0"
     },
     {
       "bom-ref": "dependency:pypi:annotated-doc@0.0.5",
@@ -20580,21 +20580,21 @@
       "version": "0.8.0"
     },
     {
-      "bom-ref": "dependency:pypi:anyio@4.14.2",
+      "bom-ref": "dependency:pypi:anyio@4.15.1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/61/cc/a381afa6efea9f496eff839d4a6a1aed3bfafc7b3ab4b0d1b243a12573dd/anyio-4.14.2.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/a9/d2/f4d173e22df740bc37b1db102b386ba719b66e95b0f0d751f556b387e6d2/anyio-4.15.1.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/anyio/4.14.2/json"
+          "url": "https://pypi.org/pypi/anyio/4.15.1/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f"
+          "content": "9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94"
         }
       ],
       "licenses": [
@@ -20606,7 +20606,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:anyio@4.14.2"
+          "value": "pypi:anyio@4.15.1"
         },
         {
           "name": "pathlab:role",
@@ -20625,9 +20625,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/anyio@4.14.2",
+      "purl": "pkg:pypi/anyio@4.15.1",
       "type": "library",
-      "version": "4.14.2"
+      "version": "4.15.1"
     },
     {
       "bom-ref": "dependency:pypi:argon2-cffi-bindings@26.1.0",
@@ -21230,56 +21230,6 @@
       "version": "8.5.0"
     },
     {
-      "bom-ref": "dependency:pypi:colorama@0.4.6",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz"
-        },
-        {
-          "type": "vcs",
-          "url": "https://pypi.org/pypi/colorama/0.4.6/json"
-        }
-      ],
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "BSD-3-Clause"
-        }
-      ],
-      "name": "colorama",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "pypi:colorama@0.4.6"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "deployment-only"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "operator-tooling"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "RECORDED_UNREVIEWED"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[]"
-        }
-      ],
-      "purl": "pkg:pypi/colorama@0.4.6",
-      "type": "library",
-      "version": "0.4.6"
-    },
-    {
       "bom-ref": "dependency:pypi:crc32c@2.8",
       "externalReferences": [
         {
@@ -21330,21 +21280,21 @@
       "version": "2.8"
     },
     {
-      "bom-ref": "dependency:pypi:cryptography@50.0.1",
+      "bom-ref": "dependency:pypi:cryptography@50.0.2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/bb/ad/5d6702db60b1e40b41ef513b6967ff5848f307d50f8449baf1634f5908f1/cryptography-50.0.1.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/9d/af/182eb91b0df3fe75c4d9f26fe70684569566745f6ba7e5c9c73a862c5252/cryptography-50.0.2.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/cryptography/50.0.1/json"
+          "url": "https://pypi.org/pypi/cryptography/50.0.2/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "5dd9bda1c12b4162f6ff568eeb5e0ff956c28d14406e875cfe8a63a2d414ff20"
+          "content": "7b46165bb56eb4704e2eaaf86f3c940d19154535d9b0ca7d6d590b04060e00d5"
         }
       ],
       "licenses": [
@@ -21356,7 +21306,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:cryptography@50.0.1"
+          "value": "pypi:cryptography@50.0.2"
         },
         {
           "name": "pathlab:role",
@@ -21375,26 +21325,26 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/cryptography@50.0.1",
+      "purl": "pkg:pypi/cryptography@50.0.2",
       "type": "library",
-      "version": "50.0.1"
+      "version": "50.0.2"
     },
     {
-      "bom-ref": "dependency:pypi:fastapi@0.142.1",
+      "bom-ref": "dependency:pypi:fastapi@0.142.4",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/a3/d4/96b417c2ec88df6be2fe90010e6e23c5323eeb2160c6cb0108f99707c130/fastapi-0.142.1.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/b8/2c/d69ce63c27bf9c5e574ab425118390102924503b4b3cdf33c07a69744dd2/fastapi-0.142.4.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/fastapi/0.142.1/json"
+          "url": "https://pypi.org/pypi/fastapi/0.142.4/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "761663e3e6939da45f997a6f68362abc0fa9d8606e76d504f15f806d2281581d"
+          "content": "7fe2e254a0a948b88f432b02b8f627463285248233bba0998ed9640191e2ff57"
         }
       ],
       "licenses": [
@@ -21406,7 +21356,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:fastapi@0.142.1"
+          "value": "pypi:fastapi@0.142.4"
         },
         {
           "name": "pathlab:role",
@@ -21425,9 +21375,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/fastapi@0.142.1",
+      "purl": "pkg:pypi/fastapi@0.142.4",
       "type": "library",
-      "version": "0.142.1"
+      "version": "0.142.4"
     },
     {
       "bom-ref": "dependency:pypi:frozenlist@1.8.0",
@@ -21478,56 +21428,6 @@
       "purl": "pkg:pypi/frozenlist@1.8.0",
       "type": "library",
       "version": "1.8.0"
-    },
-    {
-      "bom-ref": "dependency:pypi:greenlet@3.5.5",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/0b/d8/7cc97c142388aef03f622e001c572c4f84e9252a439549d483f555771970/greenlet-3.5.5.tar.gz"
-        },
-        {
-          "type": "vcs",
-          "url": "https://pypi.org/pypi/greenlet/3.5.5/json"
-        }
-      ],
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "adb4bae02e91a8e863e48b177e4014bdcac8a6b5e047ea1df687a61534b85e6c"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT AND PSF-2.0"
-        }
-      ],
-      "name": "greenlet",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "pypi:greenlet@3.5.5"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "runtime-mandatory"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "bundled-runtime"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "RECORDED_UNREVIEWED"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[]"
-        }
-      ],
-      "purl": "pkg:pypi/greenlet@3.5.5",
-      "type": "library",
-      "version": "3.5.5"
     },
     {
       "bom-ref": "dependency:pypi:h11@0.16.0",
@@ -21760,11 +21660,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "runtime-and-deployment"
+          "value": "deployment-only"
         },
         {
           "name": "pathlab:distribution",
-          "value": "bundled-runtime-and-operator-tooling"
+          "value": "operator-tooling"
         },
         {
           "name": "pathlab:admission",
@@ -21778,6 +21678,56 @@
       "purl": "pkg:pypi/idna@3.19",
       "type": "library",
       "version": "3.19"
+    },
+    {
+      "bom-ref": "dependency:pypi:idna@3.20",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/f5/08/8eea9d4b8302028f3abb2c0813953f7aec26d33b7a8960ed760e65ff29fa/idna-3.20.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/idna/3.20/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "idna",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:idna@3.20"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled-runtime"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/idna@3.20",
+      "type": "library",
+      "version": "3.20"
     },
     {
       "bom-ref": "dependency:pypi:itsdangerous@2.2.0",
@@ -21880,21 +21830,21 @@
       "version": "1.0.1"
     },
     {
-      "bom-ref": "dependency:pypi:lxml@6.1.2",
+      "bom-ref": "dependency:pypi:lxml@6.1.3",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/ad/a9/970b8fa0ecc4fbf1dfaed0d89bbc1fc1421b25ec26a2038c91e872dc6c8e/lxml-6.1.2.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/lxml/6.1.2/json"
+          "url": "https://pypi.org/pypi/lxml/6.1.3/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "1055241852f2b02068af4a625a5d32c087db193c12251928af2562ecd2239f18"
+          "content": "45222d94ddd511536f3b2f7d9deae3b2339b4ce0f075f1ca25703b07cad9dd21"
         }
       ],
       "licenses": [
@@ -21906,7 +21856,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:lxml@6.1.2"
+          "value": "pypi:lxml@6.1.3"
         },
         {
           "name": "pathlab:role",
@@ -21925,26 +21875,26 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/lxml@6.1.2",
+      "purl": "pkg:pypi/lxml@6.1.3",
       "type": "library",
-      "version": "6.1.2"
+      "version": "6.1.3"
     },
     {
-      "bom-ref": "dependency:pypi:mako@1.4.1",
+      "bom-ref": "dependency:pypi:mako@1.4.3",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/2a/12/b5fa2353e2754cd67fb9f83793fa48ff42c213a5da7e719869d2301f6ab8/mako-1.4.1.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/5a/09/e07c4b5579a79f4b16f8d4f29f6c54514ac787c4ad506b8c4f28a0e6b0bf/mako-1.4.3.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/mako/1.4.1/json"
+          "url": "https://pypi.org/pypi/mako/1.4.3/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "d7904710b662996425a21627710c4777c45053146942cf8a7aebf757c92b8c27"
+          "content": "cd6537fe88d5fec315c55c2f8529bc4ce7a9a352ad7db3eeaa6a66e2dd4ec37a"
         }
       ],
       "licenses": [
@@ -21956,7 +21906,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:mako@1.4.1"
+          "value": "pypi:mako@1.4.3"
         },
         {
           "name": "pathlab:role",
@@ -21975,9 +21925,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/mako@1.4.1",
+      "purl": "pkg:pypi/mako@1.4.3",
       "type": "library",
-      "version": "1.4.1"
+      "version": "1.4.3"
     },
     {
       "bom-ref": "dependency:pypi:markupsafe@3.0.3",
@@ -22080,21 +22030,21 @@
       "version": "6.7.1"
     },
     {
-      "bom-ref": "dependency:pypi:numpy@2.5.2",
+      "bom-ref": "dependency:pypi:numpy@2.5.3",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/9a/80/db0b4559e57ec36362bedbb05530a87fafbcb6067708c946967a41d449e7/numpy-2.5.2.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/13/01/11703282db468b85f6f7b8c7f22d058de5970d5c7e60a3a8aaa313c3de36/numpy-2.5.3.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/numpy/2.5.2/json"
+          "url": "https://pypi.org/pypi/numpy/2.5.3/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "d482d171c406ae88c5b19cad3b6a1c4c5209f886ab74bc44c2c865c23f52d860"
+          "content": "df2d5874ff183595a4ba404edd04f6bd9b5505c1d7708573f6a6c17489a67563"
         }
       ],
       "licenses": [
@@ -22106,7 +22056,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:numpy@2.5.2"
+          "value": "pypi:numpy@2.5.3"
         },
         {
           "name": "pathlab:role",
@@ -22125,9 +22075,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/numpy@2.5.2",
+      "purl": "pkg:pypi/numpy@2.5.3",
       "type": "library",
-      "version": "2.5.2"
+      "version": "2.5.3"
     },
     {
       "bom-ref": "dependency:pypi:oci-cli@3.94.1",
@@ -22986,21 +22936,21 @@
       "version": "2.9.0.post0"
     },
     {
-      "bom-ref": "dependency:pypi:python-dotenv@1.2.3",
+      "bom-ref": "dependency:pypi:python-dotenv@1.2.4",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/6a/53/ed9d74092561d4b01a2ef1349d52cdbc135e526c245f366b089cfca6de49/python_dotenv-1.2.3.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/74/26/2fbeedb218a787a5eea551c7532cac4e009f83d689dd2faa0d0353473f86/python_dotenv-1.2.4.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/python-dotenv/1.2.3/json"
+          "url": "https://pypi.org/pypi/python-dotenv/1.2.4/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "a20a594dabeaa385725aa239d5244871c143ecb356add8a20fcf23773a6c3a35"
+          "content": "f0d53e69935a851c0dcc78f3ab7aaccd8cabef0b92382b576b824212902873c0"
         }
       ],
       "licenses": [
@@ -23012,7 +22962,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:python-dotenv@1.2.3"
+          "value": "pypi:python-dotenv@1.2.4"
         },
         {
           "name": "pathlab:role",
@@ -23031,9 +22981,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/python-dotenv@1.2.3",
+      "purl": "pkg:pypi/python-dotenv@1.2.4",
       "type": "library",
-      "version": "1.2.3"
+      "version": "1.2.4"
     },
     {
       "bom-ref": "dependency:pypi:python-pkcs11@0.9.4",
@@ -23386,21 +23336,21 @@
       "version": "1.17.0"
     },
     {
-      "bom-ref": "dependency:pypi:sqlalchemy@2.0.52",
+      "bom-ref": "dependency:pypi:sqlalchemy@2.1.4",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/3b/21/77b4c147963073040dc3c3a5cb7a8c3001a1893c0209432cb77f9df836aa/sqlalchemy-2.0.52.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/1f/44/311bac6b6ef81e4dfd0287d04900108b1f5c00c9761dd3c0a2b7b9d0f86b/sqlalchemy-2.1.4.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/sqlalchemy/2.0.52/json"
+          "url": "https://pypi.org/pypi/sqlalchemy/2.1.4/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "5e2d46356ac2ccb7d268ab6c2319ac6a2b42f1b8d5fd8bd3d46855cd82abee97"
+          "content": "7bd7ad604487daa7eab8716471c29a7185f17b5287ce73bb7bc79fea050d8cfd"
         }
       ],
       "licenses": [
@@ -23412,7 +23362,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:sqlalchemy@2.0.52"
+          "value": "pypi:sqlalchemy@2.1.4"
         },
         {
           "name": "pathlab:role",
@@ -23431,26 +23381,26 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/sqlalchemy@2.0.52",
+      "purl": "pkg:pypi/sqlalchemy@2.1.4",
       "type": "library",
-      "version": "2.0.52"
+      "version": "2.1.4"
     },
     {
-      "bom-ref": "dependency:pypi:starlette@1.6.0",
+      "bom-ref": "dependency:pypi:starlette@1.7.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/b5/b4/205b0d5241d934e8add0c38aa924c4f9fb7330834ff11e5444db964ec3f9/starlette-1.6.0.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/7b/2b/3850dc6bf7ef71b088962eba31dafc6cffd2f96e577ebb0bb316df96da3e/starlette-1.7.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/starlette/1.6.0/json"
+          "url": "https://pypi.org/pypi/starlette/1.7.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "d4e3ac5e546444960c710297a3c9fc3f7ebae1b7e963f3d36173b49da535be9b"
+          "content": "c79f74ea63cff761804fbbfb182f1e0b440c2d07b164d24700c5a1bab5d6ff5d"
         }
       ],
       "licenses": [
@@ -23462,7 +23412,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:starlette@1.6.0"
+          "value": "pypi:starlette@1.7.0"
         },
         {
           "name": "pathlab:role",
@@ -23481,9 +23431,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/starlette@1.6.0",
+      "purl": "pkg:pypi/starlette@1.7.0",
       "type": "library",
-      "version": "1.6.0"
+      "version": "1.7.0"
     },
     {
       "bom-ref": "dependency:pypi:terminaltables@3.1.10",
@@ -23786,21 +23736,21 @@
       "version": "2.8.0"
     },
     {
-      "bom-ref": "dependency:pypi:uvicorn@0.52.4",
+      "bom-ref": "dependency:pypi:uvicorn@0.54.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/f2/0f/3f86e61397dd33bf2ccf28188c40db6a740658aeebbbf6e7dbc101a1f487/uvicorn-0.52.4.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/da/34/30e9280707135d2cfc589dfff3cb796bd07a3aeb1a3e415ba09dd89d7bb4/uvicorn-0.54.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/uvicorn/0.52.4/json"
+          "url": "https://pypi.org/pypi/uvicorn/0.54.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "73acfee47a0b133c5de13d219492d62d8a31e935f4fe6e41a232451a15379f86"
+          "content": "a2e33cbfaa0306f8e6b0c13e0cb89d7d7a2da3e62b90c66e18c33d9807b28620"
         }
       ],
       "licenses": [
@@ -23812,7 +23762,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:uvicorn@0.52.4"
+          "value": "pypi:uvicorn@0.54.0"
         },
         {
           "name": "pathlab:role",
@@ -23831,9 +23781,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/uvicorn@0.52.4",
+      "purl": "pkg:pypi/uvicorn@0.54.0",
       "type": "library",
-      "version": "0.52.4"
+      "version": "0.54.0"
     },
     {
       "bom-ref": "dependency:pypi:uvloop@0.23.0",
@@ -23888,21 +23838,21 @@
       "version": "0.23.0"
     },
     {
-      "bom-ref": "dependency:pypi:watchfiles@1.2.0",
+      "bom-ref": "dependency:pypi:watchfiles@1.3.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/cd/41/5e1a4bb12aac5f1493fa1bdc11154eca3b258ca4eba65d39c473fe19d8e9/watchfiles-1.2.0.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/b3/68/e6aa0b77d217b31f8f486ec0cdfe5e00e6e38dc0be657e7d85819b9faf0a/watchfiles-1.3.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/watchfiles/1.2.0/json"
+          "url": "https://pypi.org/pypi/watchfiles/1.3.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "c995fba777f1ea992f090f9236e9284cf7a5d1a0130dd5a3d82c598cacd76838"
+          "content": "99aee4a07847c06820765fd7b1b49ceac4f3f711ccb7d104655a33231de1c207"
         }
       ],
       "licenses": [
@@ -23914,7 +23864,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:watchfiles@1.2.0"
+          "value": "pypi:watchfiles@1.3.0"
         },
         {
           "name": "pathlab:role",
@@ -23933,9 +23883,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/watchfiles@1.2.0",
+      "purl": "pkg:pypi/watchfiles@1.3.0",
       "type": "library",
-      "version": "1.2.0"
+      "version": "1.3.0"
     },
     {
       "bom-ref": "dependency:pypi:wcwidth@0.8.2",
@@ -26272,10 +26222,10 @@
         "dependency:pypi:aiohappyeyeballs@2.7.1",
         "dependency:pypi:aiohttp@3.14.3",
         "dependency:pypi:aiosignal@1.4.0",
-        "dependency:pypi:alembic@1.19.1",
+        "dependency:pypi:alembic@1.20.0",
         "dependency:pypi:annotated-doc@0.0.5",
         "dependency:pypi:annotated-types@0.8.0",
-        "dependency:pypi:anyio@4.14.2",
+        "dependency:pypi:anyio@4.15.1",
         "dependency:pypi:argon2-cffi-bindings@26.1.0",
         "dependency:pypi:argon2-cffi@25.1.0",
         "dependency:pypi:arrow@1.4.0",
@@ -26288,24 +26238,23 @@
         "dependency:pypi:circuitbreaker@2.1.3",
         "dependency:pypi:click@8.4.2",
         "dependency:pypi:click@8.5.0",
-        "dependency:pypi:colorama@0.4.6",
         "dependency:pypi:crc32c@2.8",
-        "dependency:pypi:cryptography@50.0.1",
-        "dependency:pypi:fastapi@0.142.1",
+        "dependency:pypi:cryptography@50.0.2",
+        "dependency:pypi:fastapi@0.142.4",
         "dependency:pypi:frozenlist@1.8.0",
-        "dependency:pypi:greenlet@3.5.5",
         "dependency:pypi:h11@0.16.0",
         "dependency:pypi:httpcore@1.0.9",
         "dependency:pypi:httptools@0.8.0",
         "dependency:pypi:httpx@0.28.1",
         "dependency:pypi:idna@3.19",
+        "dependency:pypi:idna@3.20",
         "dependency:pypi:itsdangerous@2.2.0",
         "dependency:pypi:jmespath@1.0.1",
-        "dependency:pypi:lxml@6.1.2",
-        "dependency:pypi:mako@1.4.1",
+        "dependency:pypi:lxml@6.1.3",
+        "dependency:pypi:mako@1.4.3",
         "dependency:pypi:markupsafe@3.0.3",
         "dependency:pypi:multidict@6.7.1",
-        "dependency:pypi:numpy@2.5.2",
+        "dependency:pypi:numpy@2.5.3",
         "dependency:pypi:oci-cli@3.94.1",
         "dependency:pypi:oci@2.187.1",
         "dependency:pypi:ome-types@0.6.3",
@@ -26323,7 +26272,7 @@
         "dependency:pypi:pyjwt@2.15.0",
         "dependency:pypi:pyopenssl@26.4.0",
         "dependency:pypi:python-dateutil@2.9.0.post0",
-        "dependency:pypi:python-dotenv@1.2.3",
+        "dependency:pypi:python-dotenv@1.2.4",
         "dependency:pypi:python-pkcs11@0.9.4",
         "dependency:pypi:pytz@2026.2",
         "dependency:pypi:pyvips@3.2.0",
@@ -26331,17 +26280,17 @@
         "dependency:pypi:pyyaml@6.0.3",
         "dependency:pypi:setuptools@83.0.0",
         "dependency:pypi:six@1.17.0",
-        "dependency:pypi:sqlalchemy@2.0.52",
-        "dependency:pypi:starlette@1.6.0",
+        "dependency:pypi:sqlalchemy@2.1.4",
+        "dependency:pypi:starlette@1.7.0",
         "dependency:pypi:terminaltables@3.1.10",
         "dependency:pypi:tifffile@2026.9.20",
         "dependency:pypi:typing-extensions@4.16.0",
         "dependency:pypi:typing-inspection@0.4.4",
         "dependency:pypi:tzdata@2026.4",
         "dependency:pypi:urllib3@2.8.0",
-        "dependency:pypi:uvicorn@0.52.4",
+        "dependency:pypi:uvicorn@0.54.0",
         "dependency:pypi:uvloop@0.23.0",
-        "dependency:pypi:watchfiles@1.2.0",
+        "dependency:pypi:watchfiles@1.3.0",
         "dependency:pypi:wcwidth@0.8.2",
         "dependency:pypi:websockets@17.1",
         "dependency:pypi:xsdata@26.2",
@@ -26386,7 +26335,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:e537ac87a896add8194127197a88a73744269858"
+      "ref": "pathlab:build:4ed8d4f3fef62b4096f27f1a9dd1da6573294adf"
     },
     {
       "dependsOn": [],
@@ -28246,7 +28195,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:alembic@1.19.1"
+      "ref": "dependency:pypi:alembic@1.20.0"
     },
     {
       "dependsOn": [],
@@ -28258,7 +28207,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:anyio@4.14.2"
+      "ref": "dependency:pypi:anyio@4.15.1"
     },
     {
       "dependsOn": [],
@@ -28310,27 +28259,19 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:colorama@0.4.6"
-    },
-    {
-      "dependsOn": [],
       "ref": "dependency:pypi:crc32c@2.8"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:cryptography@50.0.1"
+      "ref": "dependency:pypi:cryptography@50.0.2"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:fastapi@0.142.1"
+      "ref": "dependency:pypi:fastapi@0.142.4"
     },
     {
       "dependsOn": [],
       "ref": "dependency:pypi:frozenlist@1.8.0"
-    },
-    {
-      "dependsOn": [],
-      "ref": "dependency:pypi:greenlet@3.5.5"
     },
     {
       "dependsOn": [],
@@ -28354,6 +28295,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:idna@3.20"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:itsdangerous@2.2.0"
     },
     {
@@ -28362,11 +28307,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:lxml@6.1.2"
+      "ref": "dependency:pypi:lxml@6.1.3"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:mako@1.4.1"
+      "ref": "dependency:pypi:mako@1.4.3"
     },
     {
       "dependsOn": [],
@@ -28378,7 +28323,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:numpy@2.5.2"
+      "ref": "dependency:pypi:numpy@2.5.3"
     },
     {
       "dependsOn": [],
@@ -28450,7 +28395,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:python-dotenv@1.2.3"
+      "ref": "dependency:pypi:python-dotenv@1.2.4"
     },
     {
       "dependsOn": [],
@@ -28482,11 +28427,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:sqlalchemy@2.0.52"
+      "ref": "dependency:pypi:sqlalchemy@2.1.4"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:starlette@1.6.0"
+      "ref": "dependency:pypi:starlette@1.7.0"
     },
     {
       "dependsOn": [],
@@ -28514,7 +28459,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:uvicorn@0.52.4"
+      "ref": "dependency:pypi:uvicorn@0.54.0"
     },
     {
       "dependsOn": [],
@@ -28522,7 +28467,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:watchfiles@1.2.0"
+      "ref": "dependency:pypi:watchfiles@1.3.0"
     },
     {
       "dependsOn": [],
@@ -28699,15 +28644,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:e537ac87a896add8194127197a88a73744269858",
+      "bom-ref": "pathlab:build:4ed8d4f3fef62b4096f27f1a9dd1da6573294adf",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e537ac87a896add8194127197a88a73744269858"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/4ed8d4f3fef62b4096f27f1a9dd1da6573294adf"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e537ac87a896add8194127197a88a73744269858"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/4ed8d4f3fef62b4096f27f1a9dd1da6573294adf"
         }
       ],
       "licenses": [
@@ -28738,13 +28683,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@e537ac87a896add8194127197a88a73744269858",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@4ed8d4f3fef62b4096f27f1a9dd1da6573294adf",
       "type": "application",
-      "version": "e537ac87a896add8194127197a88a73744269858"
+      "version": "4ed8d4f3fef62b4096f27f1a9dd1da6573294adf"
     },
-    "timestamp": "2026-10-04T07:52:53Z"
+    "timestamp": "2026-10-08T00:57:27Z"
   },
-  "serialNumber": "urn:uuid:e537ac87-a896-4dd8-a941-27197a88a737",
+  "serialNumber": "urn:uuid:4ed8d4f3-fef6-4b40-a6f2-7f1a9dd1da65",
   "specVersion": "1.6",
   "version": 1
 }
