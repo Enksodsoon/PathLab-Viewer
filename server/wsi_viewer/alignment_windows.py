@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import time
-from typing import Any
+from typing import Any, cast
 
 from .alignment_processes import AlignmentContainmentLost
 
@@ -83,8 +83,9 @@ class WindowsAlignmentJob:
     def __init__(self, process_id: int, memory_bytes: int):
         if process_id <= 0 or memory_bytes <= 0 or memory_bytes > ctypes.c_size_t(-1).value:
             raise OSError("invalid process containment memory ceiling")
-        self.kernel: Any = ctypes.WinDLL("kernel32", use_last_error=True)
-        self.psapi: Any = ctypes.WinDLL("psapi", use_last_error=True)
+        # Windows-only entry points are absent from Linux ctypes type stubs.
+        self.kernel: Any = cast(Any, ctypes).WinDLL("kernel32", use_last_error=True)
+        self.psapi: Any = cast(Any, ctypes).WinDLL("psapi", use_last_error=True)
         definitions = {
             "CreateJobObjectW": ([HANDLE, ctypes.c_wchar_p], HANDLE),
             "SetInformationJobObject": ([HANDLE, ctypes.c_int, HANDLE, DWORD], BOOL),
@@ -103,7 +104,7 @@ class WindowsAlignmentJob:
         self.psapi.GetProcessMemoryInfo.restype = BOOL
         self.handle: Any = self.kernel.CreateJobObjectW(None, None)
         if not self.handle:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise cast(Any, ctypes).WinError(cast(Any, ctypes).get_last_error())
         self.memory_bytes = memory_bytes
         self.peak_working_set = 0
         self.peak_committed = 0
@@ -146,7 +147,7 @@ class WindowsAlignmentJob:
     @staticmethod
     def _check(success: Any) -> None:
         if not success:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise cast(Any, ctypes).WinError(cast(Any, ctypes).get_last_error())
 
     def process_ids(self) -> set[int]:
         ids = ProcessIds()
