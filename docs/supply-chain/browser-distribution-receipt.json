@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "93d4f2d753284ba0baca5c62d0a9e462dd191846",
-  "subjectTree": "e0de89a7804ab3ffdfb9070fb18f4f9d31f84376",
+  "subjectCommit": "2f47da872b292f0fdba66aaff88ee7ed47543141",
+  "subjectTree": "1f9bdeb768f07c7d321f613c7f3e18ac6c37ce01",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -61,7 +61,7 @@
     },
     {
       "path": "apps/web/e2e-fullstack/alignment-region.spec.ts",
-      "gitBlob": "a5e4d21b319799b60ebed0e6bf3a913d5b6494e6"
+      "gitBlob": "9220c497e34252feb7c48dda6e6e01453aacfab4"
     },
     {
       "path": "apps/web/e2e-fullstack/alignment-stack.spec.ts",
@@ -1432,7 +1432,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "672530796aceae286a52b624b6c116b31f58353c3e6b743307fcda1dcd883260",
+  "sourceInputSetSha256": "0a63e5a4b9a7796fcf53beb2a3f2f4770aec926113e6a8068278200762855fed",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
