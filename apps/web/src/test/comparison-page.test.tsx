@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -404,12 +404,45 @@ it('uses admitted Native overview outside candidate local support and restores t
   fixture.comparison.members[1].registration!.movingToReference[0][2] = 40
   fixture.comparison.members[1].registration!.overviewTriangles[0].reference = [[40, 0], [740, 0], [40, 700]]
   await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThanOrEqual(6), { timeout: 3500 })
-  await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
-  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', originalViewport)
+  const frames = new Map<number, FrameRequestCallback>()
+  let nextFrame = 1
+  const frameRequest = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+    const id = nextFrame++
+    frames.set(id, callback)
+    return id
+  })
+  const frameCancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => { frames.delete(id) })
+  const restored: { slideId: string; requestedViewport: typeof originalViewport; actualViewport: typeof originalViewport | null }[] = []
+  const observe = (event: Event) => restored.push((event as CustomEvent).detail)
+  window.addEventListener('pathlab:alignment-restored', observe)
+  for (const tileSource of ['/tiles/1.dzi', '/tiles/2.dzi']) viewportHarness.viewports.set(tileSource, { ...viewportHarness.current })
+  viewportHarness.applied.mockClear()
+  try {
+    await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
+    expect(restored).toEqual([])
+    expect(viewportHarness.applied).not.toHaveBeenCalled()
+    expect(frames.size).toBeGreaterThan(0)
+    await act(async () => {
+      const scheduled = [...frames.values()]
+      frames.clear()
+      for (const callback of scheduled) callback(performance.now())
+    })
+    expect(restored).toEqual(['slide-1', 'slide-2'].map(slideId => ({
+      slideId, requestedViewport: originalViewport, actualViewport: originalViewport,
+    })))
+    expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', originalViewport)
+  } finally {
+    window.removeEventListener('pathlab:alignment-restored', observe)
+    frameRequest.mockRestore()
+    frameCancel.mockRestore()
+  }
   viewportHarness.current = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
   viewportHarness.applied.mockClear()
   await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
   expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 340 }))
+  const canonicalViewport = viewportHarness.viewports.get('/tiles/1.dzi')
+  expect(canonicalViewport).toMatchObject({ centerX: 340, imageZoom: originalViewport.imageZoom, rotation: originalViewport.rotation })
+  expect(canonicalViewport?.centerY).toBeCloseTo(originalViewport.centerY, 10)
 })
 
 it('ends a candidate preview when same-version polling changes a source snapshot', async () => {
