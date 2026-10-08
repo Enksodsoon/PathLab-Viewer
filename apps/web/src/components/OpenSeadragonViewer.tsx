@@ -392,7 +392,7 @@ export function OpenSeadragonViewer({
         getImageViewport: () => {
           if (!hasOpenImage()) return { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
           const center = readyViewer.viewport.viewportToImageCoordinates(readyViewer.viewport.getCenter(true))
-          const imageBounds = readyViewer.viewport.viewportToImageRectangle(readyViewer.viewport.getBounds(true))
+          const imageBounds = readyViewer.viewport.viewportToImageRectangle(readyViewer.viewport.getBounds(true)).getBoundingBox()
           return {
             centerX: center.x,
             centerY: center.y,
@@ -442,7 +442,7 @@ export function OpenSeadragonViewer({
       const reportViewport = () => {
         if (!viewer || (!navigationTransaction.current && !userNavigation.current)) return
         const center = viewer.viewport.viewportToImageCoordinates(viewer.viewport.getCenter(true))
-        const imageBounds = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds(true))
+        const imageBounds = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds(true)).getBoundingBox()
         viewportChangeRef.current?.({
           visibleBounds: [imageBounds.x, imageBounds.y, imageBounds.width, imageBounds.height],
           centerX: center.x,

@@ -8,14 +8,17 @@ import { boundedPanStroke } from '../scripts/measure-alignment-operational-ui.mj
 
 type PointerRelease = { x: number; y: number; captured: boolean }
 
-type Application = { sourceSlideId: string; slideId: string; regional: boolean; approximate: boolean; sourceViewport: { centerX: number; centerY: number; imageZoom: number; rotation: number }; viewport: { centerX: number; centerY: number; imageZoom: number; rotation: number } }
+type ImageView = { centerX: number; centerY: number; imageZoom: number; rotation: number; visibleBounds?: [number, number, number, number] }
+type Application = { sourceSlideId: string; slideId: string; regional: boolean; approximate: boolean; sourceViewport: ImageView; viewport: ImageView }
+type Restoration = { slideId: string; requestedViewport: ImageView; actualViewport: ImageView | null }
 
 test('alignment region correction uses real tissue, hidden-reference panes, revision save and two-point cancel', async ({ page }, testInfo) => {
   let loadedTiles = 0
   page.on('response', response => { if (response.ok() && response.url().includes('/preview/slide_files/')) loadedTiles += 1 })
   await page.addInitScript(() => {
-    Object.assign(window, { alignmentApplications: [], alignmentPointerReleases: [] })
+    Object.assign(window, { alignmentApplications: [], alignmentPointerReleases: [], alignmentRestorations: [] })
     window.addEventListener('pathlab:alignment-applied', event => (window as unknown as { alignmentApplications: unknown[] }).alignmentApplications.push((event as CustomEvent).detail))
+    window.addEventListener('pathlab:alignment-restored', event => (window as unknown as { alignmentRestorations: unknown[] }).alignmentRestorations.push((event as CustomEvent).detail))
     window.addEventListener('pointerup', event => {
       if (!(event.target instanceof Element) || !event.target.closest('.openseadragon-canvas')) return
       requestAnimationFrame(() => (window as unknown as { alignmentPointerReleases: PointerRelease[] }).alignmentPointerReleases.push({ x: event.clientX, y: event.clientY, captured: (event.target as Element).hasPointerCapture(event.pointerId) }))
@@ -220,6 +223,12 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await expect.poll(async () => (await applications()).length).toBeGreaterThan(0)
   await assertManualPath(savedSet, 'one-point-reload')
   await driveToInterior()
+  const rotationControl = page.locator('.comparison-pane').first().getByRole('button', { name: /Open rotation controls/ })
+  await rotationControl.click()
+  await page.getByRole('slider', { name: 'Rotation dial' }).focus()
+  await page.keyboard.press('Home'); await page.keyboard.press('ArrowRight')
+  await expect(rotationControl).toHaveAccessibleName('Open rotation controls. Current rotation 1 degrees')
+  await rotationControl.click()
   await page.getByRole('button', { name: 'Adjust region' }).click()
   const recordTwoPoints = async () => {
     await expect(page.getByRole('button', { name: 'Record point pair' })).toBeEnabled()
@@ -244,11 +253,37 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   expect(twoPoint.ok(), await twoPoint.text()).toBe(true)
   expect(twoPoint.request().postDataJSON().movingPoints).toHaveLength(2)
   await assertManualPath(await twoPoint.json(), 'two-point-preview-before-cancel')
+  const restorations = () => page.evaluate(() => (window as unknown as { alignmentRestorations: Restoration[] }).alignmentRestorations)
+  const restoredBefore = (await restorations()).length
   await page.getByRole('button', { name: 'Cancel correction' }).click()
+  await expect.poll(async () => (await restorations()).length).toBeGreaterThanOrEqual(restoredBefore + 2)
+  const afterCancelFields = (await restorations()).slice(restoredBefore)
+  const assertBoundsContainCenter = (view: ImageView) => {
+    expect(view.visibleBounds).toHaveLength(4)
+    const [left, top, width, height] = view.visibleBounds!
+    expect([left, top, width, height].every(Number.isFinite)).toBe(true)
+    expect(width).toBeGreaterThan(0); expect(height).toBeGreaterThan(0)
+    expect(view.centerX).toBeGreaterThanOrEqual(left - 0.01)
+    expect(view.centerX).toBeLessThanOrEqual(left + width + 0.01)
+    expect(view.centerY).toBeGreaterThanOrEqual(top - 0.01)
+    expect(view.centerY).toBeLessThanOrEqual(top + height + 0.01)
+  }
+  for (const slideId of slideIds.slice(1, 3)) {
+    const restored = afterCancelFields.findLast(row => row.slideId === slideId)!
+    expect(restored.actualViewport).not.toBeNull()
+    assertBoundsContainCenter(restored.actualViewport!)
+    expect(restored.actualViewport!.rotation).toBeCloseTo(restored.requestedViewport.rotation, 8)
+  }
+  expect(afterCancelFields.some(row => Math.abs(row.actualViewport!.rotation) > 0.5)).toBe(true)
   const afterCancel = await (await page.request.get(endpoint)).json()
   expect(afterCancel.version).toBe(savedSet.version)
   expect(afterCancel.regionalCorrections).toHaveLength(1)
   await assertManualPath(afterCancel, 'cancel-restored-saved-region')
+  await rotationControl.click()
+  await page.getByRole('button', { name: 'Rotate to 0 degrees' }).click()
+  await rotationControl.click()
+  await expect.poll(async () => (await viewFor(slideIds[1])).rotation).toBeCloseTo(0, 8)
+  assertBoundsContainCenter(await viewFor(slideIds[1]))
   await page.getByRole('button', { name: 'Adjust region' }).click()
   await recordTwoPoints()
   const secondPreviewResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
@@ -294,7 +329,7 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await assertManualPath(reloadedSet, 'returned-to-supported-region')
   await testInfo.attach('manual-path-receipt', { body: JSON.stringify({ scope: 'Actual regional API affine and independent forward/inverse affine oracle against real OSD readback; synthetic navigation only.', coordinateTolerancePixels: 0.01, observations: manualPathReceipts }), contentType: 'application/json' })
   await testInfo.attach('bounded-pan-receipt', { body: JSON.stringify({ scope: 'Actual pointer releases inside visible canvas/browser intersection; supported source targets converge within1pixel. Independent correction pans are relative screen displacements, not anatomy.', strokes: panReceipts }), contentType: 'application/json' })
-  await testInfo.attach('guided-correction-receipt' , { body: JSON.stringify({ scope: 'Disposable synthetic tissue derivative, actual OSD and backend region API; no anatomical qualification.', loadedTiles, delayedDziBothImagesRequired: true, hiddenReference: true, slidesKeyboardSelection: true, syncKeyboardRoundtrip: true, advancedOpenedDuringGuidedCorrection: false, onePointSavedReloaded: true, twoPointPreviewCancelled: true, twoPointSavedReloaded: true, injectedTransientPreviewFailureRetainedPoints: previewFailureInjected, assertionRetries: testInfo.retry }), contentType: 'application/json' })
+  await testInfo.attach('guided-correction-receipt' , { body: JSON.stringify({ scope: 'Disposable synthetic tissue derivative, actual OSD and backend region API; no anatomical qualification.', loadedTiles, delayedDziBothImagesRequired: true, hiddenReference: true, slidesKeyboardSelection: true, syncKeyboardRoundtrip: true, advancedOpenedDuringGuidedCorrection: false, onePointSavedReloaded: true, twoPointPreviewCancelled: true, cancelBoundsContainBothCenters: true, nonzeroAndZeroRotationBoundsChecked: true, secondAdjustRecordedTwoPoints: true, twoPointSavedReloaded: true, injectedTransientPreviewFailureRetainedPoints: previewFailureInjected, assertionRetries: testInfo.retry }), contentType: 'application/json' })
   await page.getByText('Advanced', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Active pane inspector' })).toBeVisible()
   await page.getByText('Display', { exact: true }).click()

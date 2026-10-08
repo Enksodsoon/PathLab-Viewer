@@ -23,7 +23,7 @@ const osdMock = vi.hoisted(() => {
       getRotation: vi.fn(() => 0),
       setRotation: vi.fn(),
       getCenter: vi.fn(() => ({ x: 0, y: 0 })),
-      getBounds: vi.fn(() => ({ x: -200, y: -150, width: 400, height: 300 })),
+      getBounds: vi.fn(() => ({ x: -200, y: -150, width: 400, height: 300, getBoundingBox: () => ({ x: -200, y: -150, width: 400, height: 300 }) })),
       viewportToImageRectangle: vi.fn((bounds: unknown) => bounds),
       viewportToImageCoordinates: vi.fn((point: { x: number, y: number }) => point),
       imageToViewportCoordinates: vi.fn((x: number, y: number) => ({ x, y })),
@@ -807,6 +807,57 @@ it('refreshes the anisotropic physical scale immediately on rotation', () => {
     const [microns, width] = onScaleChange.mock.calls.at(-1)!
     expect(microns / width).toBeCloseTo(0.5 / 2)
   } finally { osdMock.viewer.viewport.getRotation.mockReturnValue(0) }
+})
+
+it.each([
+  { angle: 0, restored: false }, { angle: 37, restored: false }, { angle: 90, restored: false },
+  { angle: 5.68e-14, restored: false }, { angle: -5.68e-14, restored: false },
+  { angle: 360 - 1e-10, restored: false }, { angle: 360, restored: false },
+  { angle: 5.68e-14, restored: true },
+])('reports axis-aligned image bounds for the real OSD Rect at $angle degrees (restored=$restored)', async ({ angle, restored }) => {
+  const { default: OpenSeadragon } = await vi.importActual<{ default: typeof import('openseadragon') }>('openseadragon')
+  const center = { x: 557.8588, y: 331.5 }, width = 1166.8407, height = 1133.7277
+  const rectangle = new OpenSeadragon.Rect(center.x - width / 2, center.y - height / 2, width, height).rotate(-angle)
+  const boundsImplementation = osdMock.viewer.viewport.getBounds.getMockImplementation()!
+  const centerImplementation = osdMock.viewer.viewport.getCenter.getMockImplementation()!
+  const rotationImplementation = osdMock.viewer.viewport.getRotation.getMockImplementation()!
+  osdMock.viewer.viewport.getBounds.mockReturnValue(rectangle)
+  osdMock.viewer.viewport.getCenter.mockReturnValue(center)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(restored ? 0 : angle)
+  let handle: ViewerHandle | null = null
+  const onViewportChange = vi.fn()
+  try {
+    render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={value => { handle = value }} onViewportChange={onViewportChange} />)
+    emitViewerEvent('open')
+    if (restored) {
+      act(() => handle!.setImageViewport({ centerX: center.x, centerY: center.y, imageZoom: 2, rotation: 0 }, 'restore-field'))
+      expect(osdMock.viewer.viewport.panTo).toHaveBeenLastCalledWith(center, true)
+      expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
+    } else fireEvent.pointerDown(document.querySelector('.osd-surface')!)
+    emitViewerEvent('animation-finish')
+    // Independent envelope of a centered, rotated viewport, in original pixels.
+    const radians = angle * Math.PI / 180
+    const envelopeWidth = Math.abs(Math.cos(radians)) * width + Math.abs(Math.sin(radians)) * height
+    const envelopeHeight = Math.abs(Math.sin(radians)) * width + Math.abs(Math.cos(radians)) * height
+    const expected = [center.x - envelopeWidth / 2, center.y - envelopeHeight / 2, envelopeWidth, envelopeHeight]
+    const actual = handle!.getImageViewport()
+    const reported = onViewportChange.mock.calls.at(-1)![0]
+    for (const snapshot of [actual, reported]) {
+      expect(snapshot.centerX).toBe(center.x)
+      expect(snapshot.centerY).toBe(center.y)
+      for (const [index, value] of snapshot.visibleBounds!.entries()) expect(value).toBeCloseTo(expected[index], 8)
+      const [left, top, extentX, extentY] = snapshot.visibleBounds!
+      expect(left).toBeLessThanOrEqual(center.x)
+      expect(left + extentX).toBeGreaterThanOrEqual(center.x)
+      expect(top).toBeLessThanOrEqual(center.y)
+      expect(top + extentY).toBeGreaterThanOrEqual(center.y)
+    }
+    if (restored) expect(onViewportChange.mock.calls.at(-1)![1]).toBe('restore-field')
+  } finally {
+    osdMock.viewer.viewport.getBounds.mockImplementation(boundsImplementation)
+    osdMock.viewer.viewport.getCenter.mockImplementation(centerImplementation)
+    osdMock.viewer.viewport.getRotation.mockImplementation(rotationImplementation)
+  }
 })
 
 it('reports actual visible image bounds alongside user navigation coordinates', () => {
