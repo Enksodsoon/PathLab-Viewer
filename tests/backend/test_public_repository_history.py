@@ -7,6 +7,56 @@ from pathlib import Path
 SCANNER = Path(__file__).resolve().parents[2] / "scripts" / "check_public_repository.py"
 
 
+def test_regex_alternation_token_is_not_a_workstation_username() -> None:
+    from scripts.check_public_repository import scan_text
+
+    fragment = "/".join(("", "Users", "|", "home", ""))
+    line = f'pattern = r"{fragment}|Bearer"'
+    assert scan_text("matcher.py", line) == []
+    assert scan_text("matcher.py", line, label="historical") == []
+
+
+def test_real_unix_workstation_paths_still_match_current_and_history() -> None:
+    from scripts.check_public_repository import scan_text
+
+    for root in ("Users", "home"):
+        for username in ("synthetic-fixture", "synthetic.name", "synthetic|fixture"):
+            value = "/".join(("", root, username, "image"))
+            for label in (None, "historical"):
+                findings = scan_text("source.conf", f'source="{value}"', label=label)
+                assert any(finding[2] == "local workstation path" for finding in findings)
+
+
+def test_current_and_deleted_history_distinguish_regex_from_real_unix_paths(tmp_path: Path) -> None:
+    repo, base = make_repo(tmp_path)
+    fragment = "/".join(("", "Users", "|", "home", ""))
+    (repo / "matcher.py").write_text(f'pattern = r"{fragment}"\n', encoding="utf-8")
+    git(repo, "add", "matcher.py")
+    git(repo, "commit", "-m", "privacy matcher fixture")
+    assert run_scan(repo).returncode == 0
+    assert run_scan(repo, "--history-base", base).returncode == 0
+
+    for root in ("Users", "home"):
+        path = repo / f"fixture-{root}.conf"
+        value = "/".join(("", root, "synthetic-fixture", "image"))
+        path.write_text(f'source="{value}"\n', encoding="utf-8")
+    git(repo, "add", "fixture-Users.conf", "fixture-home.conf")
+    git(repo, "commit", "-m", "synthetic workstation path fixtures")
+    current = run_scan(repo)
+    assert current.returncode == 1
+    for root in ("Users", "home"):
+        assert f"fixture-{root}.conf:1: local workstation path" in current.stderr
+        (repo / f"fixture-{root}.conf").unlink()
+    git(repo, "add", "-u")
+    git(repo, "commit", "-m", "remove synthetic path fixtures")
+    assert run_scan(repo).returncode == 0
+    history = run_scan(repo, "--history-base", base)
+    assert history.returncode == 1
+    for root in ("Users", "home"):
+        assert f"fixture-{root}.conf:1: local workstation path" in history.stderr
+    assert "matcher.py:1: local workstation path" not in history.stderr
+
+
 def test_recorded_opencv_version_does_not_exempt_network_addresses() -> None:
     from scripts.check_public_repository import scan_text
 

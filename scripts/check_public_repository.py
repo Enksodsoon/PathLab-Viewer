@@ -117,8 +117,8 @@ DYNAMIC_DNS_PATTERN = re.compile(
 )
 LOCAL_PATH_PATTERNS = (
     re.compile(r"\b[A-Za-z]:\\+Users\\+[^\\\s]+\\+", re.I),
-    re.compile(r"(?<![\w/])/Users/[^/\s]+/"),
-    re.compile(r"(?<![\w/])/home/(?!runner(?:/|$))[^/\s]+/"),
+    re.compile(r"(?<![\w/])/Users/(?!\|/)[^/\s]+/"),
+    re.compile(r"(?<![\w/])/home/(?!\|/)(?!runner(?:/|$))[^/\s]+/"),
     re.compile(
         r"(?<![\\\w])\\\\[A-Za-z0-9][A-Za-z0-9._-]{0,252}"
         r"\\[A-Za-z0-9$][A-Za-z0-9$._ -]{0,79}"
