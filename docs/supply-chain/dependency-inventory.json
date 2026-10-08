@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T14:33:49.838784Z",
+  "generatedAt": "2026-10-08T15:27:45.247364Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -15882,7 +15882,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "5b5b7b259b0b98f2594f92cb9255a1ce3ec978608a81def66193e77f65212a1c",
+      "metadataSha256": "cf0a2e5e0fc29573f55b44dd79dd6c8f09c844eee60f67818d466ce872591005",
       "name": "pydantic-core",
       "noticeFiles": [
         {
@@ -15975,7 +15975,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "201fdebc5da596df2df23805e8f2b6386888fad4c396dadc48c1c297a61431a5",
+      "metadataSha256": "27adf1fed0a6b71485bfb0215dff61fa7746f26b75a38f3ac0a5106275fe78fc",
       "name": "pydantic",
       "noticeFiles": [
         {
@@ -18209,9 +18209,9 @@
       "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
-      "gitBlob": "c7c8e47bcb0de16f091748d40d187532b2484f31",
+      "gitBlob": "5e1e74878a89ed1765a042e08516f7d3523d55ff",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "79ed877d6aff8039d825eb538a36d05941b59853e6752155bd32775887f8dc9b"
+      "sha256": "c576c6f38b2a888b6a70cf3df385d3a2b4c0a284f5119278b592a90e0c301cf3"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19239,6 +19239,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "5dd4be9e7bf2ac154b89b8d3767ad8951d69e67a",
-  "subjectTree": "c7e60cffa2b4fd39b573e17109f080458e9e6b49"
+  "subjectCommit": "b4123b1462c310fc337b3d4000cc2f5c8b849c6e",
+  "subjectTree": "7ae3e9a1ff8436b37ac70b541f8b87d33d710c0d"
 }
