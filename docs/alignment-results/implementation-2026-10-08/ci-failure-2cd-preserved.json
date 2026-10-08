@@ -1,0 +1,185 @@
+{
+  "schema": "pathlab.exact-ci-summary/1",
+  "runId": 37803025556,
+  "sourceHead": "2cd7f652ed780a08a7164b1dcc811ebe00932d15",
+  "attempt": 1,
+  "status": "completed",
+  "conclusion": "failure",
+  "jobCount": 8,
+  "passedJobs": 3,
+  "failedJobs": 5,
+  "jobs": [
+    {
+      "name": "web",
+      "conclusion": "failure"
+    },
+    {
+      "name": "postgres",
+      "conclusion": "success"
+    },
+    {
+      "name": "backend",
+      "conclusion": "failure"
+    },
+    {
+      "name": "fullstack (route-explorer, every declared route renders)",
+      "conclusion": "failure"
+    },
+    {
+      "name": "containers",
+      "conclusion": "success"
+    },
+    {
+      "name": "browser",
+      "conclusion": "success"
+    },
+    {
+      "name": "fullstack (workflows, ^(?!.*(?:every declared route renders|edge blocks internal routes and rejec...",
+      "conclusion": "failure"
+    },
+    {
+      "name": "fullstack (security, ^.* (?:edge blocks internal routes and rejects oversized JSON before authent...",
+      "conclusion": "failure"
+    }
+  ],
+  "backendSuite": {
+    "passed": 2114,
+    "skipped": 115,
+    "failed": 0,
+    "warnings": 236,
+    "seconds": 883.0,
+    "coveragePercentRounded": 85
+  },
+  "backendLaterLoadGate": {
+    "status": "failure",
+    "test": "test_competing_restore_fails_before_mutation",
+    "failureCategory": "compose-trace-missing-after-fixed-two-second-wait",
+    "productionCauseEstablished": false
+  },
+  "webSuite": {
+    "passed": 758,
+    "failed": 1,
+    "files": 93,
+    "seconds": 170.41,
+    "failureCategory": "restore-latest-canonical-viewport-assertion",
+    "browserBuildExecuted": false
+  },
+  "browserSuite": {
+    "passed": 289,
+    "skipped": 3,
+    "reportedMinutes": 10.5
+  },
+  "postgresSuite": {
+    "passed": 157,
+    "skipped": 1,
+    "warnings": 173,
+    "seconds": 107.06
+  },
+  "fullstack": {
+    "plannedJobs": 3,
+    "jobsFailedBeforeAssertions": 3,
+    "failureCategory": "go-1.26.9-toolchain-acquisition-http-404",
+    "applicationAssertionsExecuted": false
+  },
+  "arm64": {
+    "execution": "qemu-emulated-linux-arm64",
+    "nativeSmoke": {
+      "schema": "pathlab.native-image-smoke/1",
+      "architecture": "aarch64",
+      "python": "3.12.13",
+      "numpy": "2.5.3",
+      "opencvLoadedVersion": "4.14.0",
+      "nativeOperation": "register_prepared",
+      "nativeMapStatus": "approximate",
+      "coordinateRoundTripPassed": true,
+      "workerMemoryLimitBytes": 1,
+      "workerMemoryRejectionPassed": true,
+      "resourceFixture": "stdlib-only-separate-from-native-engine",
+      "memoryEvidence": {
+        "processContainment": "linux-owned-session",
+        "memoryMeasurementScope": "linux-owned-session-sampled-rss",
+        "peakMemoryBytes": 55394304
+      },
+      "defaultChildColdStartupVerified": false,
+      "anatomicalQualification": false
+    },
+    "ownedSessionContainmentSmoke": {
+      "schema": "pathlab-linux-containment-smoke/1",
+      "cases": [
+        {
+          "mode": "normal",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "root-exit",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "timeout",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "cancel",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "rss-live-unreadable",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true,
+          "sameOwnedLiveIdentity": true,
+          "optionalTelemetryReturnsZero": true,
+          "enforcementRejected": true
+        },
+        {
+          "mode": "rss-after-loss",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true,
+          "secondAdmissionAfterProvedCleanup": true
+        },
+        {
+          "mode": "rss-exit-race",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true,
+          "confirmedExitIsBenign": true
+        }
+      ],
+      "scope": "owned-session; descendants creating a new session require cgroup containment"
+    },
+    "runtimeLimits": {
+      "memoryBytes": 536870912,
+      "cpus": 1.75
+    },
+    "nativeArmHardwareVerified": false,
+    "windowsArmExecutionVerified": false,
+    "anatomicalQualification": false
+  },
+  "artifactCount": 0,
+  "ownedMonitorProcessesRemaining": 0,
+  "extraDispatches": 0,
+  "reruns": 0,
+  "merge": false,
+  "deployment": false,
+  "privateTerminalReceiptSha256": "49ed8aed6980b43ac34f3c94079b0b98f1ffcfcbb731b6b3aecadb58c98cac62",
+  "rawJobLogsSha256": {
+    "job-backend-113399911155.api.private.log": "aab4b7381b8a7332e05ce8bdd6218158395cba7ac2be9ea74b48764331320774",
+    "job-browser-113399911306.api.private.log": "1de587a484212fa9b668b59294e361845650846ef5e39d7f01ef54caa5ed1b06",
+    "job-containers-113399911253.api.private.log": "76229bf7753a5f711a2d6e2c4c65dda3ef23fd22e7d46d53f2a14d94747cff00",
+    "job-fullstack-route-explorer-113399911172.api.private.log": "434b0469558fa172a476fe7d99fb483afbd28ba696591e63d280b3b29d53936b",
+    "job-fullstack-security-113399911502.api.private.log": "c12964d1a1c2596af678e6fb50f983fc425ae37ea4b1d5005ccb9f02ebc75767",
+    "job-fullstack-workflows-113399911486.api.private.log": "8696763ec26f9f51194031ea0bc3a608d7ee49fb2010c977cbf4757804576ffe",
+    "job-postgres-113399911152.api.private.log": "b92bb1089357421a2e287734fce15500499eae0f574a02fa8b725ea54537a110",
+    "job-web-113399910750.api.private.log": "1a6d1aac8f87dfdcd4925d4186648bb7995b66769023db43f052895e0b4fe875"
+  },
+  "privateProcessTerminalProofSha256": "faa461298af0c3d3f59b0280bd0e3f0824b06722b788ae9fa5a73a53e0c5e0b8"
+}

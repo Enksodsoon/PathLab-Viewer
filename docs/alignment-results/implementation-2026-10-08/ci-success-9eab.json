@@ -1,0 +1,235 @@
+{
+  "schema": "pathlab.exact-ci-summary/1",
+  "runId": 37808320998,
+  "sourceHead": "9eab3edeeedded8b2fca9c0521c88cdec388e0cc",
+  "attempt": 1,
+  "status": "completed",
+  "conclusion": "success",
+  "jobCount": 8,
+  "checkRunCount": 8,
+  "passedJobs": 8,
+  "failedJobs": 0,
+  "jobs": [
+    {
+      "name": "browser",
+      "conclusion": "success"
+    },
+    {
+      "name": "fullstack (security, ^.* (?:edge blocks internal routes and rejects oversized JSON before authent...",
+      "conclusion": "success"
+    },
+    {
+      "name": "fullstack (workflows, ^(?!.*(?:every declared route renders|edge blocks internal routes and rejec...",
+      "conclusion": "success"
+    },
+    {
+      "name": "fullstack (route-explorer, every declared route renders)",
+      "conclusion": "success"
+    },
+    {
+      "name": "backend",
+      "conclusion": "success"
+    },
+    {
+      "name": "web",
+      "conclusion": "success"
+    },
+    {
+      "name": "postgres",
+      "conclusion": "success"
+    },
+    {
+      "name": "containers",
+      "conclusion": "success"
+    }
+  ],
+  "backendSuite": {
+    "passed": 2114,
+    "skipped": 115,
+    "failed": 0,
+    "warnings": 236,
+    "seconds": 876.59,
+    "coveragePercentRounded": 85
+  },
+  "backendCapacityEvidenceGate": {
+    "status": "success",
+    "actualLoadExecuted": false
+  },
+  "webSuite": {
+    "passed": 759,
+    "failed": 0,
+    "files": 93,
+    "browserBuildExecuted": true,
+    "strictEmittedDistributionVerified": true,
+    "bundleBudgetsPassed": true
+  },
+  "browserSuite": {
+    "passed": 289,
+    "skipped": 3,
+    "reportedMinutes": 12.4
+  },
+  "postgresSuite": {
+    "passed": 157,
+    "skipped": 1,
+    "warnings": 173,
+    "seconds": 134.3
+  },
+  "fullstack": {
+    "planned": 36,
+    "passed": 35,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipReason": "Existing frontend stress test requires explicit --stress opt-in",
+    "jobs": [
+      {
+        "role": "workflows",
+        "passed": 32,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0,
+        "seconds": 676.47712,
+        "resultArtifactSha256": "6b23846e2458f9ec2dbb0f5524801b71f06c69d6e71cd43e316c27e349306259"
+      },
+      {
+        "role": "route-explorer",
+        "passed": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0,
+        "seconds": 407.253852,
+        "resultArtifactSha256": "487d66bfc4c521b7956dfbb131b5053d9a05b697339f6da2cc1570752f7e41bc"
+      },
+      {
+        "role": "security",
+        "passed": 2,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0,
+        "seconds": 4.061291,
+        "resultArtifactSha256": "4e90f58f3c94195f5b95ff32e9fa469402916fa7d1096bee7b27ac5b6a3806a0"
+      }
+    ],
+    "serviceCompiler": "go1.26.8 linux/amd64"
+  },
+  "arm64": {
+    "execution": "qemu-emulated-linux-arm64",
+    "nativeSmoke": {
+      "schema": "pathlab.native-image-smoke/1",
+      "architecture": "aarch64",
+      "python": "3.12.13",
+      "numpy": "2.5.3",
+      "opencvLoadedVersion": "4.14.0",
+      "nativeOperation": "register_prepared",
+      "nativeMapStatus": "approximate",
+      "coordinateRoundTripPassed": true,
+      "workerMemoryLimitBytes": 1,
+      "workerMemoryRejectionPassed": true,
+      "resourceFixture": "stdlib-only-separate-from-native-engine",
+      "memoryEvidence": {
+        "processContainment": "linux-owned-session",
+        "memoryMeasurementScope": "linux-owned-session-sampled-rss",
+        "peakMemoryBytes": 55316480
+      },
+      "defaultChildColdStartupVerified": false,
+      "anatomicalQualification": false
+    },
+    "ownedSessionContainmentSmoke": {
+      "schema": "pathlab-linux-containment-smoke/1",
+      "cases": [
+        {
+          "mode": "normal",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "root-exit",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "timeout",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "cancel",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true
+        },
+        {
+          "mode": "rss-live-unreadable",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true,
+          "sameOwnedLiveIdentity": true,
+          "optionalTelemetryReturnsZero": true,
+          "enforcementRejected": true
+        },
+        {
+          "mode": "rss-after-loss",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true,
+          "secondAdmissionAfterProvedCleanup": true
+        },
+        {
+          "mode": "rss-exit-race",
+          "descendantsTerminal": 2,
+          "termResistantNewProcessGroup": true,
+          "unrelatedProcessUnaffected": true,
+          "confirmedExitIsBenign": true
+        }
+      ],
+      "scope": "owned-session; descendants creating a new session require cgroup containment"
+    },
+    "runtimeLimits": {
+      "memoryBytes": 536870912,
+      "cpus": 1.75
+    },
+    "nativeArmHardwareVerified": false,
+    "windowsArmExecutionVerified": false,
+    "anatomicalQualification": false
+  },
+  "artifactCount": 3,
+  "artifacts": [
+    {
+      "name": "fullstack-synthetic-diagnostics-security",
+      "archiveSha256": "8782c4115ae66fc1c7a51c7dba4063aa65bfd605b0d5927e9365807141bc16f8"
+    },
+    {
+      "name": "fullstack-synthetic-diagnostics-route-explorer",
+      "archiveSha256": "573f40153e39234175a4b8b313da89755feb6729380c60a35767c9da264e94e5"
+    },
+    {
+      "name": "fullstack-synthetic-diagnostics-workflows",
+      "archiveSha256": "eed231c8be840d629628cc50d97142393bd3cc5a45e720797161904457ccbc20"
+    }
+  ],
+  "privateTerminalReceiptSha256": "5f1237ae1d0283f6aa7c0da558c075b30d142aa2c0ea86e3f4e3ea8917392a94",
+  "rawJobLogsSha256": {
+    "job-backend-113418350706.api.private.log": "060c0ae1d7638c2fb18731984f8daf7adf5572f36def81a5518e438eeda5f764",
+    "job-browser-113418350513.api.private.log": "f1e277df874018ab65e32539d5420bb2c5de92f01d09f7d134b63c9af8e7d55c",
+    "job-containers-113418350889.api.private.log": "74c91ed05df91faf65e5f9e65cbe92728c6aa73ac3a810f6d29728cd1c230ebd",
+    "job-fullstack-route-explorer-113418350681.api.private.log": "84e4bdf8023ad189f4d2f9c203f859c8f0f21b748fafe8519792ee8d979548a6",
+    "job-fullstack-security-113418350634.api.private.log": "8a96b0552168414ac3f7a920e45fb472ba11ef8b5236f6070393cb0053ff8cab",
+    "job-fullstack-workflows-113418350667.api.private.log": "34bd3f3e9611707d66725034cefb2b451b47ee0b019deb7f66d48df42653ab80",
+    "job-postgres-113418350744.api.private.log": "6d27d4f4b8654e8c669a9a0ed2fa2f15ab4d8dd8fc3268a03f1086fa30c3f8a5",
+    "job-web-113418350713.api.private.log": "2a970c35738fbddba43e0de313735669ae7ce1f75f304581787b7f9d782be6a1"
+  },
+  "privateProcessTerminalProofSha256": "1e9f8d08f55f9b843c094c0de101d1557f266d57564faa20babe29a364042311",
+  "ownedMonitorProcessesRemaining": 0,
+  "dispatchCount": 1,
+  "reruns": 0,
+  "cancelActions": 0,
+  "merge": false,
+  "deployment": false,
+  "localWarmCampaignResult": null,
+  "qualifiedFastWinner": null,
+  "qualifiedAccurateWinner": null,
+  "historicalFailedRunPreserved": 37803025556
+}

@@ -1,0 +1,36 @@
+{
+  "schema": "pathlab-capacity-fixture-proof/1",
+  "sourceHead": "9eab3edeeedded8b2fca9c0521c88cdec388e0cc",
+  "classification": "test fixture budget regression; production restore unchanged",
+  "originalFailure": {
+    "ciRunId": 37803025556,
+    "symptom": "competing child compose trace absent; child diagnostics were not attached"
+  },
+  "repair": {
+    "firstChildGrantSeconds": 15,
+    "competingMockContainmentReserveSeconds": 9,
+    "otherFixtureReserveSeconds": 15,
+    "readiness": "condition based within original grant; early exit preserves child output",
+    "lockEnvTraceAssertions": "unchanged"
+  },
+  "validation": {
+    "scope": "maintained Windows QA; mock clock and process regressions plus Git Bash fixture",
+    "passed": 18,
+    "skipped": 5,
+    "failures": 0,
+    "errors": 0,
+    "junitSeconds": 78.293,
+    "pytestSeconds": 78.34,
+    "readinessRedCases": 3,
+    "readinessGreenCases": 3,
+    "ruff": "PASS",
+    "posixFlockRuntime": "not executed locally; pending exact-head Linux CI"
+  },
+  "artifactSha256": {
+    "finalJUnit": "3e715b83efed13913e03b27a2f7e88296ec0dc66796172452292696eb4841b09",
+    "finalLog": "3eed2946cb710a077cee6260398c4a134dc12de85d86549e48e39064c6130233",
+    "fixture": "2db042a6eb180ab4be894e8d353dd5dd9d022e94588feb952d2d23d529b163e4",
+    "productionRestore": "7485411320d1ec395e09088d31a48394d2009231cb9d2727fe6095a139f3142d",
+    "privateProof": "6ac416221c1c7bac0f1cb0eca5f978ea8b1b0d3ece32ee359b6737166508ce33"
+  }
+}
