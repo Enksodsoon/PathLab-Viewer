@@ -265,6 +265,7 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await page.getByRole('slider', { name: 'Rotation dial' }).focus()
   await page.keyboard.press('Home'); await page.keyboard.press('ArrowRight')
   await expect(rotationControl).toHaveAccessibleName('Open rotation controls. Current rotation 1 degrees')
+  await expect.poll(async () => (await currentFields())[slideIds[1]].viewport?.rotation).toBeCloseTo(1, 8)
   await rotationControl.click()
   await page.getByRole('button', { name: 'Adjust region' }).click()
   const recordTwoPoints = async () => {
