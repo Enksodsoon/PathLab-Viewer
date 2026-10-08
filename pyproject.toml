@@ -23,7 +23,7 @@ dependencies = [
   "psycopg[binary]==3.3.6",
   "pydantic-settings>=2.10,<3",
   "pyvips>=3.0,<4",
-  "sqlalchemy>=2.0,<3",
+  "sqlalchemy>=2.0,<2.1",
   "tifffile==2026.9.20",
   "uvicorn[standard]>=0.35,<1",
 ]
