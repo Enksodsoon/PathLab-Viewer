@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T05:43:28.945077Z",
+  "generatedAt": "2026-10-08T08:23:38.420461Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -15287,6 +15287,64 @@
     {
       "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
+        "1777f43c9fa064f54b916ad70d944b4fde0a644a17e49f04a966bb24a4b5f1e1",
+        "211e581f5a4670acbbe08fff36a35e9946039d2eea28b80394632d036d1be527",
+        "29714d7716dbfddf9fec20ffb878765e94ccaecd7d3ebd6750877420296e2dc5",
+        "4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577",
+        "5e02669eac0ba67b2a22d7245af1e8ee1a2ef1185ee526a063d8f0555224bd52",
+        "97c6e818c6f71c0cfa214e12293b1d0266d679c38f4e086de08357c8ac6ece0d",
+        "bc7db37dc234f7bb3190a158fd9dd750357246fc7d8adb23698843ef721a993b",
+        "cbed65415b8f6a9541c705afe3e64795840524d0ff3bc58f507826284a1dc64b",
+        "f70296aa7ac9d7ade0d925c43fdc006c83e20a23f30e2f40f1b82c74a7a54460"
+      ],
+      "artifact": "https://files.pythonhosted.org/packages/67/8a/51ff1c6287be0b6cd3070cf095875da4ff7d6eda38507e6ada5608786a78/opencv_python_headless-4.14.0.94.tar.gz",
+      "blockers": [],
+      "checksum": "sha256:4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577",
+      "checksumVerified": true,
+      "distribution": "bundled-runtime",
+      "ecosystem": "pypi",
+      "id": "pypi:opencv-python-headless@4.14.0.94",
+      "license": "Apache Software License",
+      "manifestRefs": [
+        "deploy/backend-requirements.txt"
+      ],
+      "metadataSha256": "fffd4d8cfce3ac567a57eff464a9ccd9a2eeba2b9dd67f910d04968ec1f57d0f",
+      "name": "opencv-python-headless",
+      "noticeFiles": [
+        {
+          "path": "opencv_python_headless-4.14.0.94/LICENSE-3RD-PARTY.txt",
+          "sha256": "36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c"
+        },
+        {
+          "path": "opencv_python_headless-4.14.0.94/LICENSE.txt",
+          "sha256": "09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c"
+        },
+        {
+          "path": "opencv_python_headless-4.14.0.94/opencv/COPYRIGHT",
+          "sha256": "854538f426422b0f989a5e5b7641e5943753d10ef29ea54901dcd36039e43f58"
+        },
+        {
+          "path": "opencv_python_headless-4.14.0.94/opencv/LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_BSD.txt",
+          "sha256": "a5a7cf90fe5ac9763baad852cf69cf9d9b89bff934a679fdc5c8fcecaeba9a25"
+        },
+        {
+          "path": "opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_CHANGE_NOTICE.txt",
+          "sha256": "b2255f81ae7162e36550daefe432c72a8506cfc1b954897dbc553ed5160ad4b8"
+        }
+      ],
+      "optional": false,
+      "purpose": "PathLab API/runtime dependency",
+      "role": "runtime-mandatory",
+      "source": "https://pypi.org/pypi/opencv-python-headless/4.14.0.94/json",
+      "version": "4.14.0.94"
+    },
+    {
+      "admission": "RECORDED_UNREVIEWED",
+      "allLockedSha256": [
         "711ede81773c8025c2c03dac0450bc89f3d30aea6eabcc815c570d4e35a963f7",
         "80e068aba7cd56c8b58512d6a36f8d25cb1dfaa0c0a4cc1c938ccf9f362d9cb3"
       ],
@@ -16697,11 +16755,12 @@
       "blockers": [],
       "checksum": "sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79",
       "checksumVerified": true,
-      "distribution": "operator-tooling",
+      "distribution": "bundled-runtime-and-operator-tooling",
       "ecosystem": "pypi",
       "id": "pypi:tzdata@2026.4",
       "license": "Apache-2.0",
       "manifestRefs": [
+        "deploy/backend-requirements.txt",
         "deploy/oci-cli-requirements.txt"
       ],
       "metadataSha256": "7150f382a49194486ba23c0af18a9eada655a2c16f7444bb98f1ff815160ac8a",
@@ -16717,8 +16776,8 @@
         }
       ],
       "optional": false,
-      "purpose": "OCI deployment tooling dependency",
-      "role": "deployment-only",
+      "purpose": "PathLab runtime and OCI deployment tooling dependency",
+      "role": "runtime-and-deployment",
       "source": "https://pypi.org/pypi/tzdata/2026.4/json",
       "version": "2026.4"
     },
@@ -18135,9 +18194,9 @@
       "sha256": "7f30b2cf101d9ee035e65a560af0de2eb87f82a59ddb756c4d0a1faf09bf8436"
     },
     {
-      "gitBlob": "d1e1274bc49e594cad759aac7372c4059452ac38",
+      "gitBlob": "f469765ee501154f503ab67532bdb07e2a8d8d9a",
       "path": "deploy/backend-requirements.txt",
-      "sha256": "717a3606a786dd360619d28a64abbfc0e81bb1dba56a818fd818f4e1382e1694"
+      "sha256": "cfed1d5722d8cef28a3bb870e18284b620f4388747b0be30584178791ee3139a"
     },
     {
       "gitBlob": "7c3994e7a77b03f8bdcd0146d43126d74123a672",
@@ -18150,9 +18209,9 @@
       "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
-      "gitBlob": "2462116837508e5b7b318cc2e42b5cb594f88ffe",
+      "gitBlob": "2333a420b744e5197bf0194cc83cfe6005b5b9df",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "eb37ac1ca2eed96db78e9e99c7f602de7c57acce8c47a3051ad96754f63ad67d"
+      "sha256": "2ab62ef42b8b6fe41d37e1c5ea3f30c7113308c66b7877546128e3e50ae90c82"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -18160,9 +18219,9 @@
       "sha256": "9d56e8be817e701443642941fd2daf8519828b3c49f9b06148ffe4a4809de960"
     },
     {
-      "gitBlob": "cd944968097f7c6b4d30eee513968aa84b2551c8",
+      "gitBlob": "b25dbf9c3d40ecb8b708881a000b7fdd1fb79fd9",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "076cb9fadb1925da33a23251a9df073f2bfbfac5771032beeea771a4d580d7f4"
+      "sha256": "adb39643d3c5778eef90f9faea5d216b127742f7af1cb99a77e6cf8f2d441eb9"
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -18185,9 +18244,9 @@
       "sha256": "664ea43e8734f7037a9cbf3192ae1880c67a034e3914f23408e69529c7a56d98"
     },
     {
-      "gitBlob": "6b79427a08d00696ef0481e7dc8dd4da1bd46a02",
+      "gitBlob": "0138576566e063869902906bfd7eb0e02216d671",
       "path": "docs/supply-chain/notice-material/public-legal-email-lines.json",
-      "sha256": "ab1c0a6c8c824d777bdc4e5ed1fcce40007938efdd32eddc873d2f6f27bca57b"
+      "sha256": "0f145a26f4ddc7c413767610412912dcd2051ee5c17f95b4f5d82975eb579872"
     },
     {
       "gitBlob": "6a60e8c225c9baca25907f87c74b428e5d85de0c",
@@ -18213,6 +18272,11 @@
       "gitBlob": "d6bf75dcf1f6f701d4a8fc502f01f93e9d1284f2",
       "path": "docs/supply-chain/notice-material/sha256/06bafa45fdad2579ba0e43b0c9b2c6290287c99c4203c300254a462b38a307f6",
       "sha256": "06bafa45fdad2579ba0e43b0c9b2c6290287c99c4203c300254a462b38a307f6"
+    },
+    {
+      "gitBlob": "328bf50632a988cf1cc494d557936d84fec16335",
+      "path": "docs/supply-chain/notice-material/sha256/09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c",
+      "sha256": "09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c"
     },
     {
       "gitBlob": "bd36874f34b9ae537f2bbc383fdf6e320dfafe98",
@@ -18373,6 +18437,11 @@
       "gitBlob": "d8d7f9437dbf5ad54701a187f05988bcf0006fd8",
       "path": "docs/supply-chain/notice-material/sha256/33b734d60042d0fe0c92dd1fc1e874193a1c899ec3e276a2eb935d2d0bf5b710",
       "sha256": "33b734d60042d0fe0c92dd1fc1e874193a1c899ec3e276a2eb935d2d0bf5b710"
+    },
+    {
+      "gitBlob": "89144a4156f344e65c70474dfb3958817af5f3e4",
+      "path": "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "sha256": "36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c"
     },
     {
       "gitBlob": "5f66d4ee6e85dc68fc36a027dddb2368e3f71fb4",
@@ -18680,6 +18749,11 @@
       "sha256": "809e66de579fb7d92503848bbe6d1f348f4f6521a71e5d294fe7cc0c87a3b4ff"
     },
     {
+      "gitBlob": "23eb02ef0874e894bcc6592b0d03713afa964871",
+      "path": "docs/supply-chain/notice-material/sha256/854538f426422b0f989a5e5b7641e5943753d10ef29ea54901dcd36039e43f58",
+      "sha256": "854538f426422b0f989a5e5b7641e5943753d10ef29ea54901dcd36039e43f58"
+    },
+    {
       "gitBlob": "0c7f4283a4131ec69d72bc35121dde223e5e9992",
       "path": "docs/supply-chain/notice-material/sha256/864ae9e4ed75e1571a3bcf5dc9070264213445b32e7e2af5bf60eba46fb656d0",
       "sha256": "864ae9e4ed75e1571a3bcf5dc9070264213445b32e7e2af5bf60eba46fb656d0"
@@ -18820,9 +18894,19 @@
       "sha256": "a1f30b77c01e0995fa32a00119e00749e8731ee8a3c4c3549bce74083c72b0b6"
     },
     {
+      "gitBlob": "294350045bbb56c0a5dbbdd15981cfdd20719dd0",
+      "path": "docs/supply-chain/notice-material/sha256/a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88",
+      "sha256": "a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88"
+    },
+    {
       "gitBlob": "881248b6d7f0ca2c4f65c41c0af5e02bb0680601",
       "path": "docs/supply-chain/notice-material/sha256/a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
       "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09"
+    },
+    {
+      "gitBlob": "5e42451a18f00e608c6d0261240cca2a9474494c",
+      "path": "docs/supply-chain/notice-material/sha256/a5a7cf90fe5ac9763baad852cf69cf9d9b89bff934a679fdc5c8fcecaeba9a25",
+      "sha256": "a5a7cf90fe5ac9763baad852cf69cf9d9b89bff934a679fdc5c8fcecaeba9a25"
     },
     {
       "gitBlob": "2a2d5601b66f213848eb4fd995dbfc29e51ad031",
@@ -18863,6 +18947,11 @@
       "gitBlob": "954f2fa8235009998fe29a775bbaf8c23f5e2d50",
       "path": "docs/supply-chain/notice-material/sha256/b173e19b9a78df305577ace0e52ef45a4bcc915ea28b47b256dc3b68dcb1f7e7",
       "sha256": "b173e19b9a78df305577ace0e52ef45a4bcc915ea28b47b256dc3b68dcb1f7e7"
+    },
+    {
+      "gitBlob": "c2711d4671d7569db604e1eec99a12e1bd7b10f3",
+      "path": "docs/supply-chain/notice-material/sha256/b2255f81ae7162e36550daefe432c72a8506cfc1b954897dbc553ed5160ad4b8",
+      "sha256": "b2255f81ae7162e36550daefe432c72a8506cfc1b954897dbc553ed5160ad4b8"
     },
     {
       "gitBlob": "b26ffac123c23aa6bc8c2b74eb3124ab1db69a83",
@@ -19150,6 +19239,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "e21a322b0f19a497e144a2bf3bdffed763631976",
-  "subjectTree": "b186d37141d28f5e216bd077c605b7f878357708"
+  "subjectCommit": "0a7ea08ccd545d70c8dfa1e8ac0ff972a69a0b2f",
+  "subjectTree": "0be50e4849405bc3748ad1e483a9133add29545b"
 }
