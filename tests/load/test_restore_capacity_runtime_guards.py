@@ -11,8 +11,10 @@ import subprocess
 import sys
 import textwrap
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -75,7 +77,80 @@ def assert_verifier_entered(live: Path) -> None:
     assert (live / "deploy/scripts/verifier.entered").read_text() == "entered"
 
 
-def fixture(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path]:
+def wait_for_restore_ready(
+    first: subprocess.Popen[str],
+    compose_trace: Path,
+    *,
+    deadline: float,
+    clock: Callable[[], float] = time.monotonic,
+    pause: Callable[[float], None] = time.sleep,
+) -> None:
+    while (remaining := deadline - clock()) > 0:
+        if first.poll() is not None:
+            stdout, stderr = first.communicate(timeout=remaining)
+            raise AssertionError(
+                f"first restore exited before readiness ({first.returncode}); "
+                f"stdout={stdout!r}; stderr={stderr!r}"
+            )
+        if compose_trace.exists():
+            trace = compose_trace.read_text(encoding="utf-8")
+            if trace.endswith("\n") and trace.splitlines() == ["up -d"]:
+                return
+        pause(min(0.05, remaining))
+    raise AssertionError("first restore readiness deadline elapsed")
+
+
+def test_readiness_can_arrive_after_two_seconds_within_original_budget(tmp_path: Path) -> None:
+    compose_trace = tmp_path / "compose.trace"
+    elapsed = [0.0]
+
+    def pause(seconds: float) -> None:
+        elapsed[0] += seconds
+        if elapsed[0] >= 3:
+            compose_trace.write_text("up -d\n", encoding="utf-8")
+
+    first = Mock(spec=subprocess.Popen)
+    first.poll.return_value = None
+    wait_for_restore_ready(
+        first, compose_trace, deadline=15, clock=lambda: elapsed[0], pause=pause
+    )
+    assert 3 <= elapsed[0] < 15
+    first.communicate.assert_not_called()
+
+
+def test_readiness_early_exit_reports_actual_child_output(tmp_path: Path) -> None:
+    first = Mock(spec=subprocess.Popen)
+    first.returncode = 1
+    first.poll.return_value = 1
+    first.communicate.return_value = ("first restore output", "binding refused")
+    with pytest.raises(AssertionError, match="exited before readiness") as caught:
+        wait_for_restore_ready(
+            first, tmp_path / "compose.trace", deadline=15, clock=lambda: 0, pause=lambda _: None
+        )
+    assert "first restore output" in str(caught.value)
+    assert "binding refused" in str(caught.value)
+    first.communicate.assert_called_once_with(timeout=15)
+
+
+def test_readiness_never_extends_first_child_deadline(tmp_path: Path) -> None:
+    elapsed = [0.0]
+
+    def pause(seconds: float) -> None:
+        elapsed[0] += seconds
+
+    first = Mock(spec=subprocess.Popen)
+    first.poll.return_value = None
+    with pytest.raises(AssertionError, match="readiness deadline elapsed"):
+        wait_for_restore_ready(
+            first, tmp_path / "compose.trace", deadline=15, clock=lambda: elapsed[0], pause=pause
+        )
+    assert elapsed[0] == 15
+    first.communicate.assert_not_called()
+
+
+def fixture(
+    tmp_path: Path, *, containment_reserve_seconds: int = 15
+) -> tuple[Path, Path, Path, Path, Path]:
     live = tmp_path / "live"
     scripts = live / "deploy/scripts"
     scripts.mkdir(parents=True)
@@ -106,7 +181,9 @@ def fixture(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path]:
     for production, reduced in {
         "COMMAND_KILL_SECONDS=5": "COMMAND_KILL_SECONDS=1",
         # Include fixed Git Bash/native-Python startup and diagnostic overhead.
-        "CONTAINMENT_RESERVE_SECONDS=20": "CONTAINMENT_RESERVE_SECONDS=15",
+        "CONTAINMENT_RESERVE_SECONDS=20": (
+            f"CONTAINMENT_RESERVE_SECONDS={containment_reserve_seconds}"
+        ),
         "CONTAINMENT_PROBE_SECONDS=5": "CONTAINMENT_PROBE_SECONDS=3",
         "CONTAINMENT_STOP_SECONDS=10": "CONTAINMENT_STOP_SECONDS=2",
         "CONTAINMENT_STOP_KILL_SECONDS=2": "CONTAINMENT_STOP_KILL_SECONDS=1",
@@ -396,7 +473,11 @@ def test_active_deployment_lock_fails_before_any_mutation(tmp_path: Path) -> Non
 
 @pytest.mark.skipif(BASH is None or os.name != "posix", reason="POSIX flock semantics required")
 def test_competing_restore_fails_before_mutation(tmp_path: Path) -> None:
-    live, env_file, compose_trace, script, lock_file = fixture(tmp_path)
+    # Mocked POSIX containment fits the original 15s child grant; the Windows
+    # behavior fixtures retain their larger startup/diagnostic reserve.
+    live, env_file, compose_trace, script, lock_file = fixture(
+        tmp_path, containment_reserve_seconds=9
+    )
     write_verifier(live, "import time\ntime.sleep(30)\nraise SystemExit(1)")
     command = [BASH, str(script), SHA, DIGEST, str(int(time.time()) + 15)]
     environment = {
@@ -405,6 +486,7 @@ def test_competing_restore_fails_before_mutation(tmp_path: Path) -> None:
         "PATHLAB_DEPLOY_LOCK_FILE": lock_file.as_posix(),
         "PATHLAB_CAPACITY_TEST_MODE": "true",
     }
+    first_deadline = time.monotonic() + 15
     first = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -412,11 +494,9 @@ def test_competing_restore_fails_before_mutation(tmp_path: Path) -> None:
         text=True,
         env=environment,
     )
+    failure: BaseException | None = None
     try:
-        for _ in range(40):
-            if compose_trace.exists():
-                break
-            time.sleep(0.05)
+        wait_for_restore_ready(first, compose_trace, deadline=first_deadline)
         assert compose_trace.read_text(encoding="utf-8").splitlines() == ["up -d"]
         before_env = env_file.read_bytes()
         before_trace = compose_trace.read_bytes()
@@ -427,6 +507,11 @@ def test_competing_restore_fails_before_mutation(tmp_path: Path) -> None:
         assert "deployment or another restore is active" in second.stderr
         assert env_file.read_bytes() == before_env
         assert compose_trace.read_bytes() == before_trace
+    except BaseException as error:
+        failure = error
+        raise
     finally:
         first_stdout, first_stderr = first.communicate(timeout=20)
+        if failure is not None:
+            failure.add_note(f"first restore stdout={first_stdout!r}; stderr={first_stderr!r}")
     assert first.returncode != 0, (first_stdout, first_stderr)
