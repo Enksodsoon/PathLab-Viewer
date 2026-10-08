@@ -22,6 +22,7 @@ postgres_exec() {
   fi
 }
 test -n "${PATHLAB_BACKUP_SIGNING_KEY:-}" || exit 2
+source "$(dirname "$0")/backup-lock.sh"
 test -f "$backup/database/pathlab.dump"
 test -f "$backup/files.tar.gz"
 test -f "$backup/manifest.json"

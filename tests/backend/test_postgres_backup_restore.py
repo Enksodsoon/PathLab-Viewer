@@ -3,11 +3,125 @@ import hmac
 import importlib.util
 import json
 import os
+import shutil
+import subprocess
 import tarfile
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Requires POSIX ownership and modes")
+def test_backup_lock_rejects_symlinks_and_shares_exclusion(tmp_path: Path) -> None:
+    helper = Path("deploy/scripts/backup-lock.sh").resolve()
+    env = {**os.environ, "LOCK_HELPER": str(helper)}
+    target = tmp_path / "protected"
+    target.write_text("keep", encoding="utf-8")
+    lock_dir = tmp_path / "locks"
+    lock_dir.mkdir(mode=0o700)
+    lock_file = lock_dir / "backup.lock"
+    lock_file.symlink_to(target)
+
+    def run(directory: Path, command: str = 'source "$LOCK_HELPER"'):
+        return subprocess.run(
+            ["bash", "-c", command],
+            env={**env, "PATHLAB_BACKUP_LOCK_DIR": str(directory)},
+            capture_output=True, text=True,
+        )
+
+    assert run(lock_dir).returncode == 2
+    assert target.read_text(encoding="utf-8") == "keep"
+    lock_file.unlink()
+    link = tmp_path / "linked-locks"
+    link.symlink_to(lock_dir, target_is_directory=True)
+    assert run(link).returncode == 2
+    lock_dir.chmod(0o777)
+    assert run(lock_dir).returncode == 2
+    lock_dir.chmod(0o700)
+    assert run(lock_dir).returncode == 0
+    result = run(
+        lock_dir,
+        'source "$LOCK_HELPER"; bash -c \'source "$LOCK_HELPER"\'; status=$?; exit "$status"',
+    )
+    assert result.returncode == 75
+
+
+def test_postgres_retention_keeps_five_verified_backups(tmp_path: Path) -> None:
+    bash = (
+        Path("C:/Program Files/Git/bin/bash.exe")
+        if os.name == "nt" else Path(shutil.which("bash") or "")
+    )
+    if not bash.is_file():
+        pytest.skip("Bash is unavailable")
+    module = _load_manifest_module()
+    key = "synthetic-postgres-backup-signing-key"
+    root = tmp_path / "backups"
+    root.mkdir()
+    names = [f"pathlab-postgres-202610{day:02d}T010203Z" for day in range(1, 8)]
+    for day, name in enumerate(names, start=1):
+        backup = _backup(tmp_path / name)
+        manifest = module.create_manifest(
+            backup,
+            release_sha="a" * 40,
+            schema_revision="test_revision",
+            database_name="pathlab",
+            signing_key=key,
+            created_at=f"2026-10-{day:02d}T01:02:03Z",
+        )
+        (backup / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        checksums = "".join(
+            f"{hashlib.sha256((backup / file).read_bytes()).hexdigest()}  {file}\n"
+            for file in ("database/pathlab.dump", "files.tar.gz", "manifest.json")
+        )
+        (backup / "SHA256SUMS").write_text(checksums, encoding="utf-8", newline="\n")
+        backup.rename(root / name)
+    copies = [root / f"pathlab-postgres-202611{day:02d}T010203Z" for day in range(1, 6)]
+    for copy in copies:
+        shutil.copytree(root / names[0], copy)
+    corrupt = root / "pathlab-postgres-20261008T010203Z"
+    shutil.copytree(root / names[-1], corrupt)
+    (corrupt / "database/pathlab.dump").write_bytes(b"corrupt")
+    unsigned_backup = root / "pathlab-postgres-20260901T010203Z"
+    shutil.copytree(root / names[0], unsigned_backup)
+    manifest = json.loads((unsigned_backup / "manifest.json").read_text())
+    manifest["signature"]["value"] = "0" * 64
+    (unsigned_backup / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    sqlite = root / "pathlab-20261001T010203Z"
+    sqlite.mkdir()
+
+    def bash_path(path: Path) -> str:
+        value = path.resolve().as_posix()
+        return f"/{value[0].lower()}{value[2:]}" if os.name == "nt" else value
+
+    command = [
+        str(bash), bash_path(Path("deploy/scripts/prune-backups.sh")),
+        bash_path(root), "5", "postgres",
+    ]
+    env = {**os.environ, "PATHLAB_BACKUP_SIGNING_KEY": key, "PATHLAB_PYTHON_COMMAND": "python"}
+    unsigned = subprocess.run(
+        command, env={**env, "PATHLAB_BACKUP_SIGNING_KEY": ""}, capture_output=True, text=True,
+    )
+    assert unsigned.returncode != 0
+    assert all((root / name).exists() for name in names)
+    result = subprocess.run(command, env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert sorted(path.name for path in root.iterdir() if path.name in names) == names[-5:]
+    assert corrupt.exists()
+    assert unsigned_backup.exists()
+    assert sqlite.exists()
+    assert all(not copy.exists() for copy in copies)
+    for overrides in (
+        {"PATHLAB_BACKUP_SIGNING_KEY": "wrong-synthetic-signing-key"},
+        {"PATHLAB_PYTHON_COMMAND": "/missing-python"},
+    ):
+        failed = subprocess.run(command, env={**env, **overrides}, capture_output=True, text=True)
+        assert failed.returncode != 0
+        if "PATHLAB_BACKUP_SIGNING_KEY" in overrides:
+            assert "no matching backup could be verified" in failed.stderr
+        assert all((root / name).exists() for name in names[-5:])
+        assert corrupt.exists() and unsigned_backup.exists()
+
 
 
 def _load_manifest_module():
@@ -32,6 +146,45 @@ def _backup(tmp_path: Path) -> Path:
         for root in ("originals", "private", "public"):
             archive.add(source / root, arcname=root)
     return backup
+
+
+def test_retention_verification_checks_signed_bytes_without_rescanning_archive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_manifest_module()
+    backup = _backup(tmp_path)
+    key = "synthetic-postgres-backup-signing-key"
+    manifest = module.create_manifest(
+        backup, release_sha="a" * 40, schema_revision="test_revision",
+        database_name="pathlab", signing_key=key,
+    )
+    (backup / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    checksums = "".join(
+        f"{hashlib.sha256((backup / file).read_bytes()).hexdigest()}  {file}\n"
+        for file in ("database/pathlab.dump", "files.tar.gz", "manifest.json")
+    )
+    (backup / "SHA256SUMS").write_text(checksums, encoding="utf-8", newline="\n")
+
+    def forbidden_scan(_path: Path) -> None:
+        pytest.fail("Retention must not decompress an unchanged signed archive")
+
+    monkeypatch.setattr(module, "_archive_roots", forbidden_scan)
+    assert module.verify_retention(backup, signing_key=key)["releaseSha"] == "a" * 40
+    (backup / "SHA256SUMS").write_text("bad", encoding="utf-8")
+    with pytest.raises(module.BackupManifestError):
+        module.verify_retention(backup, signing_key=key)
+    (backup / "SHA256SUMS").write_bytes(b" " * 1025)
+    with pytest.raises(module.BackupManifestError, match="bounded regular file"):
+        module.verify_retention(backup, signing_key=key)
+
+
+def test_manifest_size_is_bounded_before_parsing(tmp_path: Path) -> None:
+    module = _load_manifest_module()
+    with (tmp_path / "manifest.json").open("wb") as source:
+        source.seek(module.MAX_MANIFEST_BYTES)
+        source.write(b"x")
+    with pytest.raises(module.BackupManifestError, match="bounded regular file"):
+        module.verify_manifest(tmp_path, signing_key="synthetic-postgres-backup-signing-key")
 
 
 def test_signed_manifest_binds_dump_files_release_and_revision(tmp_path: Path) -> None:

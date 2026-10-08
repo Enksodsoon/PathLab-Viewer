@@ -1,0 +1,15 @@
+[Unit]
+Description=Bound PathLab verified backups and unused Docker build cache
+After=docker.service
+RequiresMountsFor=/srv/pathlab/data
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/pathlab-storage/storage-maintenance.sh
+TimeoutStartSec=90min
+SuccessExitStatus=75
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+UMask=0077
+MemoryMax=256M
