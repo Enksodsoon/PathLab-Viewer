@@ -2,38 +2,38 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "acdb6b332a9c29e2d9a503918cc8981e00e68c47d537c58ba525e9562fb5fbec",
-      "sizeBytes": 1458116
+      "sha256": "d3c0a74db48e7123022880d69333d3ea3a424a81db79787628990a011945a0da",
+      "sizeBytes": 1462532
     },
     {
       "path": "build.cdx.json",
-      "sha256": "771dd3f7fbf2b9f021f5c3f84dce1d387f2e4d0c6741f94bbe768b51d9047380",
-      "sizeBytes": 731952
+      "sha256": "86a65f66f1c1bf8d38e0110a329dbb4ca9be2e8b72f969a3ee7853af140a6092",
+      "sizeBytes": 733369
     },
     {
       "path": "build.spdx.json",
-      "sha256": "fa8267d35fccd65b86bc88659dfcddefc09e60ea4f6bcd5ed28726888ad5920d",
-      "sizeBytes": 591645
+      "sha256": "005f102021e586ac4b6728898ff8ec5d0cb91f925ea84a0989312b30e92269bd",
+      "sizeBytes": 592872
     },
     {
       "path": "source.cdx.json",
-      "sha256": "fa17145540d9589ee0f68edc830da820693fc9c165a4292e99b2cfeaa50e9758",
-      "sizeBytes": 774506
+      "sha256": "fb9ca82d5b92f942315b6f97d2de89c02929749ca6a54cc7411483ebac39c43f",
+      "sizeBytes": 775923
     },
     {
       "path": "source.spdx.json",
-      "sha256": "b10d7cd29c765becfdb3c2dce024cccc75478d711cd6f92a116376870431c82e",
-      "sizeBytes": 625295
+      "sha256": "efc2524e76da6d866c4016dc065860472b371e6d1708b71b264160bb8303060c",
+      "sizeBytes": 626522
     }
   ],
   "coverage": {
     "assetRecordIdsSha256": "7f883f9fd96259e5f10c472db1b3e885dc8935d193a294c35e3b4379678a6923",
     "assetRecords": 16,
-    "buildComponents": 577,
-    "currentShippedInputs": 176,
-    "dependencyRecordIdsSha256": "5b5f989688e596f84a1ef330935ca71f1a6822720ee579a17e4078b65dd82f19",
-    "dependencyRecords": 585,
-    "sourceComponents": 615,
+    "buildComponents": 578,
+    "currentShippedInputs": 177,
+    "dependencyRecordIdsSha256": "5c4ff4d13c00c9c0bcb5bda924e0df1d716c910bb73477bd4b0a0747554f9fa9",
+    "dependencyRecords": 586,
+    "sourceComponents": 616,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
     "toolchainRecords": 14
   },
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-08T01:31:09Z",
+  "generatedAt": "2026-10-08T05:44:16Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -69,10 +69,10 @@
       "sizeBytes": 134403
     },
     {
-      "gitBlob": "8c7d0febcc216accc0624ff1dd21bf8b2bb50c7c",
+      "gitBlob": "1c18c189b201552bcf4986a29ab82ae0828f8519",
       "path": "pyproject.toml",
-      "sha256": "5f86fa00340ec0a75052cbc56a29fa78603c39a251ecf94380bcab1a0e53ec0b",
-      "sizeBytes": 1872
+      "sha256": "642b9d083f6e46abc813fdee8d5fb158bfa7a43340e25f79bf9caae97ffe26fe",
+      "sizeBytes": 1874
     },
     {
       "gitBlob": "225bc78e696b41389c8e3132753b0372af5cedd5",
@@ -81,10 +81,10 @@
       "sizeBytes": 1804
     },
     {
-      "gitBlob": "1c8765745591537d9df9aa69b26030f2834179f6",
+      "gitBlob": "d1e1274bc49e594cad759aac7372c4059452ac38",
       "path": "deploy/backend-requirements.txt",
-      "sha256": "df8cf1e2520611c34427503e5c3166b975887f49c9fcfbe33f4dbeedef35c837",
-      "sizeBytes": 105857
+      "sha256": "717a3606a786dd360619d28a64abbfc0e81bb1dba56a818fd818f4e1382e1694",
+      "sizeBytes": 111420
     },
     {
       "gitBlob": "7c3994e7a77b03f8bdcd0146d43126d74123a672",
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "5ce39cb1c526d0eff3fd0a93002a0584a051eab5",
+      "gitBlob": "1b1d6bbc5a83c9134c3ceadbd836755a2e567ad1",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "e8dcefe7baeb75dc4f943ba81b15a1f6d85e1511ab9827219caba459748ff3c1",
-      "sizeBytes": 822008
+      "sha256": "9b7b477f5e10b358be5b6b793d2a924d3a8605ca6aadcf8d36caec557f601000",
+      "sizeBytes": 828490
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -195,10 +195,10 @@
       "sizeBytes": 27
     },
     {
-      "gitBlob": "d2ca2835c3e2f5711ae1093984c30b40fce01cdd",
+      "gitBlob": "cd944968097f7c6b4d30eee513968aa84b2551c8",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "20658bca8680092e0eca77898423bb5950aa98b1a7390199fc8402009acc429a",
-      "sizeBytes": 146512
+      "sha256": "076cb9fadb1925da33a23251a9df073f2bfbfac5771032beeea771a4d580d7f4",
+      "sizeBytes": 148597
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -613,6 +613,12 @@
       "path": "docs/supply-chain/notice-material/sha256/5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0",
       "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0",
       "sizeBytes": 1081
+    },
+    {
+      "gitBlob": "7f0b79007d6f024eff61372d87bb5e88cae94283",
+      "path": "docs/supply-chain/notice-material/sha256/53a375d7f6309fb05e35b37864620777b8dabd45d8d4b39ccd49c030b9cd49ba",
+      "sha256": "53a375d7f6309fb05e35b37864620777b8dabd45d8d4b39ccd49c030b9cd49ba",
+      "sizeBytes": 7989
     },
     {
       "gitBlob": "beea023ce05ade82dce8d26517e6414cc5037085",
@@ -1530,6 +1536,7 @@
     "RECORDED_UNREVIEWED:pypi:click@8.5.0",
     "RECORDED_UNREVIEWED:pypi:cryptography@50.0.2",
     "RECORDED_UNREVIEWED:pypi:fastapi@0.142.4",
+    "RECORDED_UNREVIEWED:pypi:greenlet@3.5.6",
     "RECORDED_UNREVIEWED:pypi:h11@0.16.0",
     "RECORDED_UNREVIEWED:pypi:httpcore@1.0.9",
     "RECORDED_UNREVIEWED:pypi:httptools@0.8.0",
@@ -1553,7 +1560,7 @@
     "RECORDED_UNREVIEWED:pypi:python-dotenv@1.2.4",
     "RECORDED_UNREVIEWED:pypi:pyvips@3.2.0",
     "RECORDED_UNREVIEWED:pypi:pyyaml@6.0.3",
-    "RECORDED_UNREVIEWED:pypi:sqlalchemy@2.1.4",
+    "RECORDED_UNREVIEWED:pypi:sqlalchemy@2.0.54",
     "RECORDED_UNREVIEWED:pypi:starlette@1.7.0",
     "RECORDED_UNREVIEWED:pypi:tifffile@2026.9.20",
     "RECORDED_UNREVIEWED:pypi:typing-extensions@4.16.0",
@@ -1565,6 +1572,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "fd45b4d769be4b31c05b07a2fca66bc901e4cc49",
-  "subjectTree": "3e3378fa77510be9f0443b8f842a56f72b3f2db4"
+  "subjectCommit": "7ce9f0617a6708893cc4964b4501538dd35d8269",
+  "subjectTree": "651439eb00dc3e631f748aaaa49a1769e03dc18a"
 }

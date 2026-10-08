@@ -22039,6 +22039,56 @@
       "version": "1.8.0"
     },
     {
+      "bom-ref": "dependency:pypi:greenlet@3.5.6",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/3e/6e/0091f175ccd02b02bc8811bbcbcc6ac2e980be116e3b2f7a736ca322bf84/greenlet-3.5.6.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/greenlet/3.5.6/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8e67c43bdfc88d5fee6db0d3e40175b362fc95fb85f0412d233b9b203c53a575"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT AND PSF-2.0"
+        }
+      ],
+      "name": "greenlet",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:greenlet@3.5.6"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled-runtime"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/greenlet@3.5.6",
+      "type": "library",
+      "version": "3.5.6"
+    },
+    {
       "bom-ref": "dependency:pypi:h11@0.16.0",
       "externalReferences": [
         {
@@ -23945,21 +23995,21 @@
       "version": "1.17.0"
     },
     {
-      "bom-ref": "dependency:pypi:sqlalchemy@2.1.4",
+      "bom-ref": "dependency:pypi:sqlalchemy@2.0.54",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/1f/44/311bac6b6ef81e4dfd0287d04900108b1f5c00c9761dd3c0a2b7b9d0f86b/sqlalchemy-2.1.4.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/29/9c/271aa905cf2964f841371a97f3e63ab692bf51b4423d0491e67bc7f64037/sqlalchemy-2.0.54.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/sqlalchemy/2.1.4/json"
+          "url": "https://pypi.org/pypi/sqlalchemy/2.0.54/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "7bd7ad604487daa7eab8716471c29a7185f17b5287ce73bb7bc79fea050d8cfd"
+          "content": "baa8521e8ee9f24e75dfc7aaabc08020e551ef0d48d7c3e3536f5cddf277586b"
         }
       ],
       "licenses": [
@@ -23971,7 +24021,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:sqlalchemy@2.1.4"
+          "value": "pypi:sqlalchemy@2.0.54"
         },
         {
           "name": "pathlab:role",
@@ -23990,9 +24040,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/sqlalchemy@2.1.4",
+      "purl": "pkg:pypi/sqlalchemy@2.0.54",
       "type": "library",
-      "version": "2.1.4"
+      "version": "2.0.54"
     },
     {
       "bom-ref": "dependency:pypi:starlette@1.7.0",
@@ -27774,6 +27824,7 @@
         "dependency:pypi:cryptography@50.0.2",
         "dependency:pypi:fastapi@0.142.4",
         "dependency:pypi:frozenlist@1.8.0",
+        "dependency:pypi:greenlet@3.5.6",
         "dependency:pypi:h11@0.16.0",
         "dependency:pypi:httpcore@1.0.9",
         "dependency:pypi:httptools@0.8.0",
@@ -27812,7 +27863,7 @@
         "dependency:pypi:pyyaml@6.0.3",
         "dependency:pypi:setuptools@83.0.0",
         "dependency:pypi:six@1.17.0",
-        "dependency:pypi:sqlalchemy@2.1.4",
+        "dependency:pypi:sqlalchemy@2.0.54",
         "dependency:pypi:starlette@1.7.0",
         "dependency:pypi:terminaltables@3.1.10",
         "dependency:pypi:tifffile@2026.9.20",
@@ -27891,7 +27942,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
+      "ref": "pathlab:source:7ce9f0617a6708893cc4964b4501538dd35d8269"
     },
     {
       "dependsOn": [],
@@ -29891,6 +29942,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:greenlet@3.5.6"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:h11@0.16.0"
     },
     {
@@ -30043,7 +30098,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:sqlalchemy@2.1.4"
+      "ref": "dependency:pypi:sqlalchemy@2.0.54"
     },
     {
       "dependsOn": [],
@@ -30356,15 +30411,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:fd45b4d769be4b31c05b07a2fca66bc901e4cc49",
+      "bom-ref": "pathlab:source:7ce9f0617a6708893cc4964b4501538dd35d8269",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7ce9f0617a6708893cc4964b4501538dd35d8269"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7ce9f0617a6708893cc4964b4501538dd35d8269"
         }
       ],
       "licenses": [
@@ -30395,13 +30450,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@fd45b4d769be4b31c05b07a2fca66bc901e4cc49",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@7ce9f0617a6708893cc4964b4501538dd35d8269",
       "type": "application",
-      "version": "fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
+      "version": "7ce9f0617a6708893cc4964b4501538dd35d8269"
     },
-    "timestamp": "2026-10-08T01:31:09Z"
+    "timestamp": "2026-10-08T05:44:16Z"
   },
-  "serialNumber": "urn:uuid:fd45b4d7-69be-4b31-a05b-07a2fca66bc9",
+  "serialNumber": "urn:uuid:7ce9f061-7a67-4889-acc4-964b4501538d",
   "specVersion": "1.6",
   "version": 1
 }
