@@ -1,0 +1,27 @@
+{
+  "schema": "pathlab.terminal-warm-report-assembly/1",
+  "sourceHead": "9eab3edeeedded8b2fca9c0521c88cdec388e0cc",
+  "helperSha256": "882beaf667e8f02ab2c6011d19f1c09d7bddf8ad705b2cc718485c96933e9c33",
+  "trackedReporterSha256": "4fd92317e2dfbeca1c52d60186ac69c214c2fe84ad329cfc308e66fd30cbd10e",
+  "trackedStageHelperSha256": "36c716b72f848547b9762a38505bf903fd91c180fbef90d1375e4c4e6e723267",
+  "terminalChainSha256": "43ff390dc9b6b9758db6168c321227a431e4b0b610206c9af4ad73b8232960ae",
+  "manifestSha256": "9b24a734b03ef6ecc2a9124bce5ae89bdba8364dd74fd4a55478776bff8ca512",
+  "metadataSha256": "98c4305c756e6f2c4b70b80f45c14596bfab8440ed331c108444dc7e623fd4a8",
+  "files": {
+    "observations.json": "673a5c3fd169b5a866199823a291a96e84b3db0ccdfbc1c1388324463963bd06",
+    "pair-observations.json": "1dea0905b4e1f440594201a91c6953c96272a1861d3f780995e3e1928b52eaf5",
+    "README.md": "35eadea8814765c0bb941b0828148b3322b33a6b51d1c790350bc671157a0a81"
+  },
+  "registrationExecutions": 0,
+  "mapFitting": false,
+  "historicalScoresMutated": false,
+  "originalAssemblyProofSha256": "9e4a8be9f075101bf0d7df4658c05e474fde6b05732caf848aeadbc4ee339195",
+  "producerFiles": {
+    "observations.json": "673a5c3fd169b5a866199823a291a96e84b3db0ccdfbc1c1388324463963bd06",
+    "pair-observations.json": "1dea0905b4e1f440594201a91c6953c96272a1861d3f780995e3e1928b52eaf5",
+    "README.md": "cc5821bb25f1a5dde8300b2fea59d80168c1deb1cf2f5a29f934456fbbc6263c"
+  },
+  "publicationChanges": {
+    "README.md": "Added qualification, negative-challenge and original unmeasured-stage scope, linked separate producer-bound stage supplement; removed final blank line. Numeric tables unchanged."
+  }
+}

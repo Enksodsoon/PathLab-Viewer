@@ -7,6 +7,162 @@ from pathlib import Path
 SCANNER = Path(__file__).resolve().parents[2] / "scripts" / "check_public_repository.py"
 
 
+def test_regex_alternation_token_is_not_a_workstation_username() -> None:
+    from scripts.check_public_repository import scan_text
+
+    fragment = "/".join(("", "Users", "|", "home", ""))
+    line = f'pattern = r"{fragment}|Bearer"'
+    assert scan_text("matcher.py", line) == []
+    assert scan_text("matcher.py", line, label="historical") == []
+
+
+def test_real_unix_workstation_paths_still_match_current_and_history() -> None:
+    from scripts.check_public_repository import scan_text
+
+    for root in ("Users", "home"):
+        for username in ("synthetic-fixture", "synthetic.name", "synthetic|fixture"):
+            value = "/".join(("", root, username, "image"))
+            for label in (None, "historical"):
+                findings = scan_text("source.conf", f'source="{value}"', label=label)
+                assert any(finding[2] == "local workstation path" for finding in findings)
+
+
+def test_current_and_deleted_history_distinguish_regex_from_real_unix_paths(tmp_path: Path) -> None:
+    repo, base = make_repo(tmp_path)
+    fragment = "/".join(("", "Users", "|", "home", ""))
+    (repo / "matcher.py").write_text(f'pattern = r"{fragment}"\n', encoding="utf-8")
+    git(repo, "add", "matcher.py")
+    git(repo, "commit", "-m", "privacy matcher fixture")
+    assert run_scan(repo).returncode == 0
+    assert run_scan(repo, "--history-base", base).returncode == 0
+
+    for root in ("Users", "home"):
+        path = repo / f"fixture-{root}.conf"
+        value = "/".join(("", root, "synthetic-fixture", "image"))
+        path.write_text(f'source="{value}"\n', encoding="utf-8")
+    git(repo, "add", "fixture-Users.conf", "fixture-home.conf")
+    git(repo, "commit", "-m", "synthetic workstation path fixtures")
+    current = run_scan(repo)
+    assert current.returncode == 1
+    for root in ("Users", "home"):
+        assert f"fixture-{root}.conf:1: local workstation path" in current.stderr
+        (repo / f"fixture-{root}.conf").unlink()
+    git(repo, "add", "-u")
+    git(repo, "commit", "-m", "remove synthetic path fixtures")
+    assert run_scan(repo).returncode == 0
+    history = run_scan(repo, "--history-base", base)
+    assert history.returncode == 1
+    for root in ("Users", "home"):
+        assert f"fixture-{root}.conf:1: local workstation path" in history.stderr
+    assert "matcher.py:1: local workstation path" not in history.stderr
+
+
+def test_recorded_opencv_version_does_not_exempt_network_addresses() -> None:
+    from scripts.check_public_repository import scan_text
+
+    version = ".".join(("4", "14", "0", "94"))
+    receipt = "docs/supply-chain/software-inventories/build.cdx.json"
+    assert scan_text(receipt, f'"version": "{version}"') == []
+    assert scan_text(receipt, f'"purl": "pkg:pypi/opencv-python-headless@{version}"') == []
+    assert scan_text("deploy/backend-requirements.txt", f"opencv-python-headless=={version}") == []
+    archive = "docs/supply-chain/notice-material/archive-notices.json"
+    assert scan_text(archive, f'"member": "opencv_python_headless-{version}/LICENSE"') == []
+    assert scan_text(archive, f'"host": "{version}"')
+    assert scan_text(receipt, f'"url": "https://{version}/opencv-python-headless@{version}"')
+    assert scan_text(receipt, f'"host": "{version}"')
+    assert scan_text("config.json", f'"version": "{version}"')
+    assert scan_text(receipt, '"version": "' + ".".join(("8", "8", "8", "8")) + '"')
+
+
+def test_alignment_package_versions_are_bound_to_exact_receipt_paths_and_keys() -> None:
+    from scripts.check_public_repository import scan_text
+
+    version = ".".join(("4", "11", "0", "86"))
+    receipt = "docs/alignment-results/public-screening-2026-10-03/observations.json"
+    known = f'  "opencv-python-headless": "{version}",'
+    assert scan_text(receipt, known) == []
+    for changed in (
+        f'"host": "{version}"',
+        f'"url": "https://{version}/opencv-python-headless"',
+        f'"endpoint": "{version}"',
+        f'"unknown-package": "{version}"',
+        f'"opencv-python-headless": "{version}" // host={version}',
+        f'"opencv-python-headless": "{version[:-2]}87"',
+    ):
+        assert any(finding[2] == "public IP address" for finding in scan_text(receipt, changed))
+    assert scan_text("config.json", known)
+    assert scan_text(receipt.replace("2026-10-03", "2026-10-05"), known)
+
+
+def test_alignment_qa_nested_version_requires_unchanged_full_receipt() -> None:
+    from scripts.check_public_repository import scan_text
+
+    receipt = "docs/alignment-results/runtime-2026-10-04/qa-runtime.json"
+    content = (SCANNER.parents[1] / receipt).read_text(encoding="utf-8")
+    assert scan_text(receipt, content) == []
+    # Windows checkout line endings do not change the approved UTF-8 content.
+    assert scan_text(receipt, content.replace("\n", "\r\n")) == []
+    generic = '"version": "' + ".".join(("4", "0", "0", "11")) + '"'
+    assert scan_text(receipt, generic)
+    changed = content.replace('"openslide-bin": {', '"unknown-package": {')
+    assert any(finding[2] == "public IP address" for finding in scan_text(receipt, changed))
+    assert scan_text(receipt, content + "\n")
+
+
+def test_alignment_kernel_and_markdown_recognition_reject_changed_context() -> None:
+    from scripts.check_public_repository import scan_text
+
+    receipt = "docs/alignment-results/platform-2026-10-04/linux-containment-x64.json"
+    kernel = ".".join(("6", "18", "33", "2"))
+    line = f'  "kernel": "{kernel}-microsoft-standard-WSL2",'
+    assert scan_text(receipt, line) == []
+    for changed in (line.replace("WSL2", "other"), line.replace("kernel", "host"),
+                    line + f' "host": "{kernel}"'):
+        assert scan_text(receipt, changed)
+    assert scan_text("another.json", line)
+    path = "docs/alignment-repair-2026-10-04.md"
+    content = (SCANNER.parents[1] / path).read_text(encoding="utf-8")
+    known = next(line for line in content.splitlines() if "headless " in line)
+    assert scan_text(path, known) == []
+    assert scan_text(path, known + " host=" + ".".join(("8", "8", "8", "8")))
+    assert scan_text("another.md", known)
+
+
+def test_historical_alignment_fixture_versions_require_exact_label_and_blob() -> None:
+    from scripts.check_public_repository import scan_text
+
+    path = "tests/backend/test_alignment_admission_capture.py"
+    label = "368df39c572f"
+    original = subprocess.check_output(
+        ["git", "show", f"{label}:{path}"], cwd=SCANNER.parents[1],
+    ).decode("utf-8")
+    assert scan_text(path, original, label=label) == []
+    assert scan_text(path, original)
+    assert scan_text("another.py", original, label=label)
+    assert scan_text(path, original, label="unknown")
+    assert scan_text(path, original + "\n", label=label)
+    assert scan_text(path, original.replace("metadata =", "host ="), label=label)
+    assert scan_text(path, original + '\nurl = "https://' + ".".join(("8", "8", "8", "8"))
+                     + '/"\n', label=label)
+
+
+def test_historical_dash_repair_is_bound_to_exact_blob(monkeypatch) -> None:
+    import pytest
+
+    from scripts import check_public_repository as scanner
+
+    relative = "docs/alignment-validation.md"
+    raw = subprocess.check_output(
+        ["git", "show", f"965956c5d4fd:{relative}"], cwd=SCANNER.parent.parent,
+    )
+    monkeypatch.setattr(scanner, "git", lambda *_: subprocess.CompletedProcess([], 0, stdout=raw))
+    expected = raw.replace(bytes([0x96]), "\u2013".encode()).decode()
+    assert scanner.text_at_commit("historical", relative) == expected
+    raw += b"changed"
+    with pytest.raises(UnicodeDecodeError):
+        scanner.text_at_commit("historical", relative)
+
+
 def test_browser_receipt_patch_path_is_not_a_personal_email() -> None:
     from scripts.check_public_repository import scan_text
 

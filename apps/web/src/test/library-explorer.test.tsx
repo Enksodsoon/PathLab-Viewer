@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { useLayoutEffect, useRef } from 'react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AdminPage as CanvasFocusAdminPage } from '../pages/AdminPage'
@@ -319,6 +320,31 @@ describe('Canvas Focus library explorer', () => {
     await waitFor(() => expect(screen.getByRole('combobox', {name: 'Sort slides'})).toHaveValue('name_asc'))
     fireEvent.change(screen.getByRole('combobox', {name: 'Sort slides'}), {target: {value: 'name_desc'}})
     await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({location: 'all', q: 'kidney', tags: ['Teaching', 'Renal'], sort: 'name_desc'})))
+  })
+
+  it('keeps an ordinary sort edit made as the saved query becomes visible', async () => {
+    api.getLibraryNavigation.mockResolvedValue({...navigation, savedViews: [{id: 'renal', name: 'Renal teaching', sort: 'name_asc', updatedAt: 'now', definition: {version: 1, filters: {q: 'kidney', organ: ['Kidney', 'Liver'], tags: ['Teaching', 'Renal']}}}]})
+    function EditWhenVisible() {
+      const location = useLocation()
+      const edited = useRef(false)
+      useLayoutEffect(() => {
+        const params = new URLSearchParams(location.search)
+        if (edited.current || params.get('sort') !== 'name_asc') return
+        edited.current = true
+        const select = screen.getByRole('combobox', {name: 'Sort slides'}) as HTMLSelectElement
+        expect(select).toHaveValue('name_asc')
+        expect(screen.getByLabelText('Saved organ values')).toHaveTextContent('Kidney, Liver. Applied value: Kidney')
+        // Dispatch a real control event at the committed visible field, before
+        // pending passive restoration effects can replay the saved query.
+        select.value = 'name_desc'
+        select.dispatchEvent(new Event('change', {bubbles: true}))
+      }, [location.search])
+      return null
+    }
+    render(<MemoryRouter initialEntries={['/admin?location=saved%3Arenal']}><AdminPage /><EditWhenVisible /></MemoryRouter>)
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({location: 'all', q: 'kidney', tags: ['Teaching', 'Renal'], sort: 'name_desc'})))
+    expect(screen.getByRole('combobox', {name: 'Sort slides'})).toHaveValue('name_desc')
+    expect(screen.getByRole('heading', {name: 'All slides'})).toBeVisible()
   })
 
   it('uses a compact rail with two destinations and account utilities', async () => {

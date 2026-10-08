@@ -1,0 +1,147 @@
+{
+  "schema": "pathlab.arm64-wheel-availability-public-summary/1",
+  "sourceHead": "755ea956ed177f498d45430b8d6a74ce294c8e47",
+  "originalPrivateArtifactSha256": "da6d7cbec4f81e529d3ace67972447cb5074116c02affb3475f069e3074fc612",
+  "coreLockSha256": "cfed1d5722d8cef28a3bb870e18284b620f4388747b0be30584178791ee3139a",
+  "pyprojectSha256": "890b77c77b578e76f3f474664bf21a9c9d1a39c2e44cb2e94d3622289ebd1a31",
+  "helperSha256": "ce94907ed7ebb1d5841a215c5f7eda9f67ca58a6a831e6857063474b70bbc10d",
+  "lockedPackageCount": 47,
+  "observedAt": "2026-10-08T09:11:31.601727+00:00",
+  "elapsedSeconds": 2.75,
+  "scope": "Primary PyPI metadata plus explicit target markers and admitted hashes. No wheel METADATA, native/source build, device execution or performance qualification.",
+  "assumptions": [
+    "regular GIL CPython3.12 ABI",
+    "Windows patch3.12.10 as ownedQA family",
+    "Linux patch3.12.13 as declared core Docker base",
+    "Linux wheels with manylinux glibc floor2.17..2.28; native system libraries/build tools not validated",
+    "explicit target marker environment, never pip --platform host-marker evaluation"
+  ],
+  "rawWindowsLockDirectInstallSupported": false,
+  "rawWindowsLockReason": "unconditional uvloop entry; target omission reported separately",
+  "wheelsDownloaded": 0,
+  "runtimeInstalls": 0,
+  "modelsImported": false,
+  "platformExecution": false,
+  "exactOpenCvDistributionVersionParts": [
+    4,
+    14,
+    0,
+    94
+  ],
+  "targets": [
+    {
+      "target": "windows-arm64",
+      "pythonVersionParts": [
+        3,
+        12,
+        10
+      ],
+      "requiredLockedPackageCount": 46,
+      "hashAdmittedTargetWheelCount": 40,
+      "statusCounts": {
+        "hash-admitted-target-wheel": 40,
+        "source-build-required": 4,
+        "compatible-wheel-not-in-lock-hashes": 1,
+        "no-compatible-hash-admitted-wheel-or-source": 1
+      },
+      "missingOrUnadmittedPackages": [
+        {
+          "name": "cryptography",
+          "versionParts": [
+            50,
+            0,
+            2
+          ],
+          "status": "source-build-required"
+        },
+        {
+          "name": "httptools",
+          "versionParts": [
+            0,
+            8,
+            0
+          ],
+          "status": "source-build-required"
+        },
+        {
+          "name": "opencv-python-headless",
+          "versionParts": [
+            4,
+            14,
+            0,
+            94
+          ],
+          "status": "source-build-required"
+        },
+        {
+          "name": "pillow",
+          "versionParts": [
+            12,
+            3,
+            0
+          ],
+          "status": "compatible-wheel-not-in-lock-hashes"
+        },
+        {
+          "name": "psycopg-binary",
+          "versionParts": [
+            3,
+            3,
+            6
+          ],
+          "status": "no-compatible-hash-admitted-wheel-or-source"
+        },
+        {
+          "name": "pyvips",
+          "versionParts": [
+            3,
+            2,
+            0
+          ],
+          "status": "source-build-required"
+        }
+      ],
+      "conditionalOmissions": [
+        {
+          "name": "uvloop",
+          "reason": "uvicorn[standard] target marker excludes Windows; raw lock entry remains unconditional and unmodified"
+        }
+      ],
+      "dependencyClosureIssues": [],
+      "metadataWheelAvailabilityPassed": false,
+      "nativeLibrariesOrSourceBuildExecution": "unverified",
+      "platformExecutionQualified": false
+    },
+    {
+      "target": "linux-arm64",
+      "pythonVersionParts": [
+        3,
+        12,
+        13
+      ],
+      "requiredLockedPackageCount": 47,
+      "hashAdmittedTargetWheelCount": 46,
+      "statusCounts": {
+        "hash-admitted-target-wheel": 46,
+        "source-build-required": 1
+      },
+      "missingOrUnadmittedPackages": [
+        {
+          "name": "pyvips",
+          "versionParts": [
+            3,
+            2,
+            0
+          ],
+          "status": "source-build-required"
+        }
+      ],
+      "conditionalOmissions": [],
+      "dependencyClosureIssues": [],
+      "metadataWheelAvailabilityPassed": false,
+      "nativeLibrariesOrSourceBuildExecution": "unverified",
+      "platformExecutionQualified": false
+    }
+  ],
+  "limitations": "Historical locked-profile metadata availability only; no wheel METADATA/native source build, Windows ARM runtime or default child startup execution. CI76 actual seven QEMU ARM session-helper cases are separately source-bound in ci-76.json."
+}

@@ -1,0 +1,1036 @@
+import { Plus, X, SlidersHorizontal, Stack, Link, ArrowCounterClockwise, CornersOut, CornersIn, Crosshair, CaretDown } from '@phosphor-icons/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+
+import { ApiError, benchmarkComparisonSet, cancelComparisonRegistration, correctComparisonSet, correctComparisonRegion, getComparisonCandidates, getComparisonJobs, getComparisonSet, getSharedComparisonSet, promoteComparisonCandidate, registerComparisonSet, reregisterComparisonSet, updateComparisonSet } from '../api'
+import { mapStackPoint, mapRegistrationPoint, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, type Support } from '../alignment'
+import { horizontalMicronsPerPixel, normalizedMicronsPerPixel } from '../calibration'
+import { candidatePairIsCurrent, candidatePreviewRegistration } from '../candidatePreview'
+import { adminSignInPath } from '../authReturnPath'
+import { Brand } from '../components/Brand'
+import { ComparisonCandidateReceipt } from '../components/ComparisonCandidateReceipt'
+import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
+import { Loader } from '../components/Loader'
+import type { ComparisonMember, ComparisonRegistrationJob, ComparisonSet, RegistrationCandidate, RegistrationCandidateManifest } from '../types'
+import type { ViewerLoadingMode } from '../viewerNetwork'
+import { registrationEngineLabel } from '../registrationEngineLabel'
+import './ComparisonPage.css'
+
+const MAX_PANES = 4
+type AlignmentMode = 'independent' | 'matched' | 'approximate'
+type ZoomMode = 'physical' | 'tissue'
+function savedTileDetail(): ViewerLoadingMode {
+  try {
+    const mode = localStorage.getItem('pathlab-viewer-loading-mode:v1')
+    return mode === 'full' || mode === 'data-saver' ? mode : 'auto'
+  } catch { return 'auto' }
+}
+function candidateValidationPassed(candidate: RegistrationCandidate) {
+  if (!['native-wsireg', 'valis-rigid-wsireg', 'native-valis'].includes(candidate.engine)) return candidate.validationState === 'engineering_passed'
+  const measurements = candidate.benchmarkMeasurements
+  return candidate.validationState === 'landmark_passed' && measurements?.qualified === true
+    && measurements.improvesOnIndividualStages === true && measurements.settingsDigest === candidate.settingsDigest
+}
+type CorrectionState = {
+  original: ComparisonSet
+  originalPanes: string[]
+  originalActivePane: number
+  originalMaximizedPane: number | null
+  originalAlignmentMode: AlignmentMode
+  originalLinked: boolean
+  originalViewports: Map<string, ImageViewport>
+  referenceId: string
+  movingId: string
+  points: Array<{ reference: [number, number]; moving: [number, number] }>
+  preview: boolean
+  regional: boolean
+  sourceBounds?: [number, number, number, number]
+  previewVersion?: number
+  regionId?: string
+  sourceVersion?: string
+  targetVersion?: string
+  basisVersion?: string
+  previewNeedsRefresh?: boolean
+}
+
+
+function regionalFocusBounds(source: ComparisonMember, targets: ComparisonMember[], comparison: ComparisonSet): Exclude<Support, null> | null {
+  for (const region of comparison.regionalCorrections ?? []) {
+    for (const cell of region.registration.triangles ?? []) {
+      const centroid: [number, number] = [cell.moving.reduce((sum, point) => sum + point[0], 0) / 3, cell.moving.reduce((sum, point) => sum + point[1], 0) / 3]
+      const mapped = mapStackPoint(centroid, region.sourceSlideId, source.slideId, comparison.referenceSlideId, comparison.members, 'best', undefined, comparison.regionalCorrections)
+      if (!mapped || !targets.every(target => mapStackPoint(mapped.point, source.slideId, target.slideId, comparison.referenceSlideId, comparison.members, 'best', undefined, comparison.regionalCorrections))) continue
+      const extent = Math.max(32, Math.min(region.sourceBounds[2], region.sourceBounds[3]) * 0.6)
+      return [mapped.point[0] - extent / 2, mapped.point[1] - extent / 2, mapped.point[0] + extent / 2, mapped.point[1] + extent / 2]
+    }
+  }
+  return null
+}
+
+function rerootAnchors(referenceId: string, oldReferenceId: string, previous: Record<string, string>, memberIds: string[]) {
+  const anchors = { ...previous }
+  let child = referenceId
+  let parent = previous[child]
+  const visited = new Set([child])
+  delete anchors[referenceId]
+  while (parent && !visited.has(parent)) {
+    visited.add(parent)
+    anchors[parent] = child
+    child = parent
+    parent = previous[parent]
+  }
+  if (oldReferenceId !== referenceId && !anchors[oldReferenceId]) anchors[oldReferenceId] = referenceId
+  for (const memberId of memberIds) {
+    if (memberId === referenceId) continue
+    const path = new Set<string>()
+    let current = memberId
+    while (current !== referenceId && anchors[current] && !path.has(current)) { path.add(current); current = anchors[current] }
+    if (current !== referenceId) anchors[memberId] = referenceId
+  }
+  return anchors
+}
+
+function stackFocusBounds(source: ComparisonMember, targets: ComparisonMember[], comparison: ComparisonSet): Exclude<Support, null> | null {
+  if (!source.metadata) return null
+  const eligible = targets.filter(member => member.slideId === comparison.referenceSlideId || ['ready', 'approximate'].includes(member.registration?.status ?? ''))
+  if (!eligible.length) return null
+  for (const member of comparison.members) {
+    const cells = [...(member.registration?.triangles ?? []), ...(member.registration?.overviewTriangles ?? [])]
+    const stride = Math.max(1, Math.ceil(cells.length / 64))
+    for (let index = 0; index < cells.length; index += stride) {
+      const points = cells[index].moving
+      const center: [number, number] = [points.reduce((sum, p) => sum + p[0], 0) / 3, points.reduce((sum, p) => sum + p[1], 0) / 3]
+      const mapped = mapStackPoint(center, member.slideId, source.slideId, comparison.referenceSlideId, comparison.members)
+      if (!mapped || !eligible.every(target => mapStackPoint(mapped.point, source.slideId, target.slideId, comparison.referenceSlideId, comparison.members))) continue
+      const extent = Math.max(320, Math.min(source.metadata.width, source.metadata.height) * 0.15)
+      return [mapped.point[0] - extent / 2, mapped.point[1] - extent / 2, mapped.point[0] + extent / 2, mapped.point[1] + extent / 2]
+    }
+  }
+  return null
+}
+
+function pairRegistrations(source: ComparisonMember, target: ComparisonMember, primaryReferenceId: string) {
+  const sourceRegistration = source.slideId === primaryReferenceId ? null : source.registration
+  const targetRegistration = target.slideId === primaryReferenceId ? null : target.registration
+  const coordinates = (registration: typeof sourceRegistration) => registration?.coordinateReferenceId ?? registration?.anchorSlideId ?? primaryReferenceId
+  if (source.slideId !== primaryReferenceId && !sourceRegistration && source.slideId !== coordinates(targetRegistration)) return null
+  if (target.slideId !== primaryReferenceId && !targetRegistration && target.slideId !== coordinates(sourceRegistration)) return null
+  if (source.slideId === coordinates(targetRegistration)) return [null, targetRegistration] as const
+  if (target.slideId === coordinates(sourceRegistration)) return [sourceRegistration, null] as const
+  return coordinates(sourceRegistration) === coordinates(targetRegistration)
+    ? [sourceRegistration, targetRegistration] as const
+    : null
+}
+type CandidatePreviewState = {
+  setVersion: number
+  registration: ComparisonMember['registration']
+  candidateId: string
+  engine: string
+  slideId: string
+  slideName: string
+  originalRegistration: ComparisonMember['registration']
+  originalAlignmentMode: AlignmentMode
+  originalLinked: boolean
+  originalViewports: Map<string, ImageViewport>
+}
+
+function matchedFocusBounds(source: ComparisonMember, targets: ComparisonMember[], primaryReferenceId: string): Exclude<Support, null> | null {
+  const pairs = targets.map((target) => pairRegistrations(source, target, primaryReferenceId))
+  if (!pairs.length || pairs.some((pair) => !pair)) return null
+  const cells = pairs.flatMap((pair) => {
+    const [sourceRegistration, targetRegistration] = pair!
+    return sourceRegistration?.triangles?.map((triangle) => ({ points: triangle.moving, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
+      ?? targetRegistration?.triangles?.map((triangle) => ({ points: triangle.reference, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
+      ?? []
+  })
+  if (!cells?.length || !source.metadata) return null
+  const area = (triangle: [[number, number], [number, number], [number, number]]) => Math.abs(
+    (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1])
+    - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0]),
+  )
+  const sorted = [...cells].sort((left, right) => left.residual - right.residual || area(right.points) - area(left.points))
+  const candidate = sorted.find(({ points }) => {
+    const center: [number, number] = [
+      points.reduce((sum, point) => sum + point[0], 0) / 3,
+      points.reduce((sum, point) => sum + point[1], 0) / 3,
+    ]
+    return pairs.every((pair) => mapLocalComparisonPoint(center, pair![0], pair![1]))
+  })
+  if (!candidate) return null
+  const triangle = candidate.points
+  const centerX = triangle.reduce((sum, point) => sum + point[0], 0) / 3
+  const centerY = triangle.reduce((sum, point) => sum + point[1], 0) / 3
+  const extent = Math.max(160, Math.min(source.metadata.width, source.metadata.height) * 0.08)
+  return [centerX - extent / 2, centerY - extent / 2, centerX + extent / 2, centerY + extent / 2]
+}
+
+function overviewFocusBounds(source: ComparisonMember, target: ComparisonMember, primaryReferenceId: string): Exclude<Support, null> | null {
+  const pair = pairRegistrations(source, target, primaryReferenceId)
+  if (!pair || !source.metadata || !target.metadata) return null
+  const [sourceMap, targetMap] = pair
+  const cells = sourceMap?.overviewTriangles?.map((triangle) => triangle.moving)
+    ?? targetMap?.overviewTriangles?.map((triangle) => triangle.reference)
+  if (cells?.length) {
+    const area = (triangle: [[number, number], [number, number], [number, number]]) => Math.abs(
+      (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1])
+      - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0]),
+    )
+    const triangle = [...cells].sort((left, right) => area(right) - area(left))[0]
+    const centerX = triangle.reduce((sum, point) => sum + point[0], 0) / 3
+    const centerY = triangle.reduce((sum, point) => sum + point[1], 0) / 3
+    const extent = Math.max(320, Math.min(source.metadata.width, source.metadata.height) * 0.15)
+    return [centerX - extent / 2, centerY - extent / 2, centerX + extent / 2, centerY + extent / 2]
+  }
+  if ([sourceMap, targetMap].some((registration) => registration && !registration.movingToReference)) return null
+  const sourceBounds: Exclude<Support, null> = sourceMap?.movingSupport ?? [0, 0, source.metadata.width, source.metadata.height]
+  const targetBounds: Exclude<Support, null> = targetMap?.movingSupport ?? [0, 0, target.metadata.width, target.metadata.height]
+  const common = intersectSupport(
+    sourceMap?.movingToReference ? mapSupportBounds(sourceBounds, sourceMap.movingToReference) : sourceBounds,
+    targetMap?.movingToReference ? mapSupportBounds(targetBounds, targetMap.movingToReference) : targetBounds,
+  )
+  return common ? mapComparisonBounds(common, null, sourceMap?.movingToReference ?? null) : null
+}
+
+export function ComparisonPage() {
+  const { comparisonId = '', publicId } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const viewStorageKey = `pathlab-comparison-view:${publicId ?? 'admin'}:${comparisonId}`
+  const preferenceStorageKey = `${viewStorageKey}:preferences`
+  const [comparison, setComparison] = useState<ComparisonSet | null>(null)
+  const [jobs, setJobs] = useState<ComparisonRegistrationJob[]>([])
+  const [panes, setPanes] = useState<string[]>([])
+  const [linked, setLinked] = useState(true)
+  const [unlinkedPanes, setUnlinkedPanes] = useState<Set<string>>(() => new Set())
+  const [approximatePanes, setApproximatePanes] = useState<Set<string>>(() => new Set())
+  const [regionalPanes, setRegionalPanes] = useState<Set<string>>(() => new Set())
+  const [retainedOverviewPanes, setRetainedOverviewPanes] = useState<Set<string>>(() => new Set())
+  const [physicalScaleLimitedPanes, setPhysicalScaleLimitedPanes] = useState<Set<string>>(() => new Set())
+  const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('matched')
+  const [zoomMode, setZoomMode] = useState<ZoomMode>('physical')
+  const [trayOpen, setTrayOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [activePane, setActivePane] = useState(0)
+  const [maximizedPane, setMaximizedPane] = useState<number | null>(null)
+  const [scaleBars, setScaleBars] = useState<Record<string, { microns: number; width: number }>>({})
+  const [loadingModes, setLoadingModes] = useState<Record<string, ViewerLoadingMode>>({})
+  const [display, setDisplay] = useState<Record<string, { brightness: number; contrast: number; gamma: number }>>({})
+  const [notice, setNotice] = useState('')
+  const [navigationNotice, setNavigationNotice] = useState('')
+  const [registering, setRegistering] = useState(false)
+  const [progressNow, setProgressNow] = useState(() => Date.now())
+  const [candidateManifest, setCandidateManifest] = useState<RegistrationCandidateManifest | null>(null)
+  const [candidatePreview, setCandidatePreview] = useState<CandidatePreviewState | null>(null)
+  const [benchmarking, setBenchmarking] = useState(false)
+  const [grouping, setGrouping] = useState<{ referenceId: string, anchors: Record<string, string> } | null>(null)
+  const [correction, setCorrection] = useState<CorrectionState | null>(null)
+  const [correctionBusy, setCorrectionBusy] = useState(false)
+  const [correctionError, setCorrectionError] = useState('')
+  const correctionRef = useRef<CorrectionState | null>(null)
+  const newestVersion = useRef(0)
+  const deferredComparison = useRef<ComparisonSet | null>(null)
+  correctionRef.current = correction
+  const [suspendedPanes, setSuspendedPanes] = useState<Set<string>>(() => new Set())
+  const handles = useRef(new Map<string, ViewerHandle>())
+  const savedViewports = useRef(new Map<string, ImageViewport>())
+  const openedSlides = useRef(new Set<string>())
+  const [, refreshOpenedSlides] = useState(0)
+  const initializedPanes = useRef('')
+  const drivingPane = useRef<string | null>(null)
+  const hasInitialField = useRef(false)
+  const pendingCandidateFocus = useRef<string | null>(null)
+  const activeTransaction = useRef<string | null>(null)
+  const restoreNavigationAfterCorrection = useRef(false)
+  const alignmentPreferenceExplicit = useRef(false)
+  const captureViewports = () => new Map(panes.flatMap((slideId) => {
+    const viewport = (openedSlides.current.has(slideId) ? handles.current.get(slideId)?.getImageViewport() : undefined) ?? savedViewports.current.get(slideId)
+    return viewport ? [[slideId, { ...viewport }] as const] : []
+  }))
+  const restoreViewports = useCallback((viewports: Map<string, ImageViewport>) => {
+    savedViewports.current = new Map(viewports)
+    hasInitialField.current = true
+    initializedPanes.current = ''
+    window.requestAnimationFrame(() => {
+      for (const [slideId, viewport] of viewports) {
+        const handle = handles.current.get(slideId)
+        const available = !!handle && openedSlides.current.has(slideId)
+        handle?.setImageViewport(viewport, 'restore-field')
+        const actual = available ? handle.getImageViewport() : null
+        window.dispatchEvent(new CustomEvent('pathlab:alignment-restored', { detail: {
+          slideId, requestedViewport: { ...viewport }, actualViewport: actual ? { ...actual } : null,
+        } }))
+      }
+    })
+  }, [])
+  const comparisonStatus = comparison?.status
+  const benchmarkActivity = jobs.some((job) => job.kind === 'align_benchmark'
+    && ['queued', 'leased', 'running', 'retry_wait'].includes(job.status))
+  const previewCandidate = (candidate: RegistrationCandidate, slideName: string) => {
+    if (correction || !comparison || !panes.includes(candidate.slideId)) return
+    const registration = candidatePreviewRegistration(candidate, comparison, candidateManifest)
+    if (!registration) return
+    const originalRegistration = candidatePreview?.slideId === candidate.slideId
+      ? candidatePreview.originalRegistration
+      : comparison.members.find((member) => member.slideId === candidate.slideId)?.registration ?? null
+    const originalAlignmentMode = candidatePreview?.originalAlignmentMode ?? alignmentMode
+    const originalLinked = candidatePreview?.originalLinked ?? linked
+    const originalViewports = candidatePreview?.originalViewports ?? captureViewports()
+    const viewport = openedSlides.current.has(candidate.slideId) ? handles.current.get(candidate.slideId)?.getImageViewport() : null
+    const point: [number, number] | null = viewport ? [viewport.centerX, viewport.centerY] : null
+    const ownRegistration = candidate.registration!
+    const ownSupported = point && ((ownRegistration.status === 'ready' && mapRegistrationPoint(point, ownRegistration))
+      || mapRegistrationPoint(point, { ...ownRegistration, triangles: ownRegistration.overviewTriangles }))
+    const regionalSupported = point && panes.some(id => id !== candidate.slideId && mapStackPoint(point, candidate.slideId, id, comparison.referenceSlideId, comparison.members, 'best', undefined, comparison.regionalCorrections)?.regional)
+    pendingCandidateFocus.current = ownSupported || regionalSupported ? null : candidate.id
+    hasInitialField.current = !!(ownSupported || regionalSupported)
+    drivingPane.current = candidate.slideId
+    setComparison((current) => {
+      if (!current) return current
+      const restoredMembers = candidatePreview
+        ? current.members.map((member) => member.slideId === candidatePreview.slideId
+          ? { ...member, registration: candidatePreview.originalRegistration }
+          : member)
+        : current.members
+      return {
+        ...current,
+        members: restoredMembers.map((member) => member.slideId === candidate.slideId
+          ? { ...member, registration }
+          : member),
+      }
+    })
+    setCandidatePreview({ setVersion: candidate.setVersion, registration: candidate.registration, candidateId: candidate.id, engine: candidate.engine, slideId: candidate.slideId, slideName, originalRegistration, originalAlignmentMode, originalLinked, originalViewports })
+    setAlignmentMode(registration.status === 'approximate' ? 'approximate' : 'matched')
+    const candidatePane = panes.indexOf(candidate.slideId)
+    if (candidatePane >= 0) setActivePane(candidatePane)
+    setLinked(true)
+    initializedPanes.current = ''
+    setSuspendedPanes(new Set())
+    setRetainedOverviewPanes(new Set())
+    setNotice('')
+  }
+  const stopCandidatePreview = () => {
+    if (correction || !candidatePreview) return
+    pendingCandidateFocus.current = null
+    setComparison((current) => current ? {
+      ...current,
+      members: current.members.map((member) => member.slideId === candidatePreview.slideId
+        ? { ...member, registration: candidatePreview.originalRegistration }
+        : member),
+    } : current)
+    setCandidatePreview(null)
+    setRetainedOverviewPanes(new Set())
+    setAlignmentMode(candidatePreview.originalAlignmentMode)
+    setLinked(candidatePreview.originalLinked)
+    restoreViewports(candidatePreview.originalViewports)
+    setSuspendedPanes(new Set())
+    setNotice('Candidate preview closed. The saved alignment is active again.')
+  }
+  useEffect(() => {
+    let active = true
+    const request = publicId ? getSharedComparisonSet(publicId, comparisonId) : getComparisonSet(comparisonId)
+    void request.then((value) => {
+      if (!active) return
+      newestVersion.current = value.version
+      setComparison(value)
+      setNotice('')
+      let saved: string[] = []
+      try { saved = JSON.parse(sessionStorage.getItem(viewStorageKey) ?? '[]') as string[] } catch { saved = [] }
+      try {
+        const preferences = JSON.parse(sessionStorage.getItem(preferenceStorageKey) ?? '{}') as { alignmentMode?: AlignmentMode, zoomMode?: ZoomMode, alignmentExplicit?: boolean }
+        alignmentPreferenceExplicit.current = preferences.alignmentExplicit === true
+        if (['matched', 'approximate', 'independent'].includes(preferences.alignmentMode ?? '') && (preferences.alignmentMode !== 'independent' || alignmentPreferenceExplicit.current)) {
+          const restoredMode = preferences.alignmentMode as AlignmentMode
+          setAlignmentMode(restoredMode)
+          setLinked(restoredMode !== 'independent')
+        }
+        if (['physical', 'tissue'].includes(preferences.zoomMode ?? '')) setZoomMode(preferences.zoomMode as ZoomMode)
+      } catch { /* Invalid saved preferences fall back to safe matched navigation. */ }
+      const availableMembers = value.members.filter((member) => Boolean(member.tileSource))
+      const available = new Set(availableMembers.map((member) => member.slideId))
+      const restored = Array.isArray(saved) ? [...new Set(saved)].filter((slideId) => available.has(slideId)).slice(0, MAX_PANES) : []
+      const initialPanes = restored.length ? restored : availableMembers.slice(0, 2).map((member) => member.slideId)
+      setUnlinkedPanes(new Set())
+      setPanes(initialPanes)
+      if (!publicId && value.members.some((member) => member.tileSource && member.registration?.status === 'stale')) {
+        void registerComparisonSet(value.id).then(() => {
+          if (active) setComparison((current) => current?.id === value.id ? { ...current, status: 'queued' } : current)
+        }).catch(() => {
+          if (active) setNotice('Automatic alignment could not be queued. Try Run automatic alignment again.')
+        })
+      }
+    }).catch((caught) => {
+      if (!active) return
+      if (!publicId && caught instanceof ApiError && caught.status === 401) {
+        void navigate(adminSignInPath(`${location.pathname}${location.search}${location.hash}`), { replace: true })
+        return
+      }
+      setNotice('Comparison set is unavailable.')
+    })
+    return () => { active = false }
+  }, [comparisonId, location.hash, location.pathname, location.search, navigate, preferenceStorageKey, publicId, viewStorageKey])
+  useEffect(() => {
+    if (!comparison || !panes.length || correction) return
+    try { sessionStorage.setItem(viewStorageKey, JSON.stringify(panes)) } catch { /* Storage may be disabled. Viewing remains available. */ }
+  }, [comparison, correction, panes, viewStorageKey])
+  useEffect(() => {
+    const saved = savedTileDetail()
+    setLoadingModes(current => {
+      const missing = panes.filter(id => current[id] === undefined)
+      return missing.length ? { ...current, ...Object.fromEntries(missing.map(id => [id, saved])) } : current
+    })
+  }, [panes])
+  const setTileDetail = (slideId: string, mode: ViewerLoadingMode) => {
+    setLoadingModes(current => ({ ...current, [slideId]: mode }))
+    try { localStorage.setItem('pathlab-viewer-loading-mode:v1', mode) } catch { /* Viewing remains available without storage. */ }
+  }
+  useEffect(() => {
+    if (!comparison || correction || candidatePreview) return
+    try { sessionStorage.setItem(preferenceStorageKey, JSON.stringify({ alignmentMode, zoomMode, alignmentExplicit: alignmentPreferenceExplicit.current })) } catch { /* Storage may be disabled. Viewing remains available. */ }
+  }, [alignmentMode, candidatePreview, comparison, correction, preferenceStorageKey, zoomMode])
+  useEffect(() => {
+    if (publicId || !comparisonId) return
+    let active = true
+    void getComparisonJobs(comparisonId).then((value) => { if (active && Array.isArray(value)) setJobs(value) }).catch(() => undefined)
+    return () => { active = false }
+  }, [comparisonId, publicId])
+  useEffect(() => {
+    if (!comparison || (!['queued', 'running'].includes(comparison.status) && !benchmarkActivity)) return
+    let active = true
+    const timer = window.setInterval(() => {
+      if (publicId) {
+        void getSharedComparisonSet(publicId, comparison.id).then(value => {
+          if (active && value.version >= newestVersion.current) { newestVersion.current = value.version; setComparison(value) }
+        }).catch(() => undefined)
+        return
+      }
+      void Promise.all([getComparisonSet(comparison.id), getComparisonJobs(comparison.id), getComparisonCandidates(comparison.id)])
+        .then(([updated, updatedJobs, updatedCandidates]) => {
+          if (!active) return
+          if (Array.isArray(updatedJobs)) setJobs(updatedJobs)
+          if (Array.isArray(updatedCandidates.candidates)) setCandidateManifest(updatedCandidates)
+          if (updated.version < newestVersion.current) return
+          if (correctionRef.current) { deferredComparison.current = updated; return }
+          newestVersion.current = updated.version
+          const freshCandidate = updatedCandidates.candidates?.find(candidate => candidate.id === candidatePreview?.candidateId)
+          const previewRegistration = candidatePreview && freshCandidate
+            ? candidatePreviewRegistration(freshCandidate, updated, updatedCandidates) : null
+          if (candidatePreview && previewRegistration && updated.version === candidatePreview.setVersion) {
+            const saved = updated.members.find(member => member.slideId === candidatePreview.slideId)
+            setCandidatePreview(current => current ? { ...current, registration: freshCandidate!.registration, originalRegistration: saved?.registration ?? null } : current)
+            setComparison({ ...updated, members: updated.members.map(member =>
+              member.slideId === candidatePreview.slideId
+                ? { ...member, registration: previewRegistration } : member) })
+          } else {
+            setComparison(updated)
+            if (candidatePreview) {
+              pendingCandidateFocus.current = null
+              setCandidatePreview(null)
+              setRetainedOverviewPanes(new Set())
+              setAlignmentMode(candidatePreview.originalAlignmentMode)
+              setLinked(candidatePreview.originalLinked)
+              restoreViewports(candidatePreview.originalViewports)
+              setNotice('Candidate preview ended because the slide stack changed.')
+            }
+          }
+          if (Array.isArray(updatedJobs)) setJobs(updatedJobs)
+          if (Array.isArray(updatedCandidates.candidates)) setCandidateManifest(updatedCandidates)
+        })
+        .catch(() => undefined)
+    }, 2000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [benchmarkActivity, candidatePreview, comparison, publicId, restoreViewports])
+  useEffect(() => {
+    if ((!comparisonStatus || !['queued', 'running'].includes(comparisonStatus)) && !benchmarkActivity) return
+    setProgressNow(Date.now())
+    const timer = window.setInterval(() => setProgressNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [benchmarkActivity, comparisonStatus])
+  useEffect(() => {
+    if (publicId || !comparisonId) return
+    let active = true
+    void getComparisonCandidates(comparisonId)
+      .then((value) => {
+        if (active && Array.isArray(value.candidates)) setCandidateManifest(value)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [comparisonId, publicId])
+  const synchronize = useCallback((source: ComparisonMember, snapshot: ImageViewport, incomingTransaction?: string) => {
+    if (!comparison || !linked || alignmentMode === 'independent') return
+    if (unlinkedPanes.has(source.slideId)) return
+    if (incomingTransaction) return
+    drivingPane.current = source.slideId
+    const transactionId = `${source.slideId}:${performance.now().toFixed(3)}`
+    activeTransaction.current = transactionId
+    const sourceIsLocalAnchor = panes.some((targetId) => comparison.members
+      .find((member) => member.slideId === targetId)?.registration?.anchorSlideId === source.slideId)
+    const hasRegion = (id: string) => comparison.regionalCorrections?.some(region => region.sourceSlideId === id || region.targetSlideId === id)
+    if (source.slideId !== comparison.referenceSlideId && !sourceIsLocalAnchor) {
+      if (!hasRegion(source.slideId) && source.registration && ['rejected', 'stale', 'needs_refinement'].includes(source.registration.status)) { setRegionalPanes(new Set()); setRetainedOverviewPanes(new Set()); return }
+      if (!source.registration && !hasRegion(source.slideId)) {
+        setRegionalPanes(new Set())
+        setRetainedOverviewPanes(new Set())
+        setSuspendedPanes(new Set(panes))
+        setNavigationNotice(`Synchronization unavailable because ${source.displayName} has no correspondence map and remains independent.`)
+        return
+      }
+    }
+    const suspended: string[] = []
+    const approximate: string[] = []
+    const approximateIds = new Set<string>()
+    const regionalIds = new Set<string>()
+    const retainedOverviewIds = new Set<string>()
+    const suspendedIds = new Set<string>()
+    const physicalScaleLimitedIds = new Set<string>()
+    for (const targetId of panes) {
+      if (targetId === source.slideId) continue
+      if (unlinkedPanes.has(targetId)) continue
+      const targetMember = comparison.members.find((member) => member.slideId === targetId)
+      if (!hasRegion(targetId) && targetMember?.registration && ['rejected', 'stale', 'needs_refinement'].includes(targetMember.registration.status)) continue
+      const target = comparison.members.find((member) => member.slideId === targetId)
+      if (!target) continue
+      if (!openedSlides.current.has(targetId)) continue
+      const mapped = mapStackPoint(
+        [snapshot.centerX, snapshot.centerY], source.slideId, targetId,
+        comparison.referenceSlideId, comparison.members,
+        alignmentMode === 'approximate' ? 'overview' : 'best',
+        snapshot.visibleRadiusPixels,
+        comparison.regionalCorrections,
+      )
+      if (!mapped) {
+        suspended.push(target.displayName)
+        suspendedIds.add(targetId)
+        continue
+      }
+      if (mapped.approximate) { if (!mapped.regional) approximate.push(target.displayName); approximateIds.add(targetId) }
+      const targetRotation = normalizeRotation(snapshot.rotation + mapped.rotation)
+      const sourceCalibration = normalizedMicronsPerPixel(source.metadata)
+      const targetCalibration = normalizedMicronsPerPixel(target.metadata)
+      const sourceMpp = sourceCalibration && horizontalMicronsPerPixel(sourceCalibration, snapshot.rotation)
+      const targetMpp = targetCalibration && horizontalMicronsPerPixel(targetCalibration, targetRotation)
+      const zoomScale = zoomMode === 'physical' && sourceMpp && targetMpp
+        ? targetMpp / sourceMpp
+        : mapped.zoomScale
+      if (zoomMode === 'physical' && sourceCalibration && targetCalibration && sourceMpp && targetMpp) {
+        const verticalRatio = horizontalMicronsPerPixel(targetCalibration, targetRotation + 90) / horizontalMicronsPerPixel(sourceCalibration, snapshot.rotation + 90)
+        if (Math.abs(verticalRatio / zoomScale - 1) > 1e-6) {
+          physicalScaleLimitedIds.add(source.slideId)
+          physicalScaleLimitedIds.add(targetId)
+        }
+      }
+      const targetViewport = {
+        centerX: mapped.point[0], centerY: mapped.point[1],
+        imageZoom: snapshot.imageZoom * zoomScale,
+        rotation: targetRotation,
+      }
+      savedViewports.current.set(targetId, targetViewport)
+      const targetHandle = handles.current.get(targetId)
+      if (targetHandle) {
+        const appliedStart = performance.now()
+        targetHandle.setImageViewport(targetViewport, transactionId)
+        if (mapped.regional) { regionalIds.add(source.slideId); regionalIds.add(targetId) }
+        if (mapped.retainedOverview) { retainedOverviewIds.add(source.slideId); retainedOverviewIds.add(targetId) }
+        window.dispatchEvent(new CustomEvent('pathlab:alignment-applied', { detail: {
+            slideId: targetId, sourceSlideId: source.slideId, approximate: mapped.approximate, regional: mapped.regional === true, retainedOverview: mapped.retainedOverview === true,
+            stackAcceptedAt: target.registration?.evidence?.stackAcceptedAt,
+            previewPublishedAt: target.registration?.evidence?.previewPublishedAt,
+            browserAppliedAt: new Date().toISOString(),
+            applicationMilliseconds: performance.now() - appliedStart,
+            sourceViewport: snapshot,
+            viewport: targetHandle.getImageViewport(),
+          } }))
+      }
+    }
+    setPhysicalScaleLimitedPanes(physicalScaleLimitedIds)
+    setRetainedOverviewPanes(retainedOverviewIds)
+    setSuspendedPanes(suspendedIds)
+    setApproximatePanes(approximateIds)
+    setRegionalPanes(regionalIds)
+    setNavigationNotice(suspended.length
+      ? `No verified correspondence is available at this field for ${suspended.join(', ')}. Those panes remain at their last verified position.`
+      : approximate.length
+        ? `Using approximate overview synchronization for ${[...new Set(approximate)].join(', ')}. Exact local correspondence is unavailable for these slides.`
+        : regionalIds.size ? 'Using a manually adjusted approximation inside the captured tissue region.' : '')
+  }, [alignmentMode, comparison, linked, panes, unlinkedPanes, zoomMode])
+  const alignOpenedPanes = useCallback(() => {
+    if (!comparison || !linked) return
+    const sourceId = panes.find((id) => id === drivingPane.current && openedSlides.current.has(id))
+      ?? panes.find((id) => id === comparison.referenceSlideId && openedSlides.current.has(id))
+      ?? panes.find((id) => {
+        const member = comparison.members.find((candidate) => candidate.slideId === id)
+        return openedSlides.current.has(id) && member?.registration?.status === 'ready'
+      })
+      ?? panes.find((id) => openedSlides.current.has(id) && panes.some((targetId) => comparison.members.find((member) => member.slideId === targetId)?.registration?.anchorSlideId === id))
+      ?? panes.find((id) => openedSlides.current.has(id))
+    if (!sourceId) return
+    const source = comparison.members.find((member) => member.slideId === sourceId)
+    const handle = handles.current.get(sourceId)
+    if (!source || !handle) return
+    synchronize(source, handle.getImageViewport())
+  }, [comparison, linked, panes, synchronize])
+  const initializeOpenedPanes = useCallback(() => {
+    if (!comparison || !linked) return
+    const opened = panes.filter((id) => openedSlides.current.has(id))
+    if (candidatePreview && pendingCandidateFocus.current === candidatePreview.candidateId && !correction) {
+      const member = comparison.members.find(member => member.slideId === candidatePreview.slideId)
+      const registration = candidatePreview.registration
+      const anchor = comparison.members.find(member => member.slideId === registration?.anchorSlideId)
+      const handle = member && handles.current.get(member.slideId)
+      if (!member || !registration || !anchor || !handle) return
+      if (!opened.includes(member.slideId) || (panes.includes(anchor.slideId)
+        ? !opened.includes(anchor.slideId) : !opened.some(id => id !== member.slideId))) return
+      for (const id of opened) {
+        if (candidatePreview.originalViewports.has(id)) continue
+        const viewport = handles.current.get(id)?.getImageViewport()
+        if (viewport) candidatePreview.originalViewports.set(id, { ...viewport })
+      }
+      const source = { ...member, registration }
+      const bounds = (registration.status === 'ready' ? matchedFocusBounds(source, [anchor], comparison.referenceSlideId) : null)
+        ?? overviewFocusBounds(source, anchor, comparison.referenceSlideId)
+      pendingCandidateFocus.current = null
+      if (bounds) {
+        handle.fitImageBounds(bounds)
+        hasInitialField.current = true
+        drivingPane.current = member.slideId
+        synchronize(member, handle.getImageViewport())
+        return
+      }
+    }
+    const key = JSON.stringify([opened, comparison.referenceSlideId, alignmentMode, comparison.members.map(member => member.registration)])
+    if (key === initializedPanes.current) return
+    initializedPanes.current = key
+    const anchorId = opened.includes(comparison.referenceSlideId)
+      ? comparison.referenceSlideId
+      : opened.find((id) => opened.some((otherId) => comparison.members
+        .find((member) => member.slideId === otherId)?.registration?.anchorSlideId === id))
+        ?? opened.find((id) => comparison.regionalCorrections?.some(region => region.sourceSlideId === id || region.targetSlideId === id) || ['ready', 'approximate'].includes(comparison.members.find((member) => member.slideId === id)?.registration?.status ?? ''))
+    const anchor = comparison.members.find((member) => member.slideId === anchorId)
+    const anchorHandle = anchorId ? handles.current.get(anchorId) : null
+    if (anchor && anchorHandle && opened.length > 1) {
+      const others = comparison.members.filter((member) => opened.includes(member.slideId) && member.slideId !== anchor.slideId)
+      const other = others[0]
+      const exactOthers = others.filter((target) => {
+        const pair = pairRegistrations(anchor, target, comparison.referenceSlideId)
+        const registrations = pair?.filter((item) => item !== null) ?? []
+        return registrations.length > 0 && registrations.every((registration) => registration?.status === 'ready' && hasLocalEvidence(registration))
+      })
+      const matchedBounds = alignmentMode === 'matched' && exactOthers.length
+        ? matchedFocusBounds(anchor, exactOthers, comparison.referenceSlideId)
+        : null
+      const anchorBounds = regionalFocusBounds(anchor, others, comparison) ?? matchedBounds ?? (other ? overviewFocusBounds(anchor, other, comparison.referenceSlideId) : null) ?? stackFocusBounds(anchor, others, comparison)
+      if (anchorBounds && !hasInitialField.current) {
+        anchorHandle.fitImageBounds(anchorBounds)
+        hasInitialField.current = true
+        drivingPane.current = anchorId ?? null
+        synchronize(anchor, anchorHandle.getImageViewport())
+      }
+    }
+    window.requestAnimationFrame(alignOpenedPanes)
+  }, [alignOpenedPanes, alignmentMode, candidatePreview, comparison, correction, linked, panes, synchronize])
+  useEffect(() => {
+    if (!linked) return
+    const frame = window.requestAnimationFrame(initializeOpenedPanes)
+    return () => window.cancelAnimationFrame(frame)
+  }, [initializeOpenedPanes, linked])
+  const resetView = useCallback((requestedSlideId?: string) => {
+    if (!linked || (requestedSlideId && unlinkedPanes.has(requestedSlideId))) {
+      const resetIds = requestedSlideId ? [requestedSlideId] : panes
+      resetIds.forEach((slideId) => handles.current.get(slideId)?.home())
+      return
+    }
+    const anchorId = requestedSlideId && openedSlides.current.has(requestedSlideId) ? requestedSlideId
+      : panes.find((id) => id === comparison?.referenceSlideId && openedSlides.current.has(id))
+      ?? panes.find((id) => openedSlides.current.has(id))
+    if (!anchorId) return
+    const anchor = handles.current.get(anchorId)
+    const anchorMember = comparison?.members.find((member) => member.slideId === anchorId)
+    const otherMembers = comparison?.members.filter((member) => panes.includes(member.slideId) && member.slideId !== anchorId) ?? []
+    const exactMembers = comparison && anchorMember ? otherMembers.filter((target) => {
+      const pair = pairRegistrations(anchorMember, target, comparison.referenceSlideId)
+      const registrations = pair?.filter((item) => item !== null) ?? []
+      return registrations.length > 0 && registrations.every((registration) => registration?.status === 'ready' && hasLocalEvidence(registration))
+    }) : []
+    const directBounds = comparison && anchorMember && otherMembers.length
+      ? alignmentMode === 'matched' && exactMembers.length
+        ? matchedFocusBounds(anchorMember, exactMembers, comparison.referenceSlideId)
+        : overviewFocusBounds(anchorMember, otherMembers[0], comparison.referenceSlideId)
+      : null
+    const bounds = (comparison && anchorMember ? regionalFocusBounds(anchorMember, otherMembers, comparison) : null) ?? directBounds ?? (comparison && anchorMember ? stackFocusBounds(anchorMember, otherMembers, comparison) : null)
+    if (bounds) anchor?.fitImageBounds(bounds)
+    else anchor?.home()
+    drivingPane.current = anchorId
+    if (anchor && anchorMember) synchronize(anchorMember, anchor.getImageViewport())
+  }, [alignmentMode, comparison, linked, panes, synchronize, unlinkedPanes])
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (correction) return
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return
+      if (event.key === '1' || event.key === '2' || event.key === '3' || event.key === '4') {
+        const requested = Math.min(Number(event.key), comparison?.members.length ?? 1)
+        setPanes((current) => {
+          const next = [...current]
+          for (const member of comparison?.members ?? []) if (next.length < requested && !next.includes(member.slideId)) next.push(member.slideId)
+          return next.slice(0, requested)
+        })
+      }
+      if (event.key.toLowerCase() === 'r') resetView()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [comparison, correction, resetView])
+  const submitCorrection = async (previewOnly: boolean) => {
+    if (!comparison || !correction || (!previewOnly && correction.previewNeedsRefresh)) return
+    setCorrectionBusy(true); setCorrectionError('')
+    try {
+      if (publicId) return
+      const result = correction.regional ? await correctComparisonRegion(comparison.id, {
+        version: correction.previewVersion ?? correction.original.version,
+        operation: previewOnly ? 'preview' : 'save',
+        sourceSlideId: correction.movingId, targetSlideId: correction.referenceId,
+        sourceBounds: correction.sourceBounds,
+        regionId: correction.regionId,
+        sourceVersion: correction.sourceVersion,
+        targetVersion: correction.targetVersion,
+        basisVersion: correction.basisVersion,
+        movingPoints: correction.points.map(point => point.moving),
+        referencePoints: correction.points.map(point => point.reference),
+      }) : await correctComparisonSet(comparison.id, correction.movingId, {
+        version: correction.original.version, referenceSlideId: correction.referenceId,
+        referencePoints: correction.points.map((point) => point.reference),
+        movingPoints: correction.points.map((point) => point.moving), previewOnly,
+      })
+      newestVersion.current = Math.max(newestVersion.current, result.version)
+      setComparison(result); setLinked(true); setAlignmentMode('matched')
+      hasInitialField.current = correction.regional; initializedPanes.current = ''; drivingPane.current = correction.referenceId
+      if (previewOnly) setCorrection({ ...correction, preview: true, previewVersion: result.version,
+        regionId: result.regionalCorrections?.[0]?.regionId,
+        sourceVersion: result.regionalCorrections?.[0]?.sourceVersion,
+        targetVersion: result.regionalCorrections?.[0]?.targetVersion,
+        basisVersion: result.regionalCorrections?.[0]?.basisVersion, previewNeedsRefresh: false })
+      else {
+        restoreNavigationAfterCorrection.current = !correction.regional
+        setPanes(correction.originalPanes)
+        setActivePane(Math.min(correction.originalActivePane, correction.originalPanes.length - 1))
+        setUnlinkedPanes((current) => { const next = new Set(current); next.delete(correction.movingId); return next })
+        setSuspendedPanes((current) => { const next = new Set(current); next.delete(correction.movingId); return next })
+        setCorrection(null)
+        deferredComparison.current = null
+        setNotice(correction.regional ? 'Region correction saved. Approximate navigation is limited to the captured tissue region.' : 'Manual correction saved. Support is limited to the area between your landmarks.')
+      }
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : ''
+      if (correction.regional && ['REGION_PREVIEW_CHANGED', 'REGION_PREVIEW_REQUIRED'].includes(code)) {
+        setCorrection({ ...correction, previewNeedsRefresh: true })
+      }
+      setCorrectionError(error instanceof ApiError && error.status === 401
+        ? 'Your session expired. Sign in to PathLab in another tab, then retry here. Do not reload this tab or the recorded points will be lost.'
+        : code === 'REGION_PREVIEW_CHANGED'
+          ? 'The alignment changed after this preview. Preview the correction again before saving. Your points are still recorded.'
+        : code === 'REGION_PREVIEW_REQUIRED'
+          ? 'Preview the correction again before saving. Your points are still recorded.'
+        : error instanceof ApiError && error.status === 409
+          ? 'This set changed. Cancel and reload before saving new landmarks.'
+          : code === 'LANDMARK_OUTSIDE_SLIDE'
+            ? 'A recorded point is outside its slide. Undo that pair and record it inside the image.'
+          : code === 'LANDMARK_ON_GLASS'
+            ? 'A point is outside supported tissue. Undo that pair and mark the same identifiable tissue structure in both slides.'
+            : code === 'REGION_SUPPORT_UNAVAILABLE'
+              ? 'No shared tissue is supported in this region. Move to corresponding tissue in both slides and try again.'
+          : code === 'LANDMARK_IMAGE_UNAVAILABLE'
+            ? 'The slide image could not be checked. Retry when its tiles are available.'
+          : code === 'LANDMARKS_DEGENERATE' || code === 'LANDMARKS_NOT_DISTRIBUTED'
+              ? 'Points are too close together or nearly in a line. Record corresponding points spread across the tissue.'
+              : 'Correction could not be previewed. Retry, or check the server connection.')
+    } finally { setCorrectionBusy(false) }
+  }
+  if (!comparison && !notice) return <Loader label="Opening comparison…" size="large" fullscreen />
+  if (!comparison) return <main className="viewer-message"><h1>{notice}</h1></main>
+  const paneCandidates = (current: string[]) => comparison.members
+    .map((member, index) => ({
+      member,
+      index,
+      localLinks: current.reduce((count, slideId) => {
+        const existing = comparison.members.find((candidate) => candidate.slideId === slideId)
+        const pair = existing ? pairRegistrations(existing, member, comparison.referenceSlideId) : null
+        return count + (pair && pair.filter((registration) => registration !== null)
+          .every((registration) => registration?.status === 'ready' && hasLocalEvidence(registration)) ? 1 : 0)
+      }, 0),
+      links: current.reduce((count, slideId) => {
+        const existing = comparison.members.find((candidate) => candidate.slideId === slideId)
+        return count + (existing && pairRegistrations(existing, member, comparison.referenceSlideId) ? 1 : 0)
+      }, 0),
+    }))
+    .filter(({ member }) => !current.includes(member.slideId) && member.registration?.status !== 'rejected')
+    .sort((left, right) => right.localLinks - left.localLinks || right.links - left.links || left.index - right.index)
+    .map(({ member }) => member)
+  const setLayout = (count: number) => { setActivePane(0); setMaximizedPane(null); setSuspendedPanes(new Set()); setNotice(''); setPanes((current) => {
+    const next = [...current]
+    for (const member of paneCandidates(current)) if (next.length < count) next.push(member.slideId)
+    return next.slice(0, Math.min(count, comparison.members.length))
+  }) }
+  const selectPaneSlide = (paneIndex: number, slideId: string) => {
+    hasInitialField.current = false
+    initializedPanes.current = ''
+    drivingPane.current = null
+    const selected = comparison.members.find((member) => member.slideId === slideId)
+    if (selected?.registration?.status === 'rejected') {
+      setNotice(`${selected.displayName} has no reliable counterpart and is opened independently.`)
+    } else if (selected?.registration?.status === 'approximate') {
+      setLinked(true)
+      setNotice(`${selected.displayName} uses an unverified approximate overview proposal.`)
+    } else {
+      setNotice('')
+    }
+    setActivePane(paneIndex)
+    setPanes((current) => current.map((id, index) => index === paneIndex ? slideId : id))
+  }
+  const startCorrection = (regional = false) => {
+    if (publicId) return
+    const activeId = panes[Math.min(activePane, panes.length - 1)]
+    const movingId = regional || activeId !== comparison.referenceSlideId
+      ? activeId
+      : panes.find((slideId) => slideId !== comparison.referenceSlideId)
+    if (!movingId) return
+    const moving = comparison.members.find((member) => member.slideId === movingId)
+    const configuredAnchor = comparison.alignmentConfig?.anchors?.[movingId]
+    const candidateAnchor = moving?.registration?.anchorSlideId ?? configuredAnchor ?? comparison.referenceSlideId
+    const referenceId = regional ? panes.find(id => id !== movingId) ?? candidateAnchor : comparison.members.some((member) => member.slideId === candidateAnchor && member.slideId !== movingId)
+      ? candidateAnchor
+      : comparison.referenceSlideId
+    const viewport = handles.current.get(movingId)?.getImageViewport() ?? savedViewports.current.get(movingId)
+    const radius = viewport?.visibleRadiusPixels ?? (viewport ? Math.min(1024, 400 / viewport.imageZoom) : 0)
+    if (regional && (![movingId, referenceId].every(id => openedSlides.current.has(id) && handles.current.has(id)) || !viewport || !moving?.metadata || !Number.isFinite(radius) || radius <= 0)) {
+      setNotice('Open both slide images before capturing a region.'); return
+    }
+    const bounds = viewport?.visibleBounds
+    const x = Math.max(0, bounds?.[0] ?? (viewport?.centerX ?? 0) - radius)
+    const y = Math.max(0, bounds?.[1] ?? (viewport?.centerY ?? 0) - radius)
+    const right = Math.min(moving?.metadata?.width ?? 0, bounds ? bounds[0] + bounds[2] : (viewport?.centerX ?? 0) + radius)
+    const bottom = Math.min(moving?.metadata?.height ?? 0, bounds ? bounds[1] + bounds[3] : (viewport?.centerY ?? 0) + radius)
+    pendingCandidateFocus.current = null
+    setCorrection({
+      original: comparison,
+      originalPanes: [...panes],
+      originalActivePane: activePane,
+      originalMaximizedPane: maximizedPane,
+      originalAlignmentMode: alignmentMode,
+      originalLinked: linked,
+      originalViewports: captureViewports(),
+      referenceId,
+      movingId,
+      points: [],
+      preview: false,
+      regional,
+      sourceBounds: regional ? [x, y, right - x, bottom - y] : undefined,
+    })
+    setPanes([referenceId, movingId])
+    setActivePane(1)
+    setCorrectionError('')
+    setLinked(false)
+    setAlignmentMode('independent')
+    setNotice('')
+    setMaximizedPane(null)
+    setAdvancedOpen(false)
+  }
+  const cancelCorrection = () => {
+    if (!correction) return
+    pendingCandidateFocus.current = null
+    const deferred = deferredComparison.current
+    setComparison(deferred && deferred.version >= correction.original.version ? deferred : correction.original)
+    if (deferred) newestVersion.current = Math.max(newestVersion.current, deferred.version)
+    deferredComparison.current = null
+    restoreNavigationAfterCorrection.current = false
+    restoreViewports(correction.originalViewports)
+    setPanes(correction.originalPanes)
+    setActivePane(Math.min(correction.originalActivePane, correction.originalPanes.length - 1))
+    setMaximizedPane(correction.originalMaximizedPane)
+    hasInitialField.current = true
+    initializedPanes.current = ''
+    drivingPane.current = correction.referenceId
+    setCorrection(null)
+    setCorrectionError('')
+    setLinked(correction.originalLinked)
+    setAlignmentMode(correction.originalAlignmentMode)
+  }
+  const hasMatchedMap = comparison.members.some((member) => member.registration?.status === 'ready' && hasLocalEvidence(member.registration))
+  const hasApproximateMap = comparison.members.some((member) => (member.registration?.overviewTriangles?.length ?? 0) > 0) || !!comparison.regionalCorrections?.length
+  const hasPendingLandmarkValidation = comparison.members.some((member) => member.registration?.status === 'ready' && member.registration.evidence?.withheldCheck === 'pending-independent-landmarks')
+  const correctionPanesReady = !!correction && [correction.referenceId, correction.movingId].every(id => openedSlides.current.has(id) && handles.current.has(id))
+  const registrationPending = ['queued', 'running'].includes(comparison.status)
+  const activeBenchmarkJobs = jobs
+    .filter((job) => job.kind === 'align_benchmark'
+      && job.setVersion === comparison.version
+      && ['queued', 'leased', 'running', 'retry_wait'].includes(job.status))
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+  const visibleCandidates = (candidateManifest?.candidates ?? [])
+    .filter((candidate) => candidate.setVersion === comparison.version)
+    .filter((candidate, index, candidates) => index === candidates.findIndex((other) => other.slideId === candidate.slideId && other.engine === candidate.engine))
+  const currentJobsByMember = new Map<string, ComparisonRegistrationJob>()
+  jobs
+    .filter((job) => job.kind === 'align' && job.setVersion === comparison.version && job.memberId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .forEach((job) => { if (job.memberId && !currentJobsByMember.has(job.memberId)) currentJobsByMember.set(job.memberId, job) })
+  const registrationMembers = comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId)
+  const completedRegistrations = registrationMembers.filter((member) => {
+    const job = currentJobsByMember.get(member.slideId)
+    return job ? job.status === 'succeeded' : Boolean(member.registration)
+  }).length
+  const totalRegistrationProgress = registrationMembers.length
+    ? Math.round(registrationMembers.reduce((total, member) => {
+      const job = currentJobsByMember.get(member.slideId)
+      return total + (job ? (job.status === 'succeeded' ? 100 : job.progress) : member.registration ? 100 : 0)
+    }, 0) / registrationMembers.length)
+    : 100
+  const anchorIds = new Set(comparison.members.flatMap((member) => member.registration?.anchorSlideId ? [member.registration.anchorSlideId] : []))
+  const inspectedId = panes[Math.min(activePane, panes.length - 1)]
+  const inspectedMember = comparison.members.find(member => member.slideId === inspectedId)
+  const inspectedAdjustments = display[inspectedId] ?? { brightness: 1, contrast: 1, gamma: 1 }
+  const inspectedEvidence = inspectedMember?.registration?.evidence
+  const inspectedResiduals = inspectedMember?.registration?.controlPoints?.map(point => point.errorPixels).filter(Number.isFinite) ?? []
+  const inspectedResidual = inspectedResiduals.length ? [...inspectedResiduals].sort((a, b) => a - b)[Math.floor(inspectedResiduals.length / 2)] : null
+  return <div className="comparison-shell">
+    <header className="comparison-header">
+      <Brand variant="library" />
+      <div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div>
+      <div className="comparison-view-controls" aria-label="Viewing controls">
+        <button type="button" aria-expanded={trayOpen} aria-controls="comparison-slides" disabled={!!correction} onClick={() => setTrayOpen(value => !value)}><Stack weight="bold" aria-hidden="true" /> Slides</button>
+        <button type="button" className="comparison-link-control" disabled={!!correction || !!grouping} aria-label={linked ? 'Views linked' : 'Views independent'} aria-pressed={linked} onClick={() => { alignmentPreferenceExplicit.current = true; setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}><Link weight="bold" aria-hidden="true" /> Sync</button>
+        {!publicId ? <button type="button" disabled={!!correction || !!grouping || panes.length < 2} onClick={() => startCorrection(true)}><Crosshair weight="bold" aria-hidden="true" /> Adjust region</button> : null}
+      </div>
+      <details className="comparison-setup-menu" open={advancedOpen} onToggle={event => setAdvancedOpen(event.currentTarget.open)}><summary onClick={event => { event.preventDefault(); setAdvancedOpen(open => !open) }}><SlidersHorizontal weight="bold" aria-hidden="true" /> Advanced</summary><div>        <label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction || !!grouping} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; alignmentPreferenceExplicit.current = true; hasInitialField.current = false; initializedPanes.current = ''; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Best available</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label>        <label className="comparison-toolbar-field"><span>Zoom</span><select disabled={!!correction || !!grouping} aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">{panes.every(id => normalizedMicronsPerPixel(comparison.members.find(member => member.slideId === id)?.metadata)) ? 'Equal horizontal µm/pixel' : 'Relative scale (calibration unavailable)'}</option><option value="tissue">Fit corresponding tissue</option></select></label><button type="button" onClick={() => resetView()}><ArrowCounterClockwise weight="bold" aria-hidden="true" /> Reset view</button>
+        {!publicId ? <><button type="button" disabled={registering || !!correction || !!grouping || registrationPending} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued' } : current); setNotice('Automatic alignment queued. The current map remains active until its replacement succeeds.') }).catch(() => setNotice('Automatic alignment could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Run automatic alignment again'}</button>
+        {['queued', 'running'].includes(comparison.status) || benchmarkActivity ? <button type="button" disabled={registering} onClick={() => { setRegistering(true); void cancelComparisonRegistration(comparison.id).then(() => setNotice('Registration cancellation requested.')).catch(() => setNotice('Registration could not be cancelled.')).finally(() => setRegistering(false)) }}>Cancel registration</button> : null}
+        <button type="button" aria-label="Groups" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => setGrouping({ referenceId: comparison.referenceSlideId, anchors: Object.fromEntries(comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId).map((member) => [member.slideId, comparison.alignmentConfig?.anchors?.[member.slideId] ?? member.registration?.anchorSlideId ?? comparison.referenceSlideId])) })}>Reference groups</button>
+        <button type="button" disabled={benchmarking || registrationPending || !!correction} onClick={() => { const engines = Object.entries(candidateManifest?.engineAvailability ?? {}).filter(([, value]) => value.available).map(([engine]) => engine); setBenchmarking(true); void benchmarkComparisonSet(comparison.id, comparison.version, engines.length ? engines : ['native-v12']).then(async () => { setNotice('Engine benchmark queued. Existing alignment remains active until you promote a candidate.'); const queuedJobs = await getComparisonJobs(comparison.id); if (Array.isArray(queuedJobs)) setJobs(queuedJobs) }).catch(() => setNotice('Engine benchmark could not be queued.')).finally(() => setBenchmarking(false)) }}>{benchmarking ? 'Queuing benchmark…' : 'Benchmark engines'}</button>
+        <button type="button" disabled={registrationPending || !!correction || !!grouping || !panes.some((slideId) => slideId !== comparison.referenceSlideId)} onClick={() => startCorrection()}>Correct alignment</button></> : null}
+{!publicId && visibleCandidates.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy. Preview a candidate and inspect corresponding tissue before saving it.</p>{candidatePreview && comparison.members.some(member => member.registration?.retainedOverviewFallback) ? <p>Outside candidate support, a source-bound Native overview provides approximate navigation within its supported tissue.</p> : null}<div>{visibleCandidates.map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; const currentCandidate = candidatePairIsCurrent(candidate, comparison, candidateManifest); const canPreview = currentCandidate && panes.includes(candidate.slideId); const localEvidenceReady = candidate.engine.startsWith('hisalign') ? candidate.registration?.evidence?.hisalignLocalEvidenceQualified === true : candidate.engine.startsWith('valis') ? candidate.registration?.evidence?.valisLocalEvidenceQualified === true : true; const canPromote = canPreview && candidate.benchmarkMeasurements?.qualified !== false && candidate.currentSettings !== false && candidate.status === 'ready' && candidateValidationPassed(candidate) && !!candidate.registration && localEvidenceReady; const isPreviewing = candidatePreview?.candidateId === candidate.id; const candidateReason = candidate.failureReason || candidate.registration?.reason; return <article key={candidate.id} data-previewing={isPreviewing}><strong>{candidateSlideName}</strong><span>{registrationEngineLabel(candidate.engine)} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}{candidate.currentSettings === false ? ' · outdated adapter' : !localEvidenceReady ? ' · local map unqualified' : ''}</span>{candidateReason ? <small>{candidateReason}</small> : null}{currentCandidate && !panes.includes(candidate.slideId) ? <small>Show {candidateSlideName} in a pane to preview its alignment.</small> : null}<ComparisonCandidateReceipt recipeIdentity={candidate.recipeIdentity} stages={candidate.stageProvenance} measurements={candidate.benchmarkMeasurements} /><div className="comparison-candidate-actions">{isPreviewing ? <button type="button" aria-label={`Stop previewing ${candidate.engine} for ${candidateSlideName}`} disabled={!!correction} onClick={stopCandidatePreview}>Stop preview</button> : <button type="button" aria-label={`Preview ${candidate.engine} for ${candidateSlideName}`} disabled={!canPreview || !!correction} onClick={() => previewCandidate(candidate, candidateSlideName)}>Preview candidate</button>}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={!canPromote || registering || !!correction} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setCandidatePreview(null); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></div></article> })}</div></details> : null}
+{inspectedMember ? <section className="comparison-inspector" aria-label="Active pane inspector"><strong>{inspectedMember.displayName}</strong><details className="comparison-display"><summary>Display</summary><label>Tile detail<select aria-label="Tile detail" value={loadingModes[inspectedId] ?? 'auto'} onChange={event => setTileDetail(inspectedId, event.target.value as ViewerLoadingMode)}><option value="auto">Auto</option><option value="data-saver">Data saver</option><option value="full">Full detail</option></select></label><label>Brightness<input type="range" min="0.5" max="1.5" step="0.05" value={inspectedAdjustments.brightness} onChange={(event) => setDisplay((current) => ({ ...current, [inspectedId]: { ...inspectedAdjustments, brightness: Number(event.target.value) } }))} /></label><label>Contrast<input type="range" min="0.5" max="1.5" step="0.05" value={inspectedAdjustments.contrast} onChange={(event) => setDisplay((current) => ({ ...current, [inspectedId]: { ...inspectedAdjustments, contrast: Number(event.target.value) } }))} /></label><label>Gamma<input type="range" min="0.5" max="2" step="0.05" value={inspectedAdjustments.gamma} onChange={(event) => setDisplay((current) => ({ ...current, [inspectedId]: { ...inspectedAdjustments, gamma: Number(event.target.value) } }))} /></label><button type="button" onClick={() => setDisplay((current) => ({ ...current, [inspectedId]: { brightness: 1, contrast: 1, gamma: 1 } }))}>Reset display</button></details>
+          <details className="comparison-quality"><summary>Alignment quality</summary>{inspectedMember.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{inspectedMember.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{inspectedEvidence?.featureMatchCount ?? inspectedEvidence?.anatomicalMatchCount ?? 0} {inspectedMember.registration?.provenance === 'manual' ? 'manual landmarks' : 'feature candidates'}</dd></div><div><dt>Map</dt><dd>{inspectedEvidence?.triangleCount ?? inspectedMember.registration?.triangles?.length ?? 0} accepted cells</dd></div>{inspectedMember.registration?.overviewTriangles?.length ? <div><dt>Overview map</dt><dd>{inspectedMember.registration.overviewTriangles.length} approximate cells</dd></div> : null}{inspectedEvidence?.flowControlCount ? <div><dt>Local refinement</dt><dd>{inspectedEvidence.flowControlCount} cycle-consistent controls</dd></div> : null}{inspectedEvidence?.flowCycleP95 !== undefined ? <div><dt>Flow cycle p95</dt><dd>{inspectedEvidence.flowCycleP95.toFixed(2)} px</dd></div> : null}{inspectedEvidence?.verifiedPatchCount !== undefined ? <div><dt>Withheld patch check</dt><dd>{inspectedEvidence.verifiedPatchCount} locally discriminative cells</dd></div> : null}{inspectedEvidence?.supportExpansionCount ? <div><dt>Continuous support</dt><dd>{inspectedEvidence.supportExpansionCount} edge-adjacent cells</dd></div> : null}{inspectedEvidence?.patchNccMedian !== undefined && inspectedEvidence.patchNccMedian >= 0 ? <div><dt>Patch NCC median</dt><dd>{inspectedEvidence.patchNccMedian.toFixed(2)}</dd></div> : null}{inspectedEvidence?.patchDiscriminationMedian !== undefined && inspectedEvidence.patchDiscriminationMedian >= 0 ? <div><dt>Patch discrimination</dt><dd>{inspectedEvidence.patchDiscriminationMedian.toFixed(2)}</dd></div> : null}{inspectedEvidence?.structuralComponentPairsChecked !== undefined ? <div><dt>Fragment alternatives</dt><dd>{inspectedEvidence.structuralComponentPairsChecked} checked · {inspectedEvidence.acceptedStructuralComponents ?? 0} accepted · {inspectedEvidence.ambiguousStructuralComponents ?? 0} ambiguous</dd></div> : null}{inspectedEvidence?.layoutConsistencyMedian !== undefined ? <div><dt>Fragment layout</dt><dd>{inspectedEvidence.layoutConsistencyMedian.toFixed(2)} consistency</dd></div> : null}{inspectedEvidence?.opticalDensityKazeInliers !== undefined ? <div><dt>Stain-independent features</dt><dd>{inspectedEvidence.opticalDensityKazeInliers} KAZE inliers · {(inspectedEvidence.opticalDensityKazeSpreadMedian ?? 0).toFixed(2)} spread</dd></div> : null}<div><dt>Fit residual (not accuracy)</dt><dd>{inspectedResidual === null ? 'Not measured' : `${inspectedResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{inspectedMember.registration?.provenance ?? 'none'}</dd></div></dl>}{inspectedMember.registration?.reason ? <p>{inspectedMember.registration.reason}</p> : null}</details></section> : null}
+      </div></details>
+    </header>
+    {registrationPending ? <details className="comparison-progress-disclosure"><summary>Alignment in progress · {totalRegistrationProgress}% · {completedRegistrations}/{registrationMembers.length} slides <span>Details</span></summary><section className="comparison-registration-progress" aria-label="Automatic alignment progress" aria-live="polite">
+      <div><strong>Automatic alignment in progress</strong><span>{completedRegistrations} of {registrationMembers.length} slides complete · {totalRegistrationProgress}%</span></div>
+      <progress max="100" value={totalRegistrationProgress}>{totalRegistrationProgress}%</progress>
+      <ul>{registrationMembers.map((member) => {
+        const job = currentJobsByMember.get(member.slideId)
+        const complete = job ? job.status === 'succeeded' : Boolean(member.registration)
+        const stage = complete ? member.registration?.status === 'ready' ? 'Local map available' : member.registration?.status === 'approximate' ? 'Approximate overview available' : 'Needs refinement' : job?.status === 'queued' ? 'Waiting for worker' : job?.stage?.replaceAll('-', ' ') || 'Preparing alignment'
+        const elapsedSeconds = job ? Math.max(0, Math.floor((progressNow - Date.parse(job.createdAt)) / 1000)) : 0
+        const heartbeatAge = job?.heartbeatAt ? Math.max(0, Math.floor((progressNow - Date.parse(job.heartbeatAt)) / 1000)) : null
+        const activity = job && ['running', 'leased'].includes(job.status)
+          ? `${heartbeatAge !== null && heartbeatAge > 25 ? 'Worker heartbeat delayed' : 'Worker active'} · ${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s elapsed`
+          : ''
+        const counters = job && !complete
+          ? [job.totalComponentPairs ? `${job.processedComponentPairs}/${job.totalComponentPairs} regions` : '', job.totalPatches ? `${job.processedPatches}/${job.totalPatches} patches` : ''].filter(Boolean).join(' · ')
+          : ''
+        return <li key={member.slideId} data-status={complete ? 'complete' : job?.status ?? 'queued'}><span>{complete ? '✓' : job?.status === 'running' || job?.status === 'leased' ? '●' : '○'}</span><b>{member.stain || member.displayName}</b><small>{stage}{counters ? ` · ${counters}` : ''}{activity ? ` · ${activity}` : ''}</small><em>{complete ? '100%' : `${job?.progress ?? 0}%`}</em></li>
+      })}</ul>
+      <p>You can view every slide now. Linked navigation becomes available for each slide as its map completes.</p>
+    </section></details> : null}
+    {activeBenchmarkJobs.length ? <details className="comparison-progress-disclosure"><summary>Testing alignment engines · {activeBenchmarkJobs.length} jobs <span>Details</span></summary><section className="comparison-registration-progress" aria-label="Registration engine benchmark progress" aria-live="polite">
+      <div><strong>Testing alignment engines</strong><span>{activeBenchmarkJobs.filter((job) => job.status === 'running' || job.status === 'leased').length} running · {activeBenchmarkJobs.filter((job) => job.status === 'queued' || job.status === 'retry_wait').length} waiting</span></div>
+      <ul>{activeBenchmarkJobs.map((job) => {
+        const member = comparison.members.find((candidate) => candidate.slideId === job.memberId)
+        const elapsedSeconds = Math.max(0, Math.floor((progressNow - Date.parse(job.createdAt)) / 1000))
+        const heartbeatAge = job.heartbeatAt ? Math.max(0, Math.floor((progressNow - Date.parse(job.heartbeatAt)) / 1000)) : null
+        const active = job.status === 'running' || job.status === 'leased'
+        const stage = job.status === 'queued' ? 'Waiting for worker' : job.status === 'retry_wait' ? 'Waiting to retry' : job.stage.replaceAll('-', ' ')
+        const activity = active
+          ? `${heartbeatAge !== null && heartbeatAge > 25 ? 'Worker heartbeat delayed' : 'Worker active'} · ${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s elapsed`
+          : ''
+        return <li key={job.id} data-status={job.status}><span>{active ? '●' : '○'}</span><b>{member?.stain || member?.displayName || 'Slide'} · {job.engine || 'engine'}</b><small>{stage}{activity ? ` · ${activity}` : ''}</small><em>{job.progress}%</em></li>
+      })}</ul>
+      <p>The active viewer remains available. Candidate maps replace nothing until they pass validation and an administrator promotes them.</p>
+    </section></details> : null}
+
+    {candidatePreview ? <div className="comparison-notice comparison-candidate-preview" role="status"><strong>Experimental alignment preview</strong> Temporary alignment for {candidatePreview.slideName}. No server changes have been saved. <button type="button" disabled={!!correction} onClick={stopCandidatePreview}>Restore saved alignment</button></div> : null}
+    {grouping ? <section className="comparison-groups" aria-label="Alignment groups"><strong>Reference and groups</strong><p>Choose the primary reference, then choose the serial-section anchor used for each other slide.</p><label>Primary reference<select aria-label="Primary reference" value={grouping.referenceId} onChange={(event) => setGrouping({ referenceId: event.target.value, anchors: rerootAnchors(event.target.value, grouping.referenceId, grouping.anchors, comparison.members.map(member => member.slideId)) })}>{comparison.members.map((member) => <option key={member.slideId} value={member.slideId}>{member.stain} · {member.displayName}</option>)}</select></label>{comparison.members.filter((member) => member.slideId !== grouping.referenceId).map((member) => <label key={member.slideId}>{member.displayName}<select aria-label={`Anchor for ${member.displayName}`} value={grouping.anchors[member.slideId] ?? grouping.referenceId} onChange={(event) => setGrouping({ ...grouping, anchors: { ...grouping.anchors, [member.slideId]: event.target.value } })}>{comparison.members.filter((anchor) => anchor.slideId !== member.slideId).map((anchor) => <option key={anchor.slideId} value={anchor.slideId}>{anchor.stain} · {anchor.displayName}</option>)}</select></label>)}<button type="button" disabled={registering} onClick={() => { setRegistering(true); void updateComparisonSet(comparison.id, { version: comparison.version, referenceSlideId: grouping.referenceId, anchors: grouping.anchors }).then(async (updated) => { await registerComparisonSet(updated.id); setComparison({ ...updated, status: 'queued', members: updated.members.map((member) => ({ ...member, registration: null })) }); setGrouping(null); setNotice('Registration queued with the updated reference groups.') }).catch(() => setNotice('Reference groups could not be saved.')).finally(() => setRegistering(false)) }}>Save and register</button><button type="button" disabled={registering} onClick={() => setGrouping(null)}>Cancel</button></section> : null}
+    {!correction && !grouping && !hasMatchedMap && !registrationPending ? <details className="comparison-alignment-context" role="note" aria-label="Alignment unavailable"><summary>{hasApproximateMap ? 'Approximate tissue overview' : 'Alignment unavailable'}<span>Details</span></summary><p><strong>{hasApproximateMap ? 'Automatic alignment completed with overview maps.' : 'Automatic anatomical alignment could not establish a map for this set.'}</strong> {hasApproximateMap ? 'Overview alignment matches tissue-component shape, tilt, and size but may not place the same microscopic structure under both crosshairs.' : 'No accepted tissue correspondence was found. Linking panes cannot align these slides.'} {publicId ? 'Ask the set administrator to review the registration.' : 'Use Adjust region to mark corresponding tissue, or Advanced for a three-point correction.'}</p></details> : null}
+    {!correction && !grouping && hasMatchedMap && hasPendingLandmarkValidation && !registrationPending ? <details className="comparison-notice comparison-validation" aria-label="Alignment validation pending"><summary><strong>Local structural maps available</strong><span>Validation details</span></summary><p>Matched regions passed alternative-fragment and withheld patch checks, but anatomical error has not been measured against independent landmarks.</p></details> : null}
+    {notice ? <div className="comparison-notice comparison-action-notice" role="status">{notice}</div> : !candidatePreview && navigationNotice && (!hasApproximateMap || suspendedPanes.size > 0) ? <details className="comparison-alignment-context"><summary>{suspendedPanes.size ? 'Some panes are outside mapped tissue' : 'Navigation details'}<span>Details</span></summary><p role="status">{navigationNotice}</p></details> : null}
+    {correction ? <section className="comparison-correction" aria-label="Landmark correction">
+      <strong>{correction.preview ? 'Correction preview' : correction.regional ? 'Adjust this tissue region' : 'Mark corresponding tissue'}</strong>
+      <p>{correction.regional ? 'Pan each slide until the same tissue structure is under both crosshairs. Record one pair for an offset, or two separated pairs for rotation and scale. This approximate correction applies only inside the captured region.' : 'Left pane is the reference. Record at least three corresponding points spread across the tissue. Avoid blank glass.'}</p>
+      {correction.regional ? <><label>Align to<select aria-label="Correction reference slide" disabled={correctionBusy || correction.preview} value={correction.referenceId} onChange={event => { const referenceId = event.target.value; setCorrection({ ...correction, referenceId, points: [], preview: false, regionId: undefined, previewVersion: undefined, sourceVersion: undefined, targetVersion: undefined, basisVersion: undefined, previewNeedsRefresh: false }); setPanes([referenceId, correction.movingId]) }}>{comparison.members.filter(member => member.slideId !== correction.movingId && member.tileSource && (correction.originalPanes.includes(member.slideId) || member.slideId === comparison.referenceSlideId)).map(member => <option key={member.slideId} value={member.slideId}>{member.displayName}</option>)}</select></label><span className="comparison-region-bounds">Captured region (pixels): {correction.sourceBounds?.map(value => Math.round(value)).join(', ')}</span></> : null}
+      <span>{correction.points.length} point pairs</span>
+      {!correctionPanesReady ? <p role="status">Opening slide images. Record points when both panes are ready.</p> : null}
+      <button type="button" disabled={correctionBusy || correction.preview || !correctionPanesReady || correction.points.length >= (correction.regional ? 2 : 20)} onClick={() => {
+        if (![correction.referenceId, correction.movingId].every(id => openedSlides.current.has(id) && handles.current.has(id))) return
+        const reference = handles.current.get(correction.referenceId)?.getImageViewport(); const moving = handles.current.get(correction.movingId)?.getImageViewport()
+        if (reference && moving) {
+          const [x, y, width, height] = correction.sourceBounds ?? [0, 0, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]
+          if (correction.regional && (moving.centerX < x || moving.centerY < y || moving.centerX > x + width || moving.centerY > y + height)) { setCorrectionError('Keep the source landmark inside the captured region. Cancel and start again to adjust another field.'); return }
+          setCorrectionError('')
+          setCorrection({ ...correction, points: [...correction.points, { reference: [reference.centerX, reference.centerY], moving: [moving.centerX, moving.centerY] }] })
+        }
+      }}>Record point pair</button>
+      <button type="button" disabled={correctionBusy || !correction.points.length} onClick={() => { setComparison(correction.original); setCorrection({ ...correction, points: correction.points.slice(0, -1), preview: false, basisVersion: undefined, previewNeedsRefresh: false }); setLinked(false); setAlignmentMode('independent') }}>Undo last pair</button>
+      <button type="button" disabled={correctionBusy || correction.points.length < (correction.regional ? 1 : 3)} onClick={() => void submitCorrection(true)}>Preview correction</button>
+      <button type="button" disabled={correctionBusy || !correction.preview || correction.previewNeedsRefresh} onClick={() => void submitCorrection(false)}>Save correction</button>
+      <button type="button" disabled={correctionBusy} onClick={cancelCorrection}>Cancel correction</button>
+      {correction.preview ? <p>Unsaved approximate preview. Inspect corresponding tissue before saving. Cancel restores the previous navigation field.</p> : null}
+      {correctionError ? <p role="alert">{correctionError}</p> : null}
+    </section> : null}
+    <div className="comparison-workstation" data-tray-open={trayOpen}><aside id="comparison-slides" className="comparison-tray" aria-label="Case slides">        <label className="comparison-toolbar-field"><span>Layout</span><select disabled={!!correction || !!grouping} aria-label="Pane layout" value={panes.length} onChange={(event) => { setMaximizedPane(null); setLayout(Number(event.target.value)) }}><option value="1">1 pane</option><option value="2">2 panes</option><option value="3">3 panes</option><option value="4">4 panes</option></select></label><strong>Case slides <span>{comparison.members.length}</span></strong>{comparison.members.map((member) => <button type="button" key={member.slideId} disabled={!!correction || !member.tileSource} data-active={panes.includes(member.slideId)} data-current={panes[activePane] === member.slideId} aria-current={panes[activePane] === member.slideId ? 'true' : undefined} onClick={() => { const existing = panes.indexOf(member.slideId); if (existing >= 0) { setActivePane(existing); if (maximizedPane !== null) setMaximizedPane(existing); return } selectPaneSlide(Math.min(activePane, panes.length - 1), member.slideId) }}>{member.thumbnailUrl ? <img src={member.thumbnailUrl} alt="" loading="lazy" /> : <span className="comparison-thumbnail-pending" aria-hidden="true">WSI</span>}<span><b>{member.stain || 'Unspecified'}</b><small>{member.displayName}</small>{member.availabilityReason ? <small>{member.availabilityReason.replaceAll('_', ' ')}</small> : null}</span></button>)}</aside>
+    <main className={`comparison-grid comparison-grid--${panes.length}`} data-maximized={maximizedPane === null ? undefined : maximizedPane}>
+      {panes.map((slideId, paneIndex) => {
+        if (maximizedPane !== null && maximizedPane !== paneIndex) return null
+        const member = comparison.members.find((candidate) => candidate.slideId === slideId)!
+        const aligned = member.slideId === comparison.referenceSlideId
+          || comparison.regionalCorrections?.some(region => region.sourceSlideId === slideId || region.targetSlideId === slideId)
+          || anchorIds.has(member.slideId)
+          || (member.registration?.status === 'ready' && hasLocalEvidence(member.registration))
+          || member.registration?.status === 'approximate'
+        const anchor = member.registration?.anchorSlideId
+          ? comparison.members.find((candidate) => candidate.slideId === member.registration?.anchorSlideId)
+          : null
+        const alignmentLabel = member.slideId === comparison.referenceSlideId
+          ? 'Primary reference'
+          : anchorIds.has(member.slideId)
+            ? 'Reference anchor'
+            : anchor && anchor.slideId !== comparison.referenceSlideId
+              ? `Local map via ${anchor.displayName}`
+              : 'Local map available'
+        const adjustments = display[slideId] ?? { brightness: 1, contrast: 1, gamma: 1 }
+        const paneLinked = linked && !unlinkedPanes.has(slideId) && aligned
+        const approximate = member.registration?.status === 'approximate' || approximatePanes.has(slideId) || comparison.regionalCorrections?.some(region => region.sourceSlideId === slideId || region.targetSlideId === slideId)
+        const regional = regionalPanes.has(slideId)
+        const retainedOverview = candidatePreview && retainedOverviewPanes.has(slideId)
+        const correctionPreview = correction?.preview && slideId === correction.movingId
+        const suspended = paneLinked && suspendedPanes.has(slideId)
+        return <section className="comparison-pane" data-active={paneIndex === activePane} data-hidden={maximizedPane !== null && maximizedPane !== paneIndex} key={`${paneIndex}-${slideId}`} onPointerDown={() => setActivePane(paneIndex)}>
+          <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><div className="comparison-pane-select"><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><CaretDown weight="bold" aria-hidden="true" /></div><span aria-live="polite" className={`${suspended || !paneLinked || !aligned ? 'alignment-unavailable' : approximate || correctionPreview || regional ? 'alignment-approximate' : 'alignment-ready'}${regional && paneLinked && !suspended ? ' alignment-regional' : ''}`}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : !aligned ? 'Not aligned' : correctionPreview ? <>Unsaved correction preview{regional ? <small>Manually adjusted approximation</small> : null}</> : regional ? 'Manually adjusted approximation' : retainedOverview ? 'Approximate overview' : approximate ? 'Approximate sync' : alignmentLabel}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
+            if (!paneLinked) {
+              alignmentPreferenceExplicit.current = true
+              setLinked(true)
+              if (alignmentMode === 'independent') setAlignmentMode('matched')
+            }
+            setUnlinkedPanes((current) => { const next = new Set(current); if (paneLinked) next.add(slideId); else next.delete(slideId); return next })
+          }}><span aria-hidden="true">{paneLinked ? 'On' : 'Off'}</span></button><button type="button" title="Reset this pane view" disabled={!!correction} aria-label={`Reset ${member.displayName} view`} onClick={() => resetView(slideId)}><ArrowCounterClockwise weight="bold" aria-hidden="true" /></button><button type="button" title={maximizedPane === paneIndex ? 'Restore all panes' : 'Maximize this pane'} disabled={!!correction} aria-label={`${maximizedPane === paneIndex ? 'Restore' : 'Maximize'} ${member.displayName} pane`} onClick={() => setMaximizedPane((current) => current === paneIndex ? null : paneIndex)}>{maximizedPane === paneIndex ? <CornersIn weight="bold" aria-hidden="true" /> : <CornersOut weight="bold" aria-hidden="true" />}</button>{panes.length > 2 ? <button type="button" title="Close this pane" aria-label={`Close ${member.displayName} pane`} onClick={() => { setActivePane(0); setMaximizedPane(null); setPanes((current) => current.filter((_, index) => index !== paneIndex)) }}><X /></button> : null}</header>
+          <OpenSeadragonViewer tileSource={member.tileSource!} showLoadingMode={false} loadingMode={loadingModes[slideId]} displayAdjustments={adjustments} onReady={(handle) => handles.current.set(slideId, handle)} onClose={() => { openedSlides.current.delete(slideId); refreshOpenedSlides(revision => revision + 1) }} onDispose={() => { handles.current.delete(slideId); openedSlides.current.delete(slideId); refreshOpenedSlides(revision => revision + 1) }} onOpen={() => {
+            openedSlides.current.add(slideId)
+            refreshOpenedSlides(revision => revision + 1)
+            if (candidatePreview && !candidatePreview.originalViewports.has(slideId)) {
+              const viewport = handles.current.get(slideId)?.getImageViewport()
+              if (viewport) candidatePreview.originalViewports.set(slideId, { ...viewport })
+            }
+            const saved = savedViewports.current.get(slideId)
+            if (saved) handles.current.get(slideId)?.setImageViewport(saved, 'restore-field')
+            initializeOpenedPanes()
+            window.requestAnimationFrame(alignOpenedPanes)
+            if (restoreNavigationAfterCorrection.current && panes.every((id) => openedSlides.current.has(id))) {
+              restoreNavigationAfterCorrection.current = false
+              window.requestAnimationFrame(() => resetView())
+            }
+          }} micronsPerPixel={normalizedMicronsPerPixel(member.metadata)?.[0]} micronsPerPixelY={normalizedMicronsPerPixel(member.metadata)?.[1]} onScaleChange={(microns, width) => setScaleBars((current) => ({ ...current, [slideId]: { microns, width } }))} onViewportChange={(snapshot, transactionId) => { savedViewports.current.set(slideId, snapshot); synchronize(member, snapshot, transactionId) }} networkProfile={{ initialJobLimit: 2, maximumJobLimit: Math.max(1, Math.floor(8 / panes.length)) }} />
+          {(correction || (paneLinked && aligned && !suspended)) ? <div className="comparison-crosshair" aria-hidden="true" /> : null}
+          {scaleBars[slideId] ? <div className="comparison-scale-bar" style={{ width: scaleBars[slideId].width }}><i /><span>{scaleBars[slideId].microns >= 1000 ? `${scaleBars[slideId].microns / 1000} mm` : `${scaleBars[slideId].microns} µm`}</span></div> : null}
+
+          {((linked && zoomMode === 'physical' && alignmentMode !== 'independent' && physicalScaleLimitedPanes.has(slideId)) || normalizedMicronsPerPixel(member.metadata)?.[0] !== normalizedMicronsPerPixel(member.metadata)?.[1]) ? <small className="comparison-relative-scale">{linked && zoomMode === 'physical' && alignmentMode !== 'independent' && physicalScaleLimitedPanes.has(slideId) ? 'Approximate physical scale · horizontal only' : 'Horizontal scale · anisotropic pixels'}</small> : null}
+          {!normalizedMicronsPerPixel(member.metadata)?.[0] ? <small className="comparison-relative-scale">Relative scale: physical calibration unavailable</small> : null}
+        </section>
+      })}
+    </main></div>
+    {panes.length < Math.min(MAX_PANES, comparison.members.length) ? <button type="button" className="comparison-add-pane" disabled={!!correction} onClick={() => { const next = paneCandidates(panes)[0]; if (next) setPanes((current) => [...current, next.slideId]) }}><Plus /> Add pane</button> : null}
+  </div>
+}

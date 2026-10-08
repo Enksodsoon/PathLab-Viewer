@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "engines": [
+    {
+      "name": "hisalign-0.2.1",
+      "repository": "https://github.com/yifanfeng97/hisalign",
+      "commit": "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
+      "archiveSha256": "db866088a81e53816b591b7915dc1c205deb9512ef5a23a7545a6767fb7e3f6b",
+      "licenseDeclared": "MIT",
+      "licenseFileAtCommit": null,
+      "weights": []
+    },
+    {
+      "name": "valis-1.2.0",
+      "repository": "https://github.com/MathOnco/valis",
+      "commit": "325828c1dec444e6bb672a78e875537436dd3c20",
+      "archiveSha256": "ac57c00c6b0c90b23ff09a0c7fa84fc76441a8b2733669fcb4b6a08f4a5e859d",
+      "licenseDeclared": "MIT",
+      "licenseFile": "deploy/third_party/VALIS_LICENSE.txt",
+      "weights": [
+        {
+          "name": "depth-save.pth",
+          "admission": "explicit-local-path-and-sha256",
+          "sourceUrl": "https://raw.githubusercontent.com/cvlab-epfl/disk/8dc6d4d65b47210f629e21ad1fbfb56944b11696/depth-save.pth",
+          "upstreamRequestUrl": "https://raw.githubusercontent.com/cvlab-epfl/disk/master/depth-save.pth",
+          "repository": "https://github.com/cvlab-epfl/disk",
+          "commit": "8dc6d4d65b47210f629e21ad1fbfb56944b11696",
+          "sha256": "9c2ee4ded238892dfa51569941372601e35e4a74aa6f84ea80053d2ab1c07abe",
+          "bytes": 4375832,
+          "licenseDeclared": "Apache-2.0",
+          "licenseFile": "deploy/third_party/DISK_LICENSE.txt",
+          "licenseFileSha256": "35fd2dfe53babc1523303f3e598666169967f423a77e1c1ffea2c58078d3e848",
+          "productionLicenseEligible": true,
+          "productionRegistrationQualified": false,
+          "verificationDate": "2026-10-04",
+          "baselineIdentityScope": "post-run-cached-bytes-match-official-source; b35-receipts-not-resource-bound"
+        },
+        {
+          "name": "disk_lightglue.pth",
+          "admission": "explicit-local-path-and-sha256",
+          "sourceUrl": "https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/disk_lightglue.pth",
+          "repository": "https://github.com/cvg/LightGlue",
+          "commit": "c91eb892b799fa607523879d18f9ec4fe76194a5",
+          "sha256": "b5b21d47ea24f2c5e501aec9c91b9716e4c8c3429a4dc1e615c133c4c9378335",
+          "bytes": 47631405,
+          "licenseDeclared": "Apache-2.0",
+          "licenseFile": "deploy/third_party/LIGHTGLUE_LICENSE.txt",
+          "licenseFileSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "productionLicenseEligible": true,
+          "productionRegistrationQualified": false,
+          "verificationDate": "2026-10-04",
+          "baselineIdentityScope": "post-run-cached-bytes-match-official-source; b35-receipts-not-resource-bound"
+        }
+      ]
+    },
+    {
+      "name": "wsireg-0.3.10",
+      "repository": "https://github.com/nhpatterson/wsireg",
+      "commit": "7bc3fb21c6a8f107f760799a5ac113896a710454",
+      "archiveSha256": "31ba8147503bc2ee7f5ced0d2e7449128ca5521d25c38299e8ecfe57fe94b857",
+      "archiveFormat": "github-codeload-zip",
+      "licenseDeclared": "MIT",
+      "licenseFile": "deploy/third_party/WSIREG_LICENSE.txt",
+      "runtimePins": {
+        "wsireg": "0.3.10",
+        "itk-elastix": "0.25.4"
+      },
+      "weights": []
+    },
+    {
+      "name": "deeperhistreg-classical",
+      "repository": "https://github.com/MWod/DeeperHistReg",
+      "commit": "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6",
+      "archiveSha256": "09fbca6c15325b65a9b89e080946441ccdc78155878da9b09fcf5b39b9fbe0be",
+      "archiveFormat": "github-codeload-zip",
+      "licenseDeclared": "CC-BY-SA-4.0",
+      "licenseFile": "deploy/third_party/DEEPERHISTREG_LICENSE.txt",
+      "runtimePins": {
+        "deeperhistreg": "1.0.1",
+        "torch": "2.8.0"
+      },
+      "adapterMethod": "sift_ransac",
+      "productionEligible": false,
+      "weights": []
+    },
+    {
+      "name": "deeperhistreg-learned",
+      "repository": "https://github.com/MWod/DeeperHistReg",
+      "commit": "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6",
+      "archiveSha256": "09fbca6c15325b65a9b89e080946441ccdc78155878da9b09fcf5b39b9fbe0be",
+      "archiveFormat": "github-codeload-zip",
+      "licenseDeclared": "CC-BY-SA-4.0",
+      "licenseFile": "deploy/third_party/DEEPERHISTREG_LICENSE.txt",
+      "runtimePins": {
+        "deeperhistreg": "1.0.1",
+        "torch": "2.8.0"
+      },
+      "adapterMethod": "superpoint_superglue",
+      "productionEligible": false,
+      "weights": [
+        {
+          "name": "SuperPoint",
+          "admission": "explicit-local-path-and-sha256",
+          "licenseDeclared": "noncommercial-research-only",
+          "repository": "https://github.com/magicleap/SuperGluePretrainedNetwork",
+          "commit": "ddcf11f42e7e0732a0c4607648f9448ea8d73590",
+          "file": "models/weights/superpoint_v1.pth",
+          "sha256": "52b6708629640ca883673b5d5c097c4ddad37d8048b33f09c8ca0d69db12c40e",
+          "licenseFile": "deploy/third_party/SUPERGLUE_RESEARCH_LICENSE.txt",
+          "productionEligible": false
+        },
+        {
+          "name": "SuperGlue outdoor",
+          "admission": "explicit-local-path-and-sha256",
+          "licenseDeclared": "noncommercial-research-only",
+          "repository": "https://github.com/magicleap/SuperGluePretrainedNetwork",
+          "commit": "ddcf11f42e7e0732a0c4607648f9448ea8d73590",
+          "file": "models/weights/superglue_outdoor.pth",
+          "sha256": "2f5f5e9bb3febf07b69df633c4c3ff7a17f8af26a023aae2b9303d22339195bd",
+          "licenseFile": "deploy/third_party/SUPERGLUE_RESEARCH_LICENSE.txt",
+          "productionEligible": false
+        }
+      ]
+    }
+  ]
+}

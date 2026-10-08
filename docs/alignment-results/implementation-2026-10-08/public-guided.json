@@ -1,0 +1,931 @@
+{
+  "schema": "pathlab.published-landmark-assisted-guided-ui/1",
+  "sourceHead": "544588a8f6b9e0111129f2c7d870f9a2960da57c",
+  "scope": "Scripted engineering/UI trials using published original public kidney JPEGs. Fitting points are excluded from scoring; remaining landmarks include unsupported cases. Development/post-diagnosis GT10 trial is distinct from original0/10 protocol. Not human effort, held-out specimen or anatomical qualification.",
+  "physicalCalibration": null,
+  "humanEffort": null,
+  "anatomicalQualification": false,
+  "accuracyImprovementClaimed": false,
+  "priorR1toR5Retained": true,
+  "trials": [
+    {
+      "protocol": "original-frozen-two-point",
+      "fittingIndices": [
+        0,
+        10
+      ],
+      "remainingLandmarkDenominator": 67,
+      "totalObservedLifetimeSeconds": 72.7960000000021,
+      "startupEqualsTerminalSource": true,
+      "nativeBinariesUnchanged": true,
+      "builtAssetsUnchanged": true,
+      "browserClosed": true,
+      "ownedCleanupCompleted": true,
+      "optionalResearchEnginesEnabled": false,
+      "sourceSizes": {
+        "moving": [
+          1123,
+          724
+        ],
+        "reference": [
+          1164,
+          787
+        ]
+      },
+      "profiles": [
+        {
+          "profile": "desktop",
+          "outcome": "passed",
+          "advancedOpened": false,
+          "actionsObserved": [
+            "primary-light-and-dark-original-panes",
+            "first-one-point-preview",
+            "cancel-restored-center-zoom-rotation",
+            "second-Adjust-without-Reset-workaround",
+            "explicit-fitting-preview",
+            "bound-save",
+            "reload-light-and-dark"
+          ],
+          "actualCorrectionResponses": [
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Save correction",
+              "httpStatus": 200,
+              "terminal": true
+            }
+          ],
+          "fittingErrors": [
+            {
+              "index": 0,
+              "movingErrorOriginalPixels": 5.085429050755406e-05,
+              "referenceErrorOriginalPixels": 2.8527819548622474e-05
+            },
+            {
+              "index": 10,
+              "movingErrorOriginalPixels": 5.740078947902773e-05,
+              "referenceErrorOriginalPixels": 3.724235175736863e-05
+            }
+          ],
+          "captureSetupMethod": "Actual Reset then bounded pointer pan to frozen fitting-point midpoint before Adjust; no zoom/bounds rewrite",
+          "initialCapturedBounds": [
+            0,
+            0,
+            1123,
+            724
+          ],
+          "savedCapturedBounds": [
+            0,
+            0,
+            1123,
+            724
+          ],
+          "canonicalMapsUnchangedAtSaveAndReload": true,
+          "automatedControlSeconds": 24.9110893,
+          "automatedClockScope": "Whole scripted profile including authentication, navigation, pan holds, preview/save/reload/readback and screenshots; not human effort or isolated correction computation.",
+          "pointerStrokeCount": 8,
+          "controlActionCount": 25,
+          "humanEffort": null,
+          "savedRegionEvidence": {
+            "mode": "manual-region",
+            "basis": "pixel-similarity",
+            "calibrated": false,
+            "anatomicallyQualified": false,
+            "supportPolicy": "foreground-envelope-bounded-holes-adaptive-cells/1",
+            "supportCellVisits": 4078
+          },
+          "supportedNonFittingLandmarks": 41,
+          "unsupportedNonFittingLandmarks": 26,
+          "eligibleNonFittingLandmarks": 67,
+          "observedCoverage": 0.6119402985074627,
+          "medianRelativeError": 0.009366521258978125,
+          "p95RelativeError": 0.01670650414178196,
+          "relativeNormalization": "Original reference-image diagonal",
+          "originalAutomaticSameDenominator": {
+            "eligibleLandmarks": 67,
+            "observedCoverage": 0.6119402985074627,
+            "medianRelativeError": 0.003236417064044546,
+            "p95RelativeError": 0.009818610263046701,
+            "unsupportedLandmarks": 26,
+            "observedLandmarks": 41,
+            "invalidLandmarks": 0
+          },
+          "pairedCommonSupport": {
+            "count": 35,
+            "excludedFromDenominator": 32,
+            "indices": [
+              1,
+              3,
+              4,
+              5,
+              6,
+              8,
+              9,
+              13,
+              14,
+              15,
+              17,
+              18,
+              19,
+              21,
+              22,
+              24,
+              25,
+              26,
+              28,
+              29,
+              30,
+              32,
+              35,
+              36,
+              42,
+              43,
+              48,
+              51,
+              53,
+              54,
+              55,
+              59,
+              61,
+              63,
+              65
+            ],
+            "originalAutomatic": {
+              "medianRelativeError": 0.0032178067718737456,
+              "p95RelativeError": 0.010867795070682834,
+              "medianOriginalPixelError": 4.521293336601335,
+              "p95OriginalPixelError": 15.270180256353523
+            },
+            "assistedRegion": {
+              "medianRelativeError": 0.007962778974407293,
+              "p95RelativeError": 0.01610335704772867,
+              "medianOriginalPixelError": 11.188384533373556,
+              "p95OriginalPixelError": 22.62659198594803
+            }
+          },
+          "screenshots": [
+            "desktop-primary-light.png",
+            "desktop-primary-dark.png",
+            "desktop-one-point-unsaved-preview.png",
+            "desktop-cancel-restored.png",
+            "desktop-two-point-unsaved-preview.png",
+            "desktop-saved-reloaded-dark.png",
+            "desktop-saved-reloaded-light.png"
+          ],
+          "anatomicalQualification": false,
+          "cancelErrors": [
+            {
+              "centerPixels": 0.0,
+              "zoom": 0.0,
+              "rotationDegrees": 0.0
+            },
+            {
+              "centerPixels": 5.684341886080802e-14,
+              "zoom": 0.0,
+              "rotationDegrees": 0
+            }
+          ],
+          "independentBoundedCropReread": null
+        },
+        {
+          "profile": "mobile",
+          "outcome": "passed",
+          "advancedOpened": false,
+          "actionsObserved": [
+            "primary-light-and-dark-original-panes",
+            "first-one-point-preview",
+            "cancel-restored-center-zoom-rotation",
+            "second-Adjust-without-Reset-workaround",
+            "explicit-fitting-preview",
+            "bound-save",
+            "reload-light-and-dark"
+          ],
+          "actualCorrectionResponses": [
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Save correction",
+              "httpStatus": 200,
+              "terminal": true
+            }
+          ],
+          "fittingErrors": [
+            {
+              "index": 0,
+              "movingErrorOriginalPixels": 7.4003132012082405e-06,
+              "referenceErrorOriginalPixels": 4.879013862688379e-06
+            },
+            {
+              "index": 10,
+              "movingErrorOriginalPixels": 1.3991818630705127e-05,
+              "referenceErrorOriginalPixels": 4.449143915097429e-05
+            }
+          ],
+          "captureSetupMethod": "Actual Reset then bounded pointer pan to frozen fitting-point midpoint before Adjust; no zoom/bounds rewrite",
+          "initialCapturedBounds": [
+            0,
+            0,
+            1123,
+            724
+          ],
+          "savedCapturedBounds": [
+            0,
+            0,
+            1123,
+            724
+          ],
+          "canonicalMapsUnchangedAtSaveAndReload": true,
+          "automatedControlSeconds": 22.148025800000003,
+          "automatedClockScope": "Whole scripted profile including authentication, navigation, pan holds, preview/save/reload/readback and screenshots; not human effort or isolated correction computation.",
+          "pointerStrokeCount": 9,
+          "controlActionCount": 25,
+          "humanEffort": null,
+          "savedRegionEvidence": {
+            "mode": "manual-region",
+            "basis": "pixel-similarity",
+            "calibrated": false,
+            "anatomicallyQualified": false,
+            "supportPolicy": "foreground-envelope-bounded-holes-adaptive-cells/1",
+            "supportCellVisits": 4078
+          },
+          "supportedNonFittingLandmarks": 41,
+          "unsupportedNonFittingLandmarks": 26,
+          "eligibleNonFittingLandmarks": 67,
+          "observedCoverage": 0.6119402985074627,
+          "medianRelativeError": 0.009366523895821955,
+          "p95RelativeError": 0.016706599042446254,
+          "relativeNormalization": "Original reference-image diagonal",
+          "originalAutomaticSameDenominator": {
+            "eligibleLandmarks": 67,
+            "observedCoverage": 0.6119402985074627,
+            "medianRelativeError": 0.003236417064044546,
+            "p95RelativeError": 0.009818610263046701,
+            "unsupportedLandmarks": 26,
+            "observedLandmarks": 41,
+            "invalidLandmarks": 0
+          },
+          "pairedCommonSupport": {
+            "count": 35,
+            "excludedFromDenominator": 32,
+            "indices": [
+              1,
+              3,
+              4,
+              5,
+              6,
+              8,
+              9,
+              13,
+              14,
+              15,
+              17,
+              18,
+              19,
+              21,
+              22,
+              24,
+              25,
+              26,
+              28,
+              29,
+              30,
+              32,
+              35,
+              36,
+              42,
+              43,
+              48,
+              51,
+              53,
+              54,
+              55,
+              59,
+              61,
+              63,
+              65
+            ],
+            "originalAutomatic": {
+              "medianRelativeError": 0.0032178067718737456,
+              "p95RelativeError": 0.010867795070682834,
+              "medianOriginalPixelError": 4.521293336601335,
+              "p95OriginalPixelError": 15.270180256353523
+            },
+            "assistedRegion": {
+              "medianRelativeError": 0.007962789619507171,
+              "p95RelativeError": 0.016103405969072133,
+              "medianOriginalPixelError": 11.188399490648049,
+              "p95OriginalPixelError": 22.6266607246138
+            }
+          },
+          "screenshots": [
+            "mobile-primary-light.png",
+            "mobile-primary-dark.png",
+            "mobile-one-point-unsaved-preview.png",
+            "mobile-cancel-restored.png",
+            "mobile-two-point-unsaved-preview.png",
+            "mobile-saved-reloaded-dark.png",
+            "mobile-saved-reloaded-light.png"
+          ],
+          "anatomicalQualification": false,
+          "cancelErrors": [
+            {
+              "centerPixels": 0.0,
+              "zoom": 0.0,
+              "rotationDegrees": 0.0
+            },
+            {
+              "centerPixels": 0.0,
+              "zoom": 0.0,
+              "rotationDegrees": 0
+            }
+          ],
+          "independentBoundedCropReread": null
+        }
+      ],
+      "artifactHashes": {
+        "built-assets.json": "ee6ee8bb673b435e28df87fb702955e680522738c1be1dd40561f9409e69e08f",
+        "cookie-proof.json": "44936fe22e468cf4786e4ed21c0ff0a0b016199de95c9bbfe0555642363b8ad6",
+        "guardian-cleanup.json": "401bb019cf1a4351c444c9dd507c730b6b09c438cba8366f8a8e1276197486fb",
+        "initial-comparison.json": "64750ced492bb8b21fc00e553f1e584c253061e64bf901a8b651bf001c989c6d",
+        "inner-cleanup.json": "a56c4b4de9b327c0733ac1329abfae84d572faae705348fd5f9a27f3a3e297a3",
+        "interaction/desktop-cancel-restored.png": "8a324290d1891f246cda24045641aeb3acfabd72094a7dd2d11197467135eeb2",
+        "interaction/desktop-initial-comparison.json": "cd5975cc1e9f743bca1a514520447ed575fdf99890eac51700377fb9704abf5f",
+        "interaction/desktop-one-point-unsaved-preview.png": "cb0c63682dd6c97b6f3eafe3e3a7141f296deab36b82e2fdf565d71dfe7a3a16",
+        "interaction/desktop-primary-dark.png": "6590964d2ee8caa357a2e0cf23b478f8be82fa6092d0fd086318ff75897a7f07",
+        "interaction/desktop-primary-light.png": "58aab4425f09ba756af01287680a0605e9d1e9ad2c8e3b9a8852f7e59a0c4154",
+        "interaction/desktop-region.json": "3f24e37a30541d667fe17a5b0940a09cc234b25dae0842a9c4e63906b0def5e6",
+        "interaction/desktop-reloaded-comparison.json": "8b734cc08814fd0d16b4d4c78bf06087287e38d3bbc86c584e6c64ecd25a854e",
+        "interaction/desktop-saved-comparison.json": "8b734cc08814fd0d16b4d4c78bf06087287e38d3bbc86c584e6c64ecd25a854e",
+        "interaction/desktop-saved-reloaded-dark.png": "103fa39adb571068984242789e87c27e589cfe29abb97759e48fb1fd29f51c0b",
+        "interaction/desktop-saved-reloaded-light.png": "cbf4e97bff0f7cdbb166f9992f800010a035f12e31808d7d328b6fcd3154cd65",
+        "interaction/desktop-two-point-unsaved-preview.png": "dd572ed63717f6b185499edf54644ad1c8435c91bf3d11644caff6c66b0f2f90",
+        "interaction/frozen-selection.json": "59053eebb347a6edc424c5a4f933ac00738a8af92706b564ab0a293e2b096ef4",
+        "interaction/mobile-cancel-restored.png": "9e704f1bcbd099034780ac387a65baa0cbf91fe0b0dc300eefb39f19e7a543b1",
+        "interaction/mobile-initial-comparison.json": "8b734cc08814fd0d16b4d4c78bf06087287e38d3bbc86c584e6c64ecd25a854e",
+        "interaction/mobile-one-point-unsaved-preview.png": "4bde29ed2873cd017f6d18aa093cc6145129f6b41f5e6f6b4b3f4ecf2b82d9ab",
+        "interaction/mobile-primary-dark.png": "1dea0116b4ddf897b628125c91a82db950713ca7c01cc8482b2ed9f2b0b1a36d",
+        "interaction/mobile-primary-light.png": "6abbb1e820ed3039cc1b2fa4ccb3d7ef63d29395b9ebbc4a3091074e727ec0c7",
+        "interaction/mobile-region.json": "caa45b3e36e0e1f78efd01373ac79457bfdbf549c5417fcbb9cd8c1dac2b20c7",
+        "interaction/mobile-reloaded-comparison.json": "06695785c8b1e85b8602a0df5178fd9cac0726ca4f1c38157b65a184a0bc4687",
+        "interaction/mobile-saved-comparison.json": "06695785c8b1e85b8602a0df5178fd9cac0726ca4f1c38157b65a184a0bc4687",
+        "interaction/mobile-saved-reloaded-dark.png": "d33c6ff9849025bcafd862f96c162f7ee8963119b6c06f71e75a2922e4bc49a9",
+        "interaction/mobile-saved-reloaded-light.png": "f05f1bfc1c9fda27248f3f4ee1dd3d9f5a4646f7617524cc08e5e9385471c5fa",
+        "interaction/mobile-two-point-unsaved-preview.png": "c8aeb63bcf0e8ad39fff1ddb6526c9bf5e8869ac6e123b7fbb862fe7428cf101",
+        "interaction/published-landmark-ui-score.json": "7a2ab5100c11679ff7c83d9cfc09d7dc49628b0f436807934a4ebdeaa64b11b8",
+        "interaction/ui-review-progress.json": "45de8b3720f13eae8544da7149cf86cfa26f823e352b50da4f4867e2a49987b3",
+        "interaction/ui-review.json": "2ba34f1386b85b01c9ea360d2a0b107367cafe6026ef4d88ca9c68cb75178e56",
+        "lifetime-receipt.json": "880cd47f19faca2cca9365fd4fd887a3565fcf6f0f9aaf5ecf8a3630c68a6014",
+        "native-and-assets-terminal.json": "e385592ac32fb2c5df68c380572cdb39983a8a953539d2aa2aa3f813fb5bec9f",
+        "native-runtime.json": "53e8cf39250cb104d1414fa9b79e1c447d2108b0d80550cc2f0ec2a5ee214b5b",
+        "original-input-proof.json": "9f25d763e51cafc5faaf4622b7f8aa65942b2436033ab89f8b7d676b0e91dfb6",
+        "ready.json": "fb3927edafcdf27d67892afb4f519182f05f0fcb4a68060eefe348c11334ef29",
+        "setup-jobs.json": "5f81db91690048e899722f23ec4af0f548d389698dd0b1bbec33298b7a684f11",
+        "source-start.json": "89546331aa2930d1c8051f226e8035d86de244dc5263af7d0ea165c23c575fb2",
+        "source-terminal.json": "89546331aa2930d1c8051f226e8035d86de244dc5263af7d0ea165c23c575fb2"
+      }
+    },
+    {
+      "protocol": "development-post-diagnosis-gt10-only",
+      "fittingIndices": [
+        10
+      ],
+      "remainingLandmarkDenominator": 68,
+      "totalObservedLifetimeSeconds": 63.79700000000594,
+      "startupEqualsTerminalSource": true,
+      "nativeBinariesUnchanged": true,
+      "builtAssetsUnchanged": true,
+      "browserClosed": true,
+      "ownedCleanupCompleted": true,
+      "optionalResearchEnginesEnabled": false,
+      "sourceSizes": {
+        "moving": [
+          1123,
+          724
+        ],
+        "reference": [
+          1164,
+          787
+        ]
+      },
+      "profiles": [
+        {
+          "profile": "desktop",
+          "outcome": "passed",
+          "advancedOpened": false,
+          "actionsObserved": [
+            "primary-light-and-dark-original-panes",
+            "first-one-point-preview",
+            "cancel-restored-center-zoom-rotation",
+            "second-Adjust-without-Reset-workaround",
+            "explicit-fitting-preview",
+            "bound-save",
+            "reload-light-and-dark"
+          ],
+          "actualCorrectionResponses": [
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Save correction",
+              "httpStatus": 200,
+              "terminal": true
+            }
+          ],
+          "fittingErrors": [
+            {
+              "index": 10,
+              "movingErrorOriginalPixels": 0.40839027223201346,
+              "referenceErrorOriginalPixels": 3.599327273575003e-05
+            }
+          ],
+          "captureSetupMethod": "Actual Reset then bounded pointer pan to frozen fitting-point midpoint before Adjust; no zoom/bounds rewrite",
+          "initialCapturedBounds": [
+            76.72776567008569,
+            0,
+            1046.2722343299142,
+            724
+          ],
+          "savedCapturedBounds": [
+            76.72776567008577,
+            0,
+            1046.2722343299142,
+            724
+          ],
+          "canonicalMapsUnchangedAtSaveAndReload": true,
+          "automatedControlSeconds": 20.663048800000002,
+          "automatedClockScope": "Whole scripted profile including authentication, navigation, pan holds, preview/save/reload/readback and screenshots; not human effort or isolated correction computation.",
+          "pointerStrokeCount": 4,
+          "controlActionCount": 24,
+          "humanEffort": null,
+          "savedRegionEvidence": {
+            "mode": "manual-region",
+            "basis": "compatible-local-map",
+            "calibrated": false,
+            "anatomicallyQualified": false,
+            "supportPolicy": "foreground-envelope-bounded-holes-adaptive-cells/1",
+            "supportCellVisits": 4018,
+            "basisVersion": "alignment-basis:a60e54bc189ab61ef22a621dd7938e1de7d4cd08b3e4e7ca14dd3f8cb34bc3d2"
+          },
+          "supportedNonFittingLandmarks": 46,
+          "unsupportedNonFittingLandmarks": 22,
+          "eligibleNonFittingLandmarks": 68,
+          "observedCoverage": 0.6764705882352942,
+          "medianRelativeError": 0.003951080627465846,
+          "p95RelativeError": 0.009565137083194912,
+          "relativeNormalization": "Original reference-image diagonal",
+          "originalAutomaticSameDenominator": {
+            "eligibleLandmarks": 68,
+            "observedCoverage": 0.6176470588235294,
+            "medianRelativeError": 0.0032271119179591457,
+            "p95RelativeError": 0.009705726887776355,
+            "unsupportedLandmarks": 26,
+            "observedLandmarks": 42,
+            "invalidLandmarks": 0
+          },
+          "pairedCommonSupport": {
+            "count": 38,
+            "excludedFromDenominator": 30,
+            "indices": [
+              1,
+              3,
+              4,
+              5,
+              6,
+              8,
+              9,
+              11,
+              13,
+              14,
+              15,
+              17,
+              18,
+              19,
+              21,
+              22,
+              24,
+              25,
+              26,
+              28,
+              29,
+              30,
+              32,
+              35,
+              36,
+              42,
+              43,
+              45,
+              48,
+              51,
+              53,
+              54,
+              55,
+              59,
+              61,
+              63,
+              65,
+              68
+            ],
+            "originalAutomatic": {
+              "medianRelativeError": 0.0032736165188411697,
+              "p95RelativeError": 0.010343202666864768,
+              "medianOriginalPixelError": 4.599710797614474,
+              "p95OriginalPixelError": 14.533083125305728
+            },
+            "assistedRegion": {
+              "medianRelativeError": 0.00417786826710476,
+              "p95RelativeError": 0.01042665831303027,
+              "medianOriginalPixelError": 5.870261733043574,
+              "p95OriginalPixelError": 14.650345435835993
+            }
+          },
+          "screenshots": [
+            "desktop-primary-light.png",
+            "desktop-primary-dark.png",
+            "desktop-one-point-unsaved-preview.png",
+            "desktop-cancel-restored.png",
+            "desktop-gt10-one-point-unsaved-preview.png",
+            "desktop-saved-reloaded-dark.png",
+            "desktop-saved-reloaded-light.png"
+          ],
+          "anatomicalQualification": false,
+          "cancelErrors": [
+            {
+              "centerPixels": 0.0,
+              "zoom": 0.0,
+              "rotationDegrees": 0.0
+            },
+            {
+              "centerPixels": 0.0,
+              "zoom": 0.0,
+              "rotationDegrees": 0
+            }
+          ],
+          "independentBoundedCropReread": {
+            "scope": "Independent bounded post-Save reread of actual owned public DZI crop using current production read_region, maximum512; not injected runtime metadata or anatomical verification. Bounds derived from persisted actual regional row using identical region-builder crop rule.",
+            "sourceHead": "544588a8f6b9e0111129f2c7d870f9a2960da57c",
+            "profile": "desktop",
+            "savedRegionArtifactSha256": "1579babb36b6a6385f5b8aa9611668dc2c507a9da08b1c0e3b4a9eaed0ef8ea5",
+            "frames": [
+              {
+                "role": "moving",
+                "originalSourceSize": [
+                  1123,
+                  724
+                ],
+                "requestedOriginalCropBounds": [
+                  76,
+                  0,
+                  1123,
+                  724
+                ],
+                "decodedPixelSize": [
+                  262,
+                  181
+                ],
+                "actualPixelToOriginalFrame": [
+                  76,
+                  0,
+                  4
+                ],
+                "samplingScalePerAxis": [
+                  4,
+                  4
+                ],
+                "selectedDziLevel": 9,
+                "decodedPixelSha256": "f201b67bdb52d7caadc36bc5031e07f88e06aa5a8066f5c173219a9fa688b9c3",
+                "descriptorSha256": "8843dd6bcf004bd3fe9a3ec9ae284a7622fa2da15097a8ac28b6f283a3d1e03c"
+              },
+              {
+                "role": "reference",
+                "originalSourceSize": [
+                  1164,
+                  787
+                ],
+                "requestedOriginalCropBounds": [
+                  68,
+                  0,
+                  1161,
+                  787
+                ],
+                "decodedPixelSize": [
+                  274,
+                  197
+                ],
+                "actualPixelToOriginalFrame": [
+                  68,
+                  0,
+                  4
+                ],
+                "samplingScalePerAxis": [
+                  4,
+                  4
+                ],
+                "selectedDziLevel": 9,
+                "decodedPixelSha256": "b66f67a42848746ff7892c34943d5867305bbbd3b8a0cbb117f3d3536e2dd784",
+                "descriptorSha256": "54a9d2d935b8455bdb829c215882e660cd469de26fb76e158e118df684f9bc7f"
+              }
+            ],
+            "calibration": null,
+            "originalPixelsPreserved": true
+          }
+        },
+        {
+          "profile": "mobile",
+          "outcome": "passed",
+          "advancedOpened": false,
+          "actionsObserved": [
+            "primary-light-and-dark-original-panes",
+            "first-one-point-preview",
+            "cancel-restored-center-zoom-rotation",
+            "second-Adjust-without-Reset-workaround",
+            "explicit-fitting-preview",
+            "bound-save",
+            "reload-light-and-dark"
+          ],
+          "actualCorrectionResponses": [
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Preview correction",
+              "httpStatus": 200,
+              "terminal": true
+            },
+            {
+              "action": "Save correction",
+              "httpStatus": 200,
+              "terminal": true
+            }
+          ],
+          "fittingErrors": [
+            {
+              "index": 10,
+              "movingErrorOriginalPixels": 8.244937479774361e-06,
+              "referenceErrorOriginalPixels": 0.42190482795403444
+            }
+          ],
+          "captureSetupMethod": "Actual Reset then bounded pointer pan to frozen fitting-point midpoint before Adjust; no zoom/bounds rewrite",
+          "initialCapturedBounds": [
+            77.1359959863924,
+            0,
+            1045.8640040136077,
+            686.6656749836501
+          ],
+          "savedCapturedBounds": [
+            77.13599598639203,
+            0,
+            1045.8640040136079,
+            686.6656749836504
+          ],
+          "canonicalMapsUnchangedAtSaveAndReload": true,
+          "automatedControlSeconds": 17.213502599999998,
+          "automatedClockScope": "Whole scripted profile including authentication, navigation, pan holds, preview/save/reload/readback and screenshots; not human effort or isolated correction computation.",
+          "pointerStrokeCount": 3,
+          "controlActionCount": 24,
+          "humanEffort": null,
+          "savedRegionEvidence": {
+            "mode": "manual-region",
+            "basis": "compatible-local-map",
+            "calibrated": false,
+            "anatomicallyQualified": false,
+            "supportPolicy": "foreground-envelope-bounded-holes-adaptive-cells/1",
+            "supportCellVisits": 3755,
+            "basisVersion": "alignment-basis:ae304c1e0c701ec5cd0261930bae39c5543bd0e51fe517777de7908d5744f8bf"
+          },
+          "supportedNonFittingLandmarks": 49,
+          "unsupportedNonFittingLandmarks": 19,
+          "eligibleNonFittingLandmarks": 68,
+          "observedCoverage": 0.7205882352941176,
+          "medianRelativeError": 0.0038905860410400374,
+          "p95RelativeError": 0.012098583609411446,
+          "relativeNormalization": "Original reference-image diagonal",
+          "originalAutomaticSameDenominator": {
+            "eligibleLandmarks": 68,
+            "observedCoverage": 0.6176470588235294,
+            "medianRelativeError": 0.0032271119179591457,
+            "p95RelativeError": 0.009705726887776355,
+            "unsupportedLandmarks": 26,
+            "observedLandmarks": 42,
+            "invalidLandmarks": 0
+          },
+          "pairedCommonSupport": {
+            "count": 40,
+            "excludedFromDenominator": 28,
+            "indices": [
+              1,
+              3,
+              4,
+              5,
+              6,
+              8,
+              9,
+              11,
+              13,
+              14,
+              15,
+              17,
+              18,
+              19,
+              21,
+              22,
+              24,
+              25,
+              26,
+              28,
+              29,
+              30,
+              32,
+              35,
+              36,
+              42,
+              43,
+              45,
+              48,
+              51,
+              53,
+              54,
+              55,
+              59,
+              60,
+              61,
+              63,
+              64,
+              65,
+              68
+            ],
+            "originalAutomatic": {
+              "medianRelativeError": 0.0032271119179591457,
+              "p95RelativeError": 0.009993474397652715,
+              "medianOriginalPixelError": 4.534367861572742,
+              "p95OriginalPixelError": 14.041685037940521
+            },
+            "assistedRegion": {
+              "medianRelativeError": 0.0038305723906000145,
+              "p95RelativeError": 0.010000693152539993,
+              "medianOriginalPixelError": 5.382281365174661,
+              "p95OriginalPixelError": 14.05182800508687
+            }
+          },
+          "screenshots": [
+            "mobile-primary-light.png",
+            "mobile-primary-dark.png",
+            "mobile-one-point-unsaved-preview.png",
+            "mobile-cancel-restored.png",
+            "mobile-gt10-one-point-unsaved-preview.png",
+            "mobile-saved-reloaded-dark.png",
+            "mobile-saved-reloaded-light.png"
+          ],
+          "anatomicalQualification": false,
+          "cancelErrors": [
+            {
+              "centerPixels": 0.0,
+              "zoom": 0.0,
+              "rotationDegrees": 0.0
+            },
+            {
+              "centerPixels": 0.0,
+              "zoom": 0.0,
+              "rotationDegrees": 0
+            }
+          ],
+          "independentBoundedCropReread": {
+            "scope": "Independent bounded post-Save reread of actual owned public DZI crop using current production read_region, maximum512; not injected runtime metadata or anatomical verification. Bounds derived from persisted actual regional row using identical region-builder crop rule.",
+            "sourceHead": "544588a8f6b9e0111129f2c7d870f9a2960da57c",
+            "profile": "mobile",
+            "savedRegionArtifactSha256": "0c757fb73623f4c60b9a4b9de4cd198bca81f66fed3565125f784be7650d1283",
+            "frames": [
+              {
+                "role": "moving",
+                "originalSourceSize": [
+                  1123,
+                  724
+                ],
+                "requestedOriginalCropBounds": [
+                  77,
+                  0,
+                  1123,
+                  688
+                ],
+                "decodedPixelSize": [
+                  262,
+                  172
+                ],
+                "actualPixelToOriginalFrame": [
+                  76,
+                  0,
+                  4
+                ],
+                "samplingScalePerAxis": [
+                  4,
+                  4
+                ],
+                "selectedDziLevel": 9,
+                "decodedPixelSha256": "0820deb8dcb676f8097055ba693788c576e7a82d8adc4fe7162f87394468dcf0",
+                "descriptorSha256": "8843dd6bcf004bd3fe9a3ec9ae284a7622fa2da15097a8ac28b6f283a3d1e03c"
+              },
+              {
+                "role": "reference",
+                "originalSourceSize": [
+                  1164,
+                  787
+                ],
+                "requestedOriginalCropBounds": [
+                  68,
+                  0,
+                  1161,
+                  756
+                ],
+                "decodedPixelSize": [
+                  274,
+                  189
+                ],
+                "actualPixelToOriginalFrame": [
+                  68,
+                  0,
+                  4
+                ],
+                "samplingScalePerAxis": [
+                  4,
+                  4
+                ],
+                "selectedDziLevel": 9,
+                "decodedPixelSha256": "58857abeaafc1205c5f8d2cf2440744ea4f641cc82f75d9ebdf3fd2c4ce2702f",
+                "descriptorSha256": "54a9d2d935b8455bdb829c215882e660cd469de26fb76e158e118df684f9bc7f"
+              }
+            ],
+            "calibration": null,
+            "originalPixelsPreserved": true
+          }
+        }
+      ],
+      "artifactHashes": {
+        "built-assets.json": "ee6ee8bb673b435e28df87fb702955e680522738c1be1dd40561f9409e69e08f",
+        "cookie-proof.json": "a66d2f167af7700102be3ea09f86760ce96ec8235f84e81c0eadd61fc8a2d13a",
+        "guardian-cleanup.json": "401bb019cf1a4351c444c9dd507c730b6b09c438cba8366f8a8e1276197486fb",
+        "independent-desktop-crop-proof.json": "59a4bb1b1d029f57c673c656dde76aad53a1aaa15e9bf792c4b0837a825acd10",
+        "independent-mobile-crop-proof.json": "0cb89e7c485eb46b99c9fc2bcd3f6ef98a9f8efba40aeb694ae8a3186ab72e6b",
+        "initial-comparison.json": "db88c2c9f12096aa0267c7f938a450d43eb84584acb79f07d61a82c2806cc123",
+        "inner-cleanup.json": "f04f6261b4b3ecddbd93299d2bd0cde96603e626ace4f12b08c03a699cab96c2",
+        "interaction/desktop-cancel-restored.png": "238ed9eab7e0840f5d85ffc5c85215df023ddbb797590359aedeee27327961e5",
+        "interaction/desktop-gt10-one-point-unsaved-preview.png": "fbf7153978a158495aed2b9228396e6241aaaffe5704c8e26b067951b8cf9583",
+        "interaction/desktop-initial-comparison.json": "6d7823647cd4a8a43a80d45f6ce0206fdd735c6ae90d261fff8a0323e060c37c",
+        "interaction/desktop-one-point-unsaved-preview.png": "fbf7153978a158495aed2b9228396e6241aaaffe5704c8e26b067951b8cf9583",
+        "interaction/desktop-primary-dark.png": "6590964d2ee8caa357a2e0cf23b478f8be82fa6092d0fd086318ff75897a7f07",
+        "interaction/desktop-primary-light.png": "58aab4425f09ba756af01287680a0605e9d1e9ad2c8e3b9a8852f7e59a0c4154",
+        "interaction/desktop-region.json": "1579babb36b6a6385f5b8aa9611668dc2c507a9da08b1c0e3b4a9eaed0ef8ea5",
+        "interaction/desktop-reloaded-comparison.json": "e3851ac77b5a384f0cf0345e51f25e59c6bdc15263f49b5d3205043bebdc0232",
+        "interaction/desktop-saved-comparison.json": "e3851ac77b5a384f0cf0345e51f25e59c6bdc15263f49b5d3205043bebdc0232",
+        "interaction/desktop-saved-reloaded-dark.png": "1e1db1dfd5da67ecfb45ce1ef1d60eedbca9f995910aa7979b6db9c05b7234fb",
+        "interaction/desktop-saved-reloaded-light.png": "3e2e704e69baa6c7807a68514c0d2b363a41e65310dfc70804eee7434c90ad21",
+        "interaction/frozen-selection.json": "dec2902f7908c5dc2eebce2d05cc3efd9d5d4f0b476a90c6972e24b9ad2f3c1d",
+        "interaction/mobile-cancel-restored.png": "5bd23893d931e70671c040045000e0bd2463f059c3dd0afa6e7bd8b22ce27128",
+        "interaction/mobile-gt10-one-point-unsaved-preview.png": "23921a32f4ce145ee7670147d4e86ed5a272756bc7b9e3bbeab6f8d1c1b34358",
+        "interaction/mobile-initial-comparison.json": "e3851ac77b5a384f0cf0345e51f25e59c6bdc15263f49b5d3205043bebdc0232",
+        "interaction/mobile-one-point-unsaved-preview.png": "23921a32f4ce145ee7670147d4e86ed5a272756bc7b9e3bbeab6f8d1c1b34358",
+        "interaction/mobile-primary-dark.png": "3042d1721cdc2655fab8898a18449422c7156f714333f41f7968541b8f5eca31",
+        "interaction/mobile-primary-light.png": "5bb266662927185c1b71b99c72df813e9ea24b7dd49a75f640c4898a42dd2ba8",
+        "interaction/mobile-region.json": "0c757fb73623f4c60b9a4b9de4cd198bca81f66fed3565125f784be7650d1283",
+        "interaction/mobile-reloaded-comparison.json": "80435965404ec7dcf8d374513ffd09c6600ca20bd75b8783be356fbb5b160b92",
+        "interaction/mobile-saved-comparison.json": "80435965404ec7dcf8d374513ffd09c6600ca20bd75b8783be356fbb5b160b92",
+        "interaction/mobile-saved-reloaded-dark.png": "71ac52f254dbe908660fae0ad78380829033057446caa279a79fe8c271ee0046",
+        "interaction/mobile-saved-reloaded-light.png": "8b33911290216d840847b0cac109cca93823a04684cdad86c50fbe3d811bd8f2",
+        "interaction/published-landmark-ui-score.json": "64fa6822d9f363669248f2285056e1aff8537f7d5275d4f69d5364de5b6ba396",
+        "interaction/ui-review-progress.json": "7c0d03316c72512785a89eb937e1fdff26a97ece9fee4525f051377b11f3b364",
+        "interaction/ui-review.json": "98550e433f1fe9dc612eaa0f7241c2be8479572b9064190d58501b17ea29171d",
+        "lifetime-receipt.json": "2f53079ac80cffe0a3f6ff12e225aea4a2dedc1ac3eb9cc8e6f36bbd458db9c2",
+        "native-and-assets-terminal.json": "e385592ac32fb2c5df68c380572cdb39983a8a953539d2aa2aa3f813fb5bec9f",
+        "native-runtime.json": "53e8cf39250cb104d1414fa9b79e1c447d2108b0d80550cc2f0ec2a5ee214b5b",
+        "original-input-proof.json": "9f25d763e51cafc5faaf4622b7f8aa65942b2436033ab89f8b7d676b0e91dfb6",
+        "ready.json": "5c55df204b20052fe6eeb3a4d9d7c6ba9b7a1ca80bce37b90e1a294d8a0c2822",
+        "setup-jobs.json": "03414f3c7d825543c45200f4413979631b708aa0cff42a6ae81ee0ecbc8ea842",
+        "source-start.json": "89546331aa2930d1c8051f226e8035d86de244dc5263af7d0ea165c23c575fb2",
+        "source-terminal.json": "89546331aa2930d1c8051f226e8035d86de244dc5263af7d0ea165c23c575fb2"
+      }
+    }
+  ]
+}

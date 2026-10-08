@@ -1146,7 +1146,7 @@ def register_assessment_routes(
                     "id": attempt.id,
                     "ordinal": attempt.ordinal,
                     "status": attempt.status,
-                    "startedAt": as_utc(attempt.started_at),
+                    "startedAt": as_utc(attempt.started_at).isoformat(),
                     "responses": responses,
                 }
                 if attempt is not None

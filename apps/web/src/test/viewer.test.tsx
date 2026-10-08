@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-import { OpenSeadragonViewer } from '../components/OpenSeadragonViewer'
+import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { ViewerPage } from '../pages/ViewerPage'
 import { ThemeProvider } from '../theme/ThemeProvider'
 
@@ -14,13 +14,25 @@ const osdMock = vi.hoisted(() => {
   const handlers = new Map<string, () => void>()
   const viewer = {
     imageLoader: { jobLimit: 12 },
+    container: { clientWidth: 800, clientHeight: 600 },
     viewport: {
       zoomBy: vi.fn(),
       goHome: vi.fn(),
       viewportToImageZoom: vi.fn(() => 2),
       getZoom: vi.fn(() => 1),
-      getRotation: vi.fn(() => 0),
+      getRotation: vi.fn((current?: boolean) => { void current; return 0 }),
       setRotation: vi.fn(),
+      getCenter: vi.fn(() => ({ x: 0, y: 0 })),
+      getBounds: vi.fn(() => ({ x: -200, y: -150, width: 400, height: 300, getBoundingBox: () => ({ x: -200, y: -150, width: 400, height: 300 }) })),
+      viewportToImageRectangle: vi.fn((bounds: unknown) => bounds),
+      viewportToImageCoordinates: vi.fn((point: { x: number, y: number }) => point),
+      imageToViewportCoordinates: vi.fn((x: number, y: number) => ({ x, y })),
+      imageToViewportZoom: vi.fn((zoom: number) => zoom),
+      panTo: vi.fn(),
+      zoomTo: vi.fn(),
+      applyConstraints: vi.fn(),
+      imageToViewportRectangle: vi.fn((x: number, y: number, width: number, height: number) => ({ x, y, width, height })),
+      fitBounds: vi.fn(),
     },
     setFullScreen: vi.fn(),
     isFullPage: vi.fn(() => false),
@@ -85,7 +97,7 @@ function publicSlideResponse() {
     state: 'published',
     tileSource: '/tiles/public-1/slide.dzi',
     thumbnailUrl: '/tiles/public-1/thumbnail.jpg',
-    metadata: { width: 24970, height: 31087, physicalSizeX: 0.5476 },
+    metadata: { width: 24970, height: 31087, physicalSizeX: 0.5476, physicalSizeY: 0.5476, physicalSizeUnit: 'um' },
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
@@ -180,6 +192,30 @@ it('offers a circular dial with cardinal and fine local rotation controls', () =
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
 })
 
+it('keeps synchronized rotation visible and resets orientation with the home handle', () => {
+  let handle: ViewerHandle | null = null
+  render(
+    <OpenSeadragonViewer
+      tileSource="/tiles/public-1/slide.dzi"
+      onReady={(value) => { handle = value }}
+    />,
+  )
+
+  expect(handle).not.toBeNull()
+  osdMock.viewer.viewport.applyConstraints.mockClear()
+  act(() => handle!.setImageViewport({ centerX: 40, centerY: 30, imageZoom: 2, rotation: 90 }))
+  expect(osdMock.viewer.viewport.panTo).toHaveBeenLastCalledWith({ x: 40, y: 30 }, true)
+  expect(osdMock.viewer.viewport.zoomTo).toHaveBeenLastCalledWith(2, { x: 40, y: 30 }, true)
+  expect(osdMock.viewer.viewport.applyConstraints).not.toHaveBeenCalled()
+  expect(handle!.getImageViewport().visibleRadiusPixels).toBe(150)
+  expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 90 degrees' })).toBeInTheDocument()
+
+  act(() => handle!.home())
+  expect(osdMock.viewer.viewport.goHome).toHaveBeenCalled()
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
+  expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 0 degrees' })).toBeInTheDocument()
+})
+
 it('shows a prioritized poster until the first tile is visible', () => {
   render(
     <OpenSeadragonViewer
@@ -213,12 +249,43 @@ it('lets viewers choose and persist a bounded loading mode', () => {
   expect(osdMock.viewer.imageLoader.jobLimit).toBe(12)
 })
 
+it('applies externally controlled detail modes within the network profile without reopening the viewer', () => {
+  localStorage.setItem('pathlab-viewer-loading-mode:v1', 'data-saver')
+  const onReady = vi.fn()
+  const profile = { maximumJobLimit: 4 }
+  const view = render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} showLoadingMode={false} loadingMode="full" networkProfile={profile} />)
+  expect(screen.queryByRole('combobox', { name: 'Loading mode' })).not.toBeInTheDocument()
+  expect(latestViewerOptions().imageLoaderLimit).toBe(4)
+  osdMock.viewer.open.mockClear()
+  view.rerender(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} showLoadingMode={false} loadingMode="data-saver" networkProfile={profile} />)
+  expect(osdMock.viewer.imageLoader.jobLimit).toBe(2)
+  expect(localStorage.getItem('pathlab-viewer-loading-mode:v1')).toBe('data-saver')
+  view.rerender(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} showLoadingMode={false} loadingMode="full" networkProfile={{ initialJobLimit: 2, maximumJobLimit: 4 }} />)
+  expect(osdMock.viewer.imageLoader.jobLimit).toBe(2)
+  expect(osdMock.viewer.open).not.toHaveBeenCalled()
+  expect(osdMock.viewer.destroy).not.toHaveBeenCalled()
+})
+
 it('keeps the loaded canvas mounted and reports an offline connection', () => {
   renderViewer()
   act(() => window.dispatchEvent(new Event('offline')))
 
   expect(screen.getByRole('status')).toHaveTextContent('Offline')
   expect(osdMock.viewer.destroy).not.toHaveBeenCalled()
+})
+
+it('uses the canvas renderer when the optional offscreen context constructor is absent', () => {
+  vi.stubGlobal('OffscreenCanvasRenderingContext2D', undefined)
+  try {
+    renderViewer()
+    expect(latestViewerOptions().drawer).toBe('canvas')
+    cleanup()
+    vi.stubGlobal('OffscreenCanvasRenderingContext2D', class {})
+    renderViewer()
+    expect(latestViewerOptions().drawer).toEqual(['auto', 'webgl', 'canvas', 'html'])
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
 
 it('uses reduced loader and cache limits below 768 pixels', () => {
@@ -313,6 +380,41 @@ it('bounds repeated tile failures before showing the loading error', async () =>
   expect(screen.getByRole('alert')).toBeVisible()
 })
 
+it('clears transient tile failures after a tile loads successfully', async () => {
+  vi.useFakeTimers()
+  renderViewer()
+
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-loaded')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  await act(async () => { await vi.runOnlyPendingTimersAsync() })
+
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+it('reports image close and reopen using current callbacks without recreating its viewer', () => {
+  const firstClose = vi.fn(), currentClose = vi.fn(), onOpen = vi.fn(), onReady = vi.fn(), onDispose = vi.fn()
+  const view = render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} onOpen={onOpen} onClose={firstClose} onDispose={onDispose} />)
+  emitViewerEvent('open')
+  expect(onOpen).toHaveBeenCalledOnce()
+  const instanceCount = osdMock.factory.mock.calls.length
+  view.rerender(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} onOpen={onOpen} onClose={currentClose} onDispose={onDispose} />)
+  act(() => osdMock.handlers.get('close')?.())
+  expect(currentClose).toHaveBeenCalledOnce()
+  expect(firstClose).not.toHaveBeenCalled()
+  expect(onDispose).not.toHaveBeenCalled()
+  expect(osdMock.factory).toHaveBeenCalledTimes(instanceCount)
+  emitViewerEvent('open')
+  expect(onOpen).toHaveBeenCalledTimes(2)
+  expect(onReady).toHaveBeenCalledOnce()
+  view.unmount()
+  expect(osdMock.viewer.removeAllHandlers).toHaveBeenCalledWith('close')
+})
+
 it('retries the tile source and clears the loading error', async () => {
   vi.useFakeTimers()
   renderViewer()
@@ -367,6 +469,23 @@ it('updates scale after open and animation finish only', () => {
   expect(osdMock.handlers.has('animation')).toBe(false)
 })
 
+it('updates the physical scale after an immediate synchronized viewport change', () => {
+  const onScaleChange = vi.fn()
+  let handle: ViewerHandle | null = null
+  render(
+    <OpenSeadragonViewer
+      tileSource="/tiles/public-1/slide.dzi"
+      micronsPerPixel={0.25}
+      onReady={(value) => { handle = value }}
+      onScaleChange={onScaleChange}
+    />,
+  )
+
+  act(() => handle!.setImageViewport({ centerX: 40, centerY: 30, imageZoom: 2, rotation: 15 }))
+
+  expect(onScaleChange).toHaveBeenCalledOnce()
+})
+
 it('removes handlers, pending errors, and the viewer during cleanup', () => {
   vi.useFakeTimers()
   const clearInterval = vi.spyOn(window, 'clearInterval')
@@ -377,7 +496,7 @@ it('removes handlers, pending errors, and the viewer during cleanup', () => {
   view.unmount()
   expect(clearInterval).toHaveBeenCalled()
   expect(osdMock.viewer.removeAllHandlers.mock.calls.map(([name]) => name)).toEqual([
-    'open', 'tile-loaded', 'animation-finish', 'open-failed', 'tile-load-failed',
+    'close', 'open', 'tile-loaded', 'animation-finish', 'pan', 'zoom', 'rotate', 'after-resize', 'open-failed', 'tile-load-failed',
   ])
   expect(osdMock.viewer.destroy).toHaveBeenCalledOnce()
 })
@@ -395,6 +514,7 @@ it('loads public metadata and exposes responsive viewer controls', async () => {
           width: 24970,
           height: 31087,
           physicalSizeX: 0.5476,
+          physicalSizeY: 0.5476,
           physicalSizeUnit: 'MICROMETER',
         },
       }),
@@ -433,7 +553,7 @@ it('keeps the authenticated private-preview API branch intact', async () => {
         errorMessage: null,
         tileSource: '/api/v1/admin/slides/private-1/tiles/slide.dzi',
         thumbnailUrl: '/api/v1/admin/slides/private-1/thumbnail',
-        metadata: { width: 2048, height: 1024, physicalSizeX: 0.5 },
+        metadata: { width: 2048, height: 1024, physicalSizeX: 0.5, physicalSizeY: 0.5, physicalSizeUnit: 'um' },
         annotationsEnabled: false,
         annotationVersion: 0,
         createdAt: '2026-07-26T00:00:00Z',
@@ -613,6 +733,36 @@ it('keeps pathology posters and viewer stages free of theme color filters', () =
 })
 
 
+it('does not swallow the first user drag after a synchronized viewport update', () => {
+  let handle: ViewerHandle | undefined
+  const onViewportChange = vi.fn()
+  const { container } = render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={(value) => { handle = value }} onViewportChange={onViewportChange} />)
+  act(() => handle!.setImageViewport({ centerX: 25, centerY: 30, imageZoom: 1, rotation: 12.345 }, 'sync-1'))
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(expect.closeTo(12.345, 6), true)
+  fireEvent.pointerDown(container.querySelector('.osd-surface')!)
+  emitViewerEvent('animation-finish')
+  expect(onViewportChange).toHaveBeenLastCalledWith(expect.any(Object), undefined)
+})
+
+
+it('does not promote an initial image load into a driving user gesture', () => {
+  const onViewportChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={vi.fn()} onViewportChange={onViewportChange} />)
+  emitViewerEvent('open')
+  emitViewerEvent('animation-finish')
+  expect(onViewportChange).not.toHaveBeenCalled()
+})
+
+
+it('avoids a filter stacking context for neutral display while retaining requested adjustments', () => {
+  const { container, rerender } = render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={vi.fn()} />)
+  const surface = container.querySelector('.osd-surface > div') as HTMLElement
+  expect(surface.style.filter).toBe('none')
+  rerender(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={vi.fn()} displayAdjustments={{ brightness: 1.2, contrast: 1, gamma: 1 }} />)
+  expect(surface.style.filter).toContain('brightness(1.2)')
+  expect(surface.style.filter).toContain('url(#slide-gamma-')
+})
+
 it.each(['/tiles/s/0/0_0.jpg', '/_pathlab_ome/7/0_0.jpg'])('samples slow tile resources from %s', async (path) => {
   vi.useFakeTimers()
   let receive: PerformanceObserverCallback | undefined
@@ -633,4 +783,141 @@ it.each(['/tiles/s/0/0_0.jpg', '/_pathlab_ome/7/0_0.jpg'])('samples slow tile re
     cleanup()
     Object.defineProperty(globalThis, 'PerformanceObserver', { configurable: true, value: previous })
   }
+})
+
+it('uses the horizontal screen axis for an anisotropic scale bar after rotation', () => {
+  const onScaleChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" micronsPerPixel={0.25} micronsPerPixelY={0.5} onReady={() => {}} onScaleChange={onScaleChange} />)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(90)
+  emitViewerEvent('open')
+  const [microns, width] = onScaleChange.mock.calls.at(-1)!
+  expect(microns / width).toBeCloseTo(0.5 / 2)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(0)
+})
+
+it('refreshes the anisotropic physical scale immediately on rotation', () => {
+  const onScaleChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" micronsPerPixel={0.25} micronsPerPixelY={0.5} onReady={() => {}} onScaleChange={onScaleChange} />)
+  emitViewerEvent('open')
+  expect(onScaleChange.mock.calls.at(-1)![0] / onScaleChange.mock.calls.at(-1)![1]).toBeCloseTo(0.25 / 2)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(90)
+  try {
+    emitViewerEvent('rotate')
+    expect(onScaleChange).toHaveBeenCalledTimes(2)
+    const [microns, width] = onScaleChange.mock.calls.at(-1)!
+    expect(microns / width).toBeCloseTo(0.5 / 2)
+  } finally { osdMock.viewer.viewport.getRotation.mockReturnValue(0) }
+})
+
+it('reads the current animated angle with the current image bounds', async () => {
+  const { default: OpenSeadragon } = await vi.importActual<{ default: typeof import('openseadragon') }>('openseadragon')
+  const currentAngle = 0.3885965737411893, targetAngle = 1
+  const rectangle = new OpenSeadragon.Rect(-200, -150, 400, 300).rotate(-currentAngle)
+  const boundsImplementation = osdMock.viewer.viewport.getBounds.getMockImplementation()!
+  const rotationImplementation = osdMock.viewer.viewport.getRotation.getMockImplementation()!
+  osdMock.viewer.viewport.getBounds.mockReturnValue(rectangle)
+  osdMock.viewer.viewport.getRotation.mockImplementation(current => current ? currentAngle : targetAngle)
+  let handle: ViewerHandle | undefined
+  const onViewportChange = vi.fn()
+  try {
+    const { container } = render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={value => { handle = value }} onViewportChange={onViewportChange} />)
+    emitViewerEvent('open')
+    fireEvent.pointerDown(container.querySelector('.osd-surface')!)
+    emitViewerEvent('animation-finish')
+    const radians = currentAngle * Math.PI / 180
+    const width = 400 * Math.cos(radians) + 300 * Math.sin(radians)
+    const height = 300 * Math.cos(radians) + 400 * Math.sin(radians)
+    for (const snapshot of [handle!.getImageViewport(), onViewportChange.mock.calls.at(-1)![0]]) {
+      expect.soft(snapshot.rotation).toBe(currentAngle)
+      expect(snapshot.visibleBounds[0]).toBeCloseTo(-width / 2, 8)
+      expect(snapshot.visibleBounds[1]).toBeCloseTo(-height / 2, 8)
+      expect(snapshot.visibleBounds[2]).toBeCloseTo(width, 8)
+      expect(snapshot.visibleBounds[3]).toBeCloseTo(height, 8)
+    }
+  } finally {
+    osdMock.viewer.viewport.getBounds.mockImplementation(boundsImplementation)
+    osdMock.viewer.viewport.getRotation.mockImplementation(rotationImplementation)
+  }
+})
+
+it('uses the current animated angle for the anisotropic horizontal scale', () => {
+  const rotationImplementation = osdMock.viewer.viewport.getRotation.getMockImplementation()!
+  osdMock.viewer.viewport.getRotation.mockImplementation(current => current ? 30 : 90)
+  const onScaleChange = vi.fn()
+  try {
+    render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={() => {}} micronsPerPixel={0.25} micronsPerPixelY={0.5} onScaleChange={onScaleChange} />)
+    emitViewerEvent('open')
+    const [microns, width] = onScaleChange.mock.calls.at(-1)!
+    const radians = 30 * Math.PI / 180
+    const currentHorizontalMpp = Math.hypot(Math.cos(radians) * 0.25, Math.sin(radians) * 0.5)
+    expect(microns / width).toBeCloseTo(currentHorizontalMpp / 2, 8)
+  } finally { osdMock.viewer.viewport.getRotation.mockImplementation(rotationImplementation) }
+})
+
+it.each([
+  { angle: 0, restored: false }, { angle: 37, restored: false }, { angle: 90, restored: false },
+  { angle: 5.68e-14, restored: false }, { angle: -5.68e-14, restored: false },
+  { angle: 360 - 1e-10, restored: false }, { angle: 360, restored: false },
+  { angle: 5.68e-14, restored: true },
+])('reports axis-aligned image bounds for the real OSD Rect at $angle degrees (restored=$restored)', async ({ angle, restored }) => {
+  const { default: OpenSeadragon } = await vi.importActual<{ default: typeof import('openseadragon') }>('openseadragon')
+  const center = { x: 557.8588, y: 331.5 }, width = 1166.8407, height = 1133.7277
+  const rectangle = new OpenSeadragon.Rect(center.x - width / 2, center.y - height / 2, width, height).rotate(-angle)
+  const boundsImplementation = osdMock.viewer.viewport.getBounds.getMockImplementation()!
+  const centerImplementation = osdMock.viewer.viewport.getCenter.getMockImplementation()!
+  const rotationImplementation = osdMock.viewer.viewport.getRotation.getMockImplementation()!
+  osdMock.viewer.viewport.getBounds.mockReturnValue(rectangle)
+  osdMock.viewer.viewport.getCenter.mockReturnValue(center)
+  osdMock.viewer.viewport.getRotation.mockReturnValue(restored ? 0 : angle)
+  let handle: ViewerHandle | null = null
+  const onViewportChange = vi.fn()
+  try {
+    render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={value => { handle = value }} onViewportChange={onViewportChange} />)
+    emitViewerEvent('open')
+    if (restored) {
+      act(() => handle!.setImageViewport({ centerX: center.x, centerY: center.y, imageZoom: 2, rotation: 0 }, 'restore-field'))
+      expect(osdMock.viewer.viewport.panTo).toHaveBeenLastCalledWith(center, true)
+      expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0, true)
+    } else fireEvent.pointerDown(document.querySelector('.osd-surface')!)
+    emitViewerEvent('animation-finish')
+    // Independent envelope of a centered, rotated viewport, in original pixels.
+    const radians = angle * Math.PI / 180
+    const envelopeWidth = Math.abs(Math.cos(radians)) * width + Math.abs(Math.sin(radians)) * height
+    const envelopeHeight = Math.abs(Math.sin(radians)) * width + Math.abs(Math.cos(radians)) * height
+    const expected = [center.x - envelopeWidth / 2, center.y - envelopeHeight / 2, envelopeWidth, envelopeHeight]
+    const actual = handle!.getImageViewport()
+    const reported = onViewportChange.mock.calls.at(-1)![0]
+    for (const snapshot of [actual, reported]) {
+      expect(snapshot.centerX).toBe(center.x)
+      expect(snapshot.centerY).toBe(center.y)
+      for (const [index, value] of snapshot.visibleBounds!.entries()) expect(value).toBeCloseTo(expected[index], 8)
+      const [left, top, extentX, extentY] = snapshot.visibleBounds!
+      expect(left).toBeLessThanOrEqual(center.x)
+      expect(left + extentX).toBeGreaterThanOrEqual(center.x)
+      expect(top).toBeLessThanOrEqual(center.y)
+      expect(top + extentY).toBeGreaterThanOrEqual(center.y)
+    }
+    if (restored) expect(onViewportChange.mock.calls.at(-1)![1]).toBe('restore-field')
+  } finally {
+    osdMock.viewer.viewport.getBounds.mockImplementation(boundsImplementation)
+    osdMock.viewer.viewport.getCenter.mockImplementation(centerImplementation)
+    osdMock.viewer.viewport.getRotation.mockImplementation(rotationImplementation)
+  }
+})
+
+it('reports actual visible image bounds alongside user navigation coordinates', () => {
+  const onViewportChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={() => {}} onViewportChange={onViewportChange} />)
+  fireEvent.pointerDown(document.querySelector('.osd-surface')!)
+  emitViewerEvent('animation-finish')
+  expect(onViewportChange).toHaveBeenCalledWith(expect.objectContaining({ visibleBounds: [-200, -150, 400, 300], centerX: 0, centerY: 0, imageZoom: 2 }), undefined)
+})
+
+it.each([{ size: 0.25, unit: 'um' }, { size: 250, unit: 'nm' }, { size: 0.00025, unit: 'mm' }])('renders the same physical scale bar for declared $unit metadata', async ({ size, unit }) => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ publicId: 'public-1', displayName: 'Calibrated image', state: 'published', tileSource: '/tiles/public-1/slide.dzi', metadata: { width: 640, height: 480, physicalSizeX: size, physicalSizeY: size, physicalSizeUnit: unit } }), { status: 200 })))
+  render(<ThemeProvider><MemoryRouter initialEntries={['/slide/public-1']}><Routes><Route path="/slide/:publicId" element={<ViewerPage />} /></Routes></MemoryRouter></ThemeProvider>)
+  await screen.findByText('Calibrated image')
+  act(() => emitViewerEvent('open'))
+  expect(screen.getByText('10 µm')).toBeVisible()
+  expect(document.querySelector('.scale-bar i')).toHaveStyle({ width: '80px' })
 })

@@ -8,6 +8,7 @@ EXPECTED_COMPOSE_SERVICES = (
     "tile-service",
     "tusd",
     "worker",
+    "alignment-worker",
 )
 EXPECTED_LOGGING_LINES = [
     "      driver: json-file",
@@ -45,6 +46,14 @@ def test_all_services_use_bounded_json_file_logging() -> None:
             logging_lines.append(line)
 
         assert logging_lines == EXPECTED_LOGGING_LINES, service_name
+
+
+def test_optional_valis_image_uses_frozen_arm_lock_resolution() -> None:
+    dockerfile = Path("deploy/Dockerfile.alignment-valis").read_text(encoding="utf-8")
+
+    assert "VALIS_ARCHIVE_SHA256=" in dockerfile
+    assert 'uv export --frozen --no-dev --no-emit-project' in dockerfile
+    assert "pip install --no-cache-dir --require-hashes" in dockerfile
 
 
 def test_tusd_uses_pathlab_data_owner() -> None:

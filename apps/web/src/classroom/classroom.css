@@ -1869,6 +1869,8 @@
 
 .classroom-question-composer{overflow:auto}
 
+/* OSD rotates its wrapper, which owns the composer's stacking context. */
+.openseadragon-overlay-wrapper:has(> .classroom-question-composer){z-index:12}
 @media (max-width: 640px) {
   .classroom-shell--teacher .classroom-activity-tray {
     top: auto;

@@ -1,0 +1,181 @@
+{
+  "schema": "pathlab.alignment-navigation-browser/1",
+  "scope": "Mathematical coordinate fixture in actual Comparison UI and OpenSeadragon with original nonuniform JPEG pixels; not anatomical accuracy, registration quality, real-world combination qualification, or runtime benchmark.",
+  "totalSupportedSamples": 192,
+  "totalUnsupportedFields": 48,
+  "fixtureProperties": [
+    "hidden reference",
+    "anchor chain",
+    "every ordered selection of two of four members",
+    "both source directions",
+    "declared equivalent um/nm units",
+    "unequal per-axis calibration",
+    "90-degree rotations"
+  ],
+  "browsers": [
+    {
+      "browser": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "supportedSamples": 48,
+      "unsupportedFields": 12,
+      "orderedDisplayedPairs": 12,
+      "sourceDirections": 24,
+      "actions": [
+        "pan",
+        "zoom"
+      ],
+      "loadedOriginalTileResponses": 258,
+      "nonuniformMainCanvasVerified": true,
+      "maximumAxisCenterResidualPixels": 8.526512829121202e-14,
+      "coordinateTolerancePixels": 0.1,
+      "rotationAndPhysicalZoomDecimalTolerance": 5,
+      "assertionRetries": 0,
+      "skipped": 0,
+      "scaleLabelControlBoundsSamples": 0,
+      "sourceRevisionScope": "coordinate policy before final notice and rotation-bar repair",
+      "sourceDigests": {
+        "apps/web/e2e-fullstack/alignment-pane-matrix.spec.ts": "829b5b35b1e1b8a27399ca5fddf7ec13a92c6402cd2bba449284fa93624723dd",
+        "apps/web/src/alignment.ts": "e25c3daed53051288e88cba2eae57c86c3ff5bb12edab71c2d5ddd3b90c8bbec",
+        "apps/web/src/calibration.ts": "dab0a56aba1cd70c3c40e8308bdacad51f1966a14f021a91149f483ad764b2fd",
+        "apps/web/src/pages/ComparisonPage.tsx": "4272b662b5e55a38b7f40d886f86bfedebbb70e2d3ea234c397c353d715460c3",
+        "apps/web/src/components/OpenSeadragonViewer.tsx": "11e4deae229e40ad82182764479e1131030c43caad563b4aa5b5368156cc17d2",
+        "scripts/seed_frontend_qa.py": "edba2ed00a6a31170cd1d54353ab2e582e506083b079f886c28e4cb8258d0140"
+      },
+      "artifacts": {
+        "resultsSha256": "5aeb88bbb9003b32e870e5cc5028911f61e92dd6df0f97da40a33ed026a205ca",
+        "coordinateReceiptSha256": "6d1c402c1c53dabcb7e735ce731b49356fe24d787bc7b4380a1e2e57dd62861f",
+        "screenshotSha256": "21636fd293a940075621df35c6230c27ae56a064e4c14e49eda9d538c6b06187",
+        "environmentSha256": "af538f06b88b022985df9124f48c1e11271e1ec51127145e0443ecacbf4aa311"
+      }
+    },
+    {
+      "browser": "firefox",
+      "browserVersion": "153.0",
+      "supportedSamples": 48,
+      "unsupportedFields": 12,
+      "orderedDisplayedPairs": 12,
+      "sourceDirections": 24,
+      "actions": [
+        "pan",
+        "zoom"
+      ],
+      "loadedOriginalTileResponses": 279,
+      "nonuniformMainCanvasVerified": true,
+      "maximumAxisCenterResidualPixels": 8.526512829121202e-14,
+      "coordinateTolerancePixels": 0.1,
+      "rotationAndPhysicalZoomDecimalTolerance": 5,
+      "assertionRetries": 0,
+      "skipped": 0,
+      "scaleLabelControlBoundsSamples": 0,
+      "sourceRevisionScope": "coordinate policy before final notice and rotation-bar repair",
+      "sourceDigests": {
+        "apps/web/e2e-fullstack/alignment-pane-matrix.spec.ts": "829b5b35b1e1b8a27399ca5fddf7ec13a92c6402cd2bba449284fa93624723dd",
+        "apps/web/src/alignment.ts": "e25c3daed53051288e88cba2eae57c86c3ff5bb12edab71c2d5ddd3b90c8bbec",
+        "apps/web/src/calibration.ts": "dab0a56aba1cd70c3c40e8308bdacad51f1966a14f021a91149f483ad764b2fd",
+        "apps/web/src/pages/ComparisonPage.tsx": "4272b662b5e55a38b7f40d886f86bfedebbb70e2d3ea234c397c353d715460c3",
+        "apps/web/src/components/OpenSeadragonViewer.tsx": "11e4deae229e40ad82182764479e1131030c43caad563b4aa5b5368156cc17d2",
+        "scripts/seed_frontend_qa.py": "edba2ed00a6a31170cd1d54353ab2e582e506083b079f886c28e4cb8258d0140"
+      },
+      "artifacts": {
+        "resultsSha256": "2930e7deb19dc5c75c03fd9f5bd3b576c39f4f91b05d68491c08dcacfdd456fa",
+        "coordinateReceiptSha256": "551340ff09cf2b87d6213d571f8ef12dc629007ab4c663e366364e5acd890407",
+        "screenshotSha256": "b614de165b3119c4c228a72d671355f3b4dec304423be0c154f214234bcb4acd",
+        "environmentSha256": "bcbdcae9fdcbd406de5fe6e650101cca8e12b22ce7a48685c264b1a2b04b9b63"
+      }
+    },
+    {
+      "browser": "webkit",
+      "browserVersion": "26.5",
+      "supportedSamples": 48,
+      "unsupportedFields": 12,
+      "orderedDisplayedPairs": 12,
+      "sourceDirections": 24,
+      "actions": [
+        "pan",
+        "zoom"
+      ],
+      "loadedOriginalTileResponses": 268,
+      "nonuniformMainCanvasVerified": true,
+      "maximumAxisCenterResidualPixels": 5.684341886080802e-14,
+      "coordinateTolerancePixels": 0.1,
+      "rotationAndPhysicalZoomDecimalTolerance": 5,
+      "assertionRetries": 0,
+      "skipped": 0,
+      "scaleLabelControlBoundsSamples": 0,
+      "sourceRevisionScope": "coordinate policy before final notice and rotation-bar repair",
+      "sourceDigests": {
+        "apps/web/e2e-fullstack/alignment-pane-matrix.spec.ts": "829b5b35b1e1b8a27399ca5fddf7ec13a92c6402cd2bba449284fa93624723dd",
+        "apps/web/src/alignment.ts": "e25c3daed53051288e88cba2eae57c86c3ff5bb12edab71c2d5ddd3b90c8bbec",
+        "apps/web/src/calibration.ts": "dab0a56aba1cd70c3c40e8308bdacad51f1966a14f021a91149f483ad764b2fd",
+        "apps/web/src/pages/ComparisonPage.tsx": "4272b662b5e55a38b7f40d886f86bfedebbb70e2d3ea234c397c353d715460c3",
+        "apps/web/src/components/OpenSeadragonViewer.tsx": "11e4deae229e40ad82182764479e1131030c43caad563b4aa5b5368156cc17d2",
+        "scripts/seed_frontend_qa.py": "edba2ed00a6a31170cd1d54353ab2e582e506083b079f886c28e4cb8258d0140"
+      },
+      "artifacts": {
+        "resultsSha256": "8aa0bad60ba48a0358139e9973c8080e21f36d5e84d5e67f7e722eb1cc28bc48",
+        "coordinateReceiptSha256": "123144d2bd8bda9a9fd50f9cfe7547d454d1dc51f63f5f6ec6d8b8eba0210f8f",
+        "screenshotSha256": "ce644df2dae0f7fb10d9e6db261257c7c14a547e416a884dd6e18227ecdcad1a",
+        "environmentSha256": "4a6433671051d722a8b7d7f814a71b3f065281cee946bd2c09442b298bfdf21d"
+      }
+    },
+    {
+      "browser": "mobile-chromium",
+      "browserVersion": "151.0.7922.34",
+      "supportedSamples": 48,
+      "unsupportedFields": 12,
+      "orderedDisplayedPairs": 12,
+      "sourceDirections": 24,
+      "actions": [
+        "pan",
+        "zoom"
+      ],
+      "loadedOriginalTileResponses": 212,
+      "nonuniformMainCanvasVerified": true,
+      "maximumAxisCenterResidualPixels": 1.1368683772161603e-13,
+      "coordinateTolerancePixels": 0.1,
+      "rotationAndPhysicalZoomDecimalTolerance": 5,
+      "assertionRetries": 0,
+      "skipped": 0,
+      "scaleLabelControlBoundsSamples": 24,
+      "sourceRevisionScope": "final notice and rotation-bar repair",
+      "sourceDigests": {
+        "apps/web/e2e-fullstack/alignment-pane-matrix.spec.ts": "e5bf2b2e4b7aeb9e5c0d767354fb0e3195249824a79851e2e4d916aa6f5e2831",
+        "apps/web/src/calibration.ts": "dab0a56aba1cd70c3c40e8308bdacad51f1966a14f021a91149f483ad764b2fd",
+        "apps/web/src/alignment.ts": "e25c3daed53051288e88cba2eae57c86c3ff5bb12edab71c2d5ddd3b90c8bbec",
+        "apps/web/src/pages/ComparisonPage.tsx": "29a9d6f9a59572acee7e12128beaa8099106a685d3b271fa170d149291d6f54c",
+        "apps/web/src/pages/ComparisonPage.css": "96184266c2c7b113e0a68639d88d7ec4710b5902518045a3805fed95bc5bd143",
+        "apps/web/src/components/OpenSeadragonViewer.tsx": "966383a6645a9fba3f6847ba726f395fb531d06f842c9447f4fd3d095bfce7e0",
+        "apps/web/src/pages/ViewerPage.tsx": "48042abf0f511476c5f0ed3f21fa53fa8cd3397ceb0d41d0fe921bf0d101916c",
+        "scripts/seed_frontend_qa.py": "edba2ed00a6a31170cd1d54353ab2e582e506083b079f886c28e4cb8258d0140"
+      },
+      "artifacts": {
+        "resultsSha256": "f4f83737e4292a23f14d041df1d5634f41ccd796a84c6d0b7eed96650513cfea",
+        "coordinateReceiptSha256": "3cd8217aeed2508e5ff15a6ed301a9b1490a0047bfbd7d2108fe91b0ca943712",
+        "screenshotSha256": "b4efe43f77c07e0f863521d6ebc9f6bca95f717667239c6cfb768e2386675783",
+        "environmentSha256": "24fc3ca95ad6b748a23a1418ed067e661c6942fecb26fe073e07dedaba63ada8"
+      }
+    }
+  ],
+  "retainedFailures": [
+    {
+      "kind": "launch infrastructure",
+      "browser": "webkit",
+      "samples": 0,
+      "reason": "First launcher readiness response raised HTTPException; separate bounded readiness repair and fresh launch.",
+      "environmentSha256": "b7d662bcd7ac22f6021c0236abe1cbddcf06cd155f5528b193aa27311010e60b"
+    },
+    {
+      "kind": "production mobile layout",
+      "browser": "mobile-chromium",
+      "supportedSamples": 0,
+      "reason": "Scale label overlapped rotation control; repaired layout and concise conditional text; new full run uses normal clicks and explicit bounds assertions.",
+      "resultsSha256": "cbcee74eb1690e86ffe5e6dda7cf26cf7e8b5ce59ffb0290f680a7280f3c30e9"
+    }
+  ],
+  "excludedClaims": [
+    "anatomical accuracy",
+    "all real-world pane combinations",
+    "scientific benchmark qualification",
+    "latency comparison"
+  ]
+}

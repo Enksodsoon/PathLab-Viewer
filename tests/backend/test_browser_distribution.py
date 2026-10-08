@@ -202,6 +202,32 @@ def test_browser_receipt_detects_replaced_bytes_and_added_artifacts(tmp_path: Pa
         validate_emitted_assets(receipt, output)
 
 
+@pytest.mark.parametrize("replacement", [b"replaced bytes", b"short"])
+def test_browser_emitted_mismatch_identifies_only_relative_asset_and_both_bindings(
+    tmp_path: Path, replacement: bytes
+) -> None:
+    output = tmp_path / "private-host-artifact"
+    target = output / "assets" / "fixture.js"
+    target.parent.mkdir(parents=True)
+    qualified = b"qualified byte"
+    expected_sha = hashlib.sha256(qualified).hexdigest()
+    receipt = {
+        "emittedAssets": [
+            {"path": "assets/fixture.js", "bytes": len(qualified), "sha256": expected_sha}
+        ]
+    }
+    target.write_bytes(replacement)
+    with pytest.raises(ValueError, match="emitted bytes changed") as caught:
+        validate_emitted_assets(receipt, output)
+    assert str(caught.value) == (
+        "browser distribution emitted bytes changed: 'assets/fixture.js'; "
+        f"expected bytes={len(qualified)} sha256={expected_sha}; "
+        f"actual bytes={len(replacement)} sha256={hashlib.sha256(replacement).hexdigest()}"
+    )
+    assert str(tmp_path) not in str(caught.value)
+    assert "private-host-artifact" not in str(caught.value)
+
+
 def test_browser_receipt_requires_all_three_packaged_legal_files(tmp_path: Path) -> None:
     receipt, _ = _fixture(tmp_path)
     output = tmp_path / "artifact"

@@ -2375,6 +2375,43 @@
       ]
     },
     {
+      "artifact": "https://files.pythonhosted.org/packages/67/8a/51ff1c6287be0b6cd3070cf095875da4ff7d6eda38507e6ada5608786a78/opencv_python_headless-4.14.0.94.tar.gz",
+      "checksum": "sha256:4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577",
+      "id": "pypi:opencv-python-headless@4.14.0.94",
+      "notices": [
+        {
+          "member": "opencv_python_headless-4.14.0.94/LICENSE-3RD-PARTY.txt",
+          "path": "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+          "sha256": "36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c"
+        },
+        {
+          "member": "opencv_python_headless-4.14.0.94/LICENSE.txt",
+          "path": "docs/supply-chain/notice-material/sha256/09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c",
+          "sha256": "09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c"
+        },
+        {
+          "member": "opencv_python_headless-4.14.0.94/opencv/COPYRIGHT",
+          "path": "docs/supply-chain/notice-material/sha256/854538f426422b0f989a5e5b7641e5943753d10ef29ea54901dcd36039e43f58",
+          "sha256": "854538f426422b0f989a5e5b7641e5943753d10ef29ea54901dcd36039e43f58"
+        },
+        {
+          "member": "opencv_python_headless-4.14.0.94/opencv/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "member": "opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_BSD.txt",
+          "path": "docs/supply-chain/notice-material/sha256/a5a7cf90fe5ac9763baad852cf69cf9d9b89bff934a679fdc5c8fcecaeba9a25",
+          "sha256": "a5a7cf90fe5ac9763baad852cf69cf9d9b89bff934a679fdc5c8fcecaeba9a25"
+        },
+        {
+          "member": "opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_CHANGE_NOTICE.txt",
+          "path": "docs/supply-chain/notice-material/sha256/b2255f81ae7162e36550daefe432c72a8506cfc1b954897dbc553ed5160ad4b8",
+          "sha256": "b2255f81ae7162e36550daefe432c72a8506cfc1b954897dbc553ed5160ad4b8"
+        }
+      ]
+    },
+    {
       "artifact": "https://files.pythonhosted.org/packages/1f/dc/e12c1fe1ed8a7b7149777127b1a0e12ce5bd5a81d97408bedc2128c260f5/opentelemetry_api-1.45.0.tar.gz",
       "checksum": "sha256:711ede81773c8025c2c03dac0450bc89f3d30aea6eabcc815c570d4e35a963f7",
       "id": "pypi:opentelemetry-api@1.45.0",
@@ -2428,6 +2465,18 @@
       ]
     },
     {
+      "artifact": "https://files.pythonhosted.org/packages/b7/bf/70d8a60488f9955cbbcd538beae44d56bb2f1d19e673b72788f2d343ff55/psycopg_binary-3.3.4-cp310-cp310-macosx_10_9_x86_64.whl",
+      "checksum": "sha256:b7bfff1ca23732b488cbca3076fc11bc98d520ee122514fdb17a8e20d3338f5a",
+      "id": "pypi:psycopg-binary@3.3.4",
+      "notices": [
+        {
+          "member": "psycopg_binary-3.3.4.dist-info/licenses/LICENSE.txt",
+          "path": "docs/supply-chain/notice-material/sha256/e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+          "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+        }
+      ]
+    },
+    {
       "artifact": "https://files.pythonhosted.org/packages/45/cf/f0577fe9c08b67c3c203506a99c69bbcb2b357e46e2f5f5705878c1e466f/psycopg_binary-3.3.5-cp310-cp310-macosx_10_9_x86_64.whl",
       "checksum": "sha256:cd0faa2475ab254ad1b507430131cf7f7f0be927ffdc03c32ad3b33d2ef63f42",
       "id": "pypi:psycopg-binary@3.3.5",
@@ -2446,6 +2495,18 @@
       "notices": [
         {
           "member": "psycopg_binary-3.3.6.dist-info/licenses/LICENSE.txt",
+          "path": "docs/supply-chain/notice-material/sha256/e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+          "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+        }
+      ]
+    },
+    {
+      "artifact": "https://files.pythonhosted.org/packages/db/2f/cb91e5502ec9de1de6f1b76cfbf69531932725361168bb06963620c77e2e/psycopg-3.3.4.tar.gz",
+      "checksum": "sha256:e21207764952cff81b6b8bdacad9a3939f2793367fdac2987b3aac36a651b5bc",
+      "id": "pypi:psycopg@3.3.4",
+      "notices": [
+        {
+          "member": "psycopg-3.3.4/LICENSE.txt",
           "path": "docs/supply-chain/notice-material/sha256/e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
           "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
         }

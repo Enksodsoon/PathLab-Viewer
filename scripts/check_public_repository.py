@@ -28,7 +28,7 @@ HISTORICAL_SYNTHETIC_EMAIL_LINES = {
 # material. A changed receipt, line, or path receives no exemption. This affects
 # email findings only; every credential/IP/workstation rule still runs.
 LEGAL_EMAIL_RECEIPT = "docs/supply-chain/notice-material/public-legal-email-lines.json"
-LEGAL_EMAIL_RECEIPT_SHA256 = "ab1c0a6c8c824d777bdc4e5ed1fcce40007938efdd32eddc873d2f6f27bca57b"
+LEGAL_EMAIL_RECEIPT_SHA256 = "0f145a26f4ddc7c413767610412912dcd2051ee5c17f95b4f5d82975eb579872"
 
 
 def approved_legal_email_lines() -> dict[str, list[str]]:
@@ -117,8 +117,8 @@ DYNAMIC_DNS_PATTERN = re.compile(
 )
 LOCAL_PATH_PATTERNS = (
     re.compile(r"\b[A-Za-z]:\\+Users\\+[^\\\s]+\\+", re.I),
-    re.compile(r"(?<![\w/])/Users/[^/\s]+/"),
-    re.compile(r"(?<![\w/])/home/(?!runner(?:/|$))[^/\s]+/"),
+    re.compile(r"(?<![\w/])/Users/(?!\|/)[^/\s]+/"),
+    re.compile(r"(?<![\w/])/home/(?!\|/)(?!runner(?:/|$))[^/\s]+/"),
     re.compile(
         r"(?<![\\\w])\\\\[A-Za-z0-9][A-Za-z0-9._-]{0,252}"
         r"\\[A-Za-z0-9$][A-Za-z0-9$._ -]{0,79}"
@@ -342,6 +342,106 @@ def is_sensitive_repository_path(relative: str) -> bool:
     return any(part.casefold() in SENSITIVE_PATH_PARTS for part in Path(relative).parts)
 
 
+def is_recorded_opencv_version(relative: str, line: str, start: int, end: int) -> bool:
+    """Recognize the pinned public package version, never a network host."""
+    if line[start:end] != "4.14.0.94":
+        return False
+    if relative == "deploy/backend-requirements.txt":
+        return line[:start] == "opencv-python-headless=="
+    if relative not in {
+        "docs/supply-chain/dependency-inventory.json",
+        "docs/supply-chain/notice-material/archive-notices.json",
+    } and not relative.startswith(
+        "docs/supply-chain/software-inventories/"
+    ):
+        return False
+    prefix = line[:start]
+    return prefix.endswith((
+        "opencv-python-headless@", "opencv_python_headless-",
+        "https://pypi.org/pypi/opencv-python-headless/",
+    )) or bool(re.fullmatch(
+        r'\s*(?:"(?:version|versionInfo)": "4\.14\.0\.94",?|Version: 4\.14\.0\.94)\s*',
+        line,
+    ))
+
+
+ALIGNMENT_PACKAGE_VERSIONS = {
+    "deploy/alignment-optional-runtime-lock.json": {
+        "opencv-python-headless": "4.14.0.94",
+    },
+    "docs/alignment-results/public-screening-2026-10-03/observations.json": {
+        "opencv-python-headless": "4.11.0.86",
+    },
+    "docs/alignment-results/development-expanded-2026-10-04/observations.json": {
+        "opencv-python-headless": "4.11.0.86",
+        "opencv-contrib-python-headless": "4.9.0.80",
+        "openslide-bin": "4.0.1.2",
+    },
+    "docs/alignment-results/runtime-2026-10-04/qa-runtime.json": {
+        "opencv-python-headless": "4.14.0.94",
+        "openslide-bin": "4.0.0.11",
+    },
+}
+ALIGNMENT_QA_RECEIPT = "docs/alignment-results/runtime-2026-10-04/qa-runtime.json"
+ALIGNMENT_QA_RECEIPT_SHA256 = "da9526a7f56b65fe88c21f6264a6ff790ab2b48ec5ced95e2e99245abb904c34"
+ALIGNMENT_VERSION_LINES = {
+    "docs/alignment-campaign-2026-10-03.md": {
+        "installed OpenCV headless distribution 4.11.0.86, torch 2.14.1, "
+        "VALIS 1.2.0, wsireg 0.3.10,",
+        "OpenCV headless 4.11.0.86, torch 2.14.1, VALIS 1.2.0, wsireg 0.3.10,",
+        "an additional installed `opencv-contrib-python-headless` 4.9.0.80.",
+    },
+    "docs/alignment-repair-2026-10-04.md": {
+        "headless 4.11.0.86 and contrib-headless 4.9.0.80, while the loaded module reports",
+    },
+    "docs/alignment-results/platform-2026-10-04/linux-containment-x64.json": {
+        '"kernel": "6.18.33.2-microsoft-standard-WSL2",',
+    },
+}
+HISTORICAL_ALIGNMENT_FIXTURE_PATH = "tests/backend/test_alignment_admission_capture.py"
+HISTORICAL_ALIGNMENT_FIXTURE_LABEL = "368df39c572f"
+HISTORICAL_ALIGNMENT_FIXTURE_SHA256 = (
+    "f55c429b317e81b92b445a57a414fa088aedb1098dea84e1525cee62d90871d3"
+)
+HISTORICAL_ALIGNMENT_FIXTURE_VERSION_LINES = {
+    'metadata = {"opencv-python-headless": "4.11.0.86", '
+    '"opencv-contrib-python-headless": "4.9.0.80"}',
+    'assert before["distributions"]["opencv-python-headless"] == "4.11.0.86"',
+    'metadata["opencv-contrib-python-headless"] = "4.11.0.86"',
+}
+
+
+def is_recorded_alignment_version(
+    relative: str, line: str, document_digest: str | None, label: str | None
+) -> bool:
+    """Recognize exact recorded version contexts, never arbitrary IPv4 values."""
+    if line.strip() in ALIGNMENT_VERSION_LINES.get(relative, set()):
+        return True
+    # This original regression fixture is only recognized in its immutable
+    # historical blob, never when reintroduced into the current tree.
+    if (
+        relative == HISTORICAL_ALIGNMENT_FIXTURE_PATH
+        and label == HISTORICAL_ALIGNMENT_FIXTURE_LABEL
+        and document_digest == HISTORICAL_ALIGNMENT_FIXTURE_SHA256
+        and line.strip() in HISTORICAL_ALIGNMENT_FIXTURE_VERSION_LINES
+    ):
+        return True
+    pair = re.fullmatch(r'\s*"([\w-]+)":\s*"([\d.]+)",?\s*', line)
+    if pair is None:
+        return False
+    key, value = pair.groups()
+    if ALIGNMENT_PACKAGE_VERSIONS.get(relative, {}).get(key) == value:
+        return True
+    # The only generic nested field is inside the unchanged approved OpenSlide
+    # receipt. Any changed parent, source, or other byte invalidates recognition.
+    return (
+        relative == ALIGNMENT_QA_RECEIPT
+        and document_digest == ALIGNMENT_QA_RECEIPT_SHA256
+        and key == "version"
+        and value == "4.0.0.11"
+    )
+
+
 def should_scan_text(relative: str) -> bool:
     path = Path(relative)
     return path.suffix.lower() in TEXT_SUFFIXES or path.name in {"Caddyfile", "Dockerfile"}
@@ -363,6 +463,15 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
         findings.append((display, 1, "sensitive credential container"))
         return findings
 
+    document_digest = (
+        hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()
+        if relative == ALIGNMENT_QA_RECEIPT
+        or (
+            relative == HISTORICAL_ALIGNMENT_FIXTURE_PATH
+            and label == HISTORICAL_ALIGNMENT_FIXTURE_LABEL
+        )
+        else None
+    )
     for line_number, line in enumerate(text.splitlines(), start=1):
         if any(marker in line for marker in PRIVATE_KEY_MARKERS):
             findings.append((display, line_number, "private key material"))
@@ -396,6 +505,10 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
                 findings.append((display, line_number, "non-example email address"))
         for match in IPV4_PATTERN.finditer(line):
             if is_embedded_numeric_identifier(line, match.start(), match.end()):
+                continue
+            if is_recorded_opencv_version(relative, line, match.start(), match.end()):
+                continue
+            if is_recorded_alignment_version(relative, line, document_digest, label):
                 continue
             candidate = match.group(0)
             if is_public_ip(candidate) and (
@@ -470,7 +583,14 @@ def text_at_commit(commit: str, relative: str) -> str | None:
         result = git("show", f"{commit}:{relative}")
     except subprocess.CalledProcessError:
         return None
-    return result.stdout.decode("utf-8")
+    raw = result.stdout
+    # One historical document contains a CP1252 dash amid UTF-8 text. Decode
+    # that exact audited blob and still scan every line; unknown blobs fail.
+    if relative == "docs/alignment-validation.md" and hashlib.sha256(raw).hexdigest() == (
+        "a7e79e482c06e84c4eb4f3e7597e1f3b752775746b4c2ac79ca6974f6ae6cb99"
+    ):
+        raw = raw.replace(bytes([0x96]), "\u2013".encode("utf-8"))
+    return raw.decode("utf-8")
 
 
 def scan_history(base: str) -> list[Finding]:

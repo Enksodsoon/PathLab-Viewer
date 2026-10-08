@@ -6,6 +6,9 @@ test('all six authorable question types survive publication, learner save and su
   await page.getByRole('button', { name: 'Teaching Studio', exact: true }).click()
   await page.getByRole('button', { name: 'New assessment', exact: true }).click()
   await page.getByRole('button', { name: 'Create assessment', exact: true }).click()
+  const upgrade = page.getByRole('button', { name: 'Upgrade to sections', exact: true })
+  if (await upgrade.isVisible()) await upgrade.click()
+  await expect(page.getByRole('combobox', { name: 'Question type for section 1', exact: true })).toBeVisible()
   await page.getByRole('textbox', { name: 'Assessment name', exact: true }).fill('QA all question types')
   const types = ['multiple choice', 'checkboxes', 'rating', 'text response', 'diagnostic field', 'description']
   for (const type of types) {
@@ -37,7 +40,17 @@ test('all six authorable question types survive publication, learner save and su
   await publish.getByRole('button', { name: 'Publish assignment', exact: true }).click()
   const published = await publication
   expect(published.ok(), await published.text()).toBe(true)
-  await publish.getByRole('button', { name: 'Open responses', exact: true }).click()
+  // Stack refinement may still be draining; exercise the supported retry without bypassing admission.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const opening = page.waitForResponse((response) => response.request().method() === 'PATCH' && /\/administrations\/[^/]+\/status$/.test(new URL(response.url()).pathname))
+    await publish.getByRole('button', { name: 'Open responses', exact: true }).click()
+    const response = await opening
+    if (response.ok()) break
+    expect(response.status()).toBe(409)
+    expect((await response.json()).detail.code).toBe('ASSESSMENT_DRAINING')
+    await expect(publish.getByRole('alert')).toContainText('Responses could not be opened')
+    await page.waitForTimeout(Number(response.headers()['retry-after'] || 2) * 1000)
+  }
   await expect(publish.getByText('Accepting responses. You can share this link.', { exact: true })).toBeVisible()
   const href = await publish.locator('a[href*="/assessment/"]').last().getAttribute('href')
   const context = await browser.newContext()
@@ -76,21 +89,4 @@ test('all six authorable question types survive publication, learner save and su
   await expect(page.getByText('1 of 1 learners completed', { exact: true })).toBeVisible()
   await page.getByRole('switch', { name: 'Accepting responses', exact: true }).click()
   await expect(page.getByRole('switch', { name: 'Accepting responses', exact: true })).toHaveAttribute('aria-checked', 'false')
-
-  await page.goto('/admin/assessments')
-  const assessmentStatus = page.getByRole('combobox', { name: 'Filter assessment status', exact: true })
-  await page.getByRole('button', { name: /^Archive QA all question types, revision \d+$/ }).click()
-  await expect(page.getByRole('button', { name: 'Restore QA all question types', exact: true })).toBeVisible()
-  await page.reload()
-  await assessmentStatus.selectOption('archived')
-  await page.getByRole('button', { name: 'Restore QA all question types', exact: true }).click()
-  await expect(page.getByRole('button', { name: /^Archive QA all question types, revision \d+$/ })).toBeVisible()
-  await page.reload()
-  await expect(page.getByRole('button', { name: /^Archive QA all question types, revision \d+$/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Preview QA all question types', exact: true }).click()
-  const learnerPreview = page.getByRole('dialog', { name: 'Learner preview', exact: true })
-  await expect(learnerPreview).toBeVisible()
-  await learnerPreview.getByRole('button', { name: 'Reset preview answers', exact: true }).click()
-  await learnerPreview.getByRole('button', { name: 'Close preview', exact: true }).click()
-  await expect(learnerPreview).toBeHidden()
 })

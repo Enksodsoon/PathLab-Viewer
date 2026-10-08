@@ -1,0 +1,731 @@
+{
+  "schema": "pathlab.ui-post-basis-large-odd/1",
+  "status": "passed",
+  "scope": "Disposable synthetic original JPEG DZI tissue derivatives; real worker, regional API and OpenSeadragon. Engineering workflow/navigation evidence only.",
+  "sourceBinding": {
+    "uiCommit": "85980c05dbd4c717aba90aebeef87f45cd17be52",
+    "repairedBackendCommit": "b08a2a7e88127505ff511fe9b31864747fd1dd7d",
+    "capturedStartupHead": "544a984779c6885fff5a7cb99afb15fc76ef0036",
+    "effectiveScenarioCommit": "f2030cd507c2db3187cb99cc9f80afe744f858f6",
+    "terminalHead": "f2030cd507c2db3187cb99cc9f80afe744f858f6",
+    "startupReceiptSha256": "766c17e6592ef763741d33f60ef1572d26ae265f4aad57f1cad41181a2eacca5",
+    "correctedScenarioReceiptSha256": "0a725fe2575aa47bff97da743a8bbdfb47095990cc158ed0083388e07857aa87",
+    "terminalSourceComparisonSha256": "12d8fd916192490a1c4e38c9994ea90ea5417fc02dfd28c952e132325c04d899",
+    "productionSourceDigestsReceiptSha256": "f3071b21424461d663ab7e12cb7ecee8b3ce78dc04c23bee915542b968fffd18",
+    "frontendProductionUnchangedFrom703TestQa": true,
+    "startupReceiptNote": "Captured before the scenario fix commit; corrected file digests bind the executed source. Historical capture HEAD remains unchanged.",
+    "codeDigests": {
+      "apps/web/e2e-fullstack/alignment-region.spec.ts": "c2003f9807ad657d4d0d7f7544e6b1bed02478a2ee7b2cfd068d0866480f2219",
+      "apps/web/e2e-fullstack/alignment-stack.spec.ts": "4e2bdba10f448a8230f3982c7df43b83a49498b13cd40bfa16af5d830cdea337",
+      "apps/web/e2e-fullstack/alignment-large-odd.spec.ts": "e6ee927cac5ef2f6defd628d31ddb5b8111939885923403e5d92aaf46e72305b",
+      "apps/web/playwright.fullstack.config.ts": "009fd574a020b025fc903b0fe3cdf052b228554ec98497100f528b1cf2227f50",
+      "scripts/run_fullstack_tests.py": "b0e3a11012034beebc0d89f3d9e08e652ac27567d2fb87cf603414a8bff265b7",
+      "scripts/seed_frontend_qa.py": "1a8a2e7740c34660b515859bf14615ff6023b876a1b5c01160ad5d13fc5e314d"
+    }
+  },
+  "totals": {
+    "browsers": 4,
+    "passedJourneys": 12,
+    "failedJourneys": 0,
+    "skippedJourneys": 0,
+    "flakyJourneys": 0,
+    "assertionRetries": 0,
+    "workerStackCases": 32,
+    "largeOddSupportedPanDirections": 8,
+    "largeOddNonuniformMainCanvasAssertions": 8
+  },
+  "timingScope": "Times begin after seed construction and include real API/worker queue/preparation, page loading and initial OSD application; exclude fixture generation. Thresholds and observations describe these synthetic journeys, not production latency, warm-worker qualification or anatomical accuracy.",
+  "excludedClaims": [
+    "anatomical accuracy or clinical/diagnostic qualification",
+    "scientific recipe ranking or benchmark results",
+    "full production foreground latency",
+    "warm-worker qualification",
+    "same-version publication race exercised in browser (separately covered by frontend and actual backend endpoint tests)"
+  ],
+  "browsers": [
+    {
+      "browser": "chromium",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "544a984779c6885fff5a7cb99afb15fc76ef0036",
+      "resultsDurationMilliseconds": 61940.761999999995,
+      "guidedCorrection": {
+        "loadedTileResponses": 48,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 2644.6529999999993,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 42,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 397.49960000000283,
+            "browserObservedMilliseconds": 3265.1659
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 236.0266999999949,
+            "browserObservedMilliseconds": 1314.3796000000002
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 871.335500000001,
+            "browserObservedMilliseconds": 1478.8266000000003
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 769.7998000000007,
+            "browserObservedMilliseconds": 3395.222200000004
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 1935.5333000000028,
+            "browserObservedMilliseconds": 1974.0769
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 761.9470000000001,
+            "browserObservedMilliseconds": 3353.617100000003
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 2240.205099999999,
+            "browserObservedMilliseconds": 2279.868300000002
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 923.6453000000038,
+            "browserObservedMilliseconds": 1511.4308999999994
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "f20da7e33716100c2948e1602b216f02697e88bfbb0e1115ac3da59f3fee160f",
+        "run-environment.json": "eb60490734f374d3db745a857b3b0954bcf5d3817ed641be2937ce4f50484c43",
+        "extracted-large-odd-foreground-receipt.json": "fd4e00186975c197198822e84a716cdd5cba70f3c30bb760b25098ac7faf063d",
+        "extracted-guided-correction-receipt.json": "266c5ab190b57cf38d8f24177d4c8a4d831e46774e7462d98651109240033874",
+        "extracted-stack-timing.json": "b3764b47edd9d116813c744765951709553e00e20e175c6d239166b73e5ba35a"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "639cd22cbd2575e7ce3db3bbe9873a228cd19a59fe97cdbb95d4c473a7c4c499",
+        "alignment-dark": "c58482ae5fc5667d150b4b810a1c43006334ec7bdaeb1d4bad7923d78d8ef5f2",
+        "alignment-inspector": "e5d014e1a13fd0dc6209e61d1a5067f4e1f03fdecf12d3d10d1eb89f756f72fd",
+        "alignment-light": "add7f25643bf7d582c27c6406d99141ea9807ea4b8946891eee791dccaff7cfd",
+        "alignment-region-preview": "fbde1cbf9c34cc7af5fbed71564496a4507c3a0ce37b8ee83b81fb7a58c17a4b",
+        "alignment-two-point-saved": "085662c99bda126a33bccb60f9d45c7e101e051339530f5164f52fb361b5d04a"
+      }
+    },
+    {
+      "browser": "firefox",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "f2030cd507c2db3187cb99cc9f80afe744f858f6",
+      "resultsDurationMilliseconds": 52986.579,
+      "guidedCorrection": {
+        "loadedTileResponses": 36,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 3683.942499999999,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 42,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 821.2073000000019,
+            "browserObservedMilliseconds": 3555.8102
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 154.74719999999797,
+            "browserObservedMilliseconds": 794.6547999999966
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 630.5557999999946,
+            "browserObservedMilliseconds": 880.9697999999989
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 511.46199999999953,
+            "browserObservedMilliseconds": 859.919799999996
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 2049.052499999998,
+            "browserObservedMilliseconds": 2108.6384999999937
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 986.5430999999953,
+            "browserObservedMilliseconds": 1076.6438999999955
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 2206.3943,
+            "browserObservedMilliseconds": 2270.5771000000022
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 907.7136000000028,
+            "browserObservedMilliseconds": 1021.4950000000026
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "05fa6da1a026b09dc644c3833d7671fcb7f3b3e2fcfc18330d46cfd4df277fcd",
+        "run-environment.json": "052e5c5e1608a2cbbe0e3cc469bc171465e3e45bd55c1ff7f1622a77a76cdeb3",
+        "extracted-large-odd-foreground-receipt.json": "704a950f6aaf5e144b35423e1eae6862629f2496cfd967c74409ec77d615fe64",
+        "extracted-guided-correction-receipt.json": "ebf1fb901190eb3354da90d5bfc37065b01f70655edd51e98c73fb4519cf3b60",
+        "extracted-stack-timing.json": "23588883eeea8b061c0f555d8158db260aa15ea614dadcf5e65e3d93b43cedc9"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "ec16bda4ce9957a372fb9dd69009590e71b3c8bb965807bae586defb31af47ea",
+        "alignment-dark": "4dbc0e350df35bac8e48e53b09a4d4ada30d7bef206f9b3a8a8b013dc66c1f27",
+        "alignment-inspector": "c336b73f7f237c35f02c16915967a441b44c52f08e1705e8a1ad57272875f7ab",
+        "alignment-light": "5e0a64d2ea2d5d997bff179d5ddbe93d463944ec9c39e7e6604cdf750f08c06d",
+        "alignment-region-preview": "766e021fe5d94f2114ccf742d29b59b0eed3baece21a0aa2c8c67db1e4741291",
+        "alignment-two-point-saved": "5edd4c95aa8c9d250c15317574ee7b68a78736025331061aae55ef66e86b3e00"
+      }
+    },
+    {
+      "browser": "webkit",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "f2030cd507c2db3187cb99cc9f80afe744f858f6",
+      "resultsDurationMilliseconds": 60765.572,
+      "guidedCorrection": {
+        "loadedTileResponses": 43,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 3273.9100000000008,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 44,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 1128.563399999999,
+            "browserObservedMilliseconds": 3123.4729000000007
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 279.19310000000405,
+            "browserObservedMilliseconds": 677.7154999999984
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 836.3124000000025,
+            "browserObservedMilliseconds": 909.0497000000032
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 805.1152999999977,
+            "browserObservedMilliseconds": 2807.783000000003
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 1643.288400000005,
+            "browserObservedMilliseconds": 1717.4829000000027
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 951.4239000000016,
+            "browserObservedMilliseconds": 2918.029800000004
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 1872.0291999999972,
+            "browserObservedMilliseconds": 1963.5980999999956
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 1146.3547000000035,
+            "browserObservedMilliseconds": 3135.811600000001
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "7f630370908cbe61f59c07726e159e11063282457112d236e5e2044de8a4976a",
+        "run-environment.json": "03cb563b16f3fb2be8d7dc09ed02132a29cfb4e59dca2304a926bc3c418dea25",
+        "extracted-large-odd-foreground-receipt.json": "9d8eddf8725173ad4d2ae0208fb11b1bcaa26537057295df04441e48f34b3e3a",
+        "extracted-guided-correction-receipt.json": "8b0f99d0b41d0f1308543e5a4740f1d2e1f5133980e6346298f01b9027fef564",
+        "extracted-stack-timing.json": "6769396afddb6d63f9029d80267b0960adfd98cb591a218fcdf0b3147e111b12"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "e4bfcd3cf5ba34afc1822dbd30dd008bf809976c779cc20fe85746644b2ef557",
+        "alignment-dark": "15033344d18f930b76624355f194030398815e61257b328b596b54ce0b0125dc",
+        "alignment-inspector": "31aa64f307c09adfd9533cadd9c7a2eeca1273f7eb82b49d812056e1c22ae538",
+        "alignment-light": "613a76e7c5cf2bff1e897bf06fd40f65d363ebfa66a8a025cbd9d87a66d07dad",
+        "alignment-region-preview": "ee887c23b7fe83cef1dafb2f0b9f85ae902797836f42647ee778c435ac2f694c",
+        "alignment-two-point-saved": "b05f839e5df81e82554c43cf0ca7fa181d9f62227839af3d3fa5745a530cf9fa"
+      }
+    },
+    {
+      "browser": "mobile-chromium",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "f2030cd507c2db3187cb99cc9f80afe744f858f6",
+      "resultsDurationMilliseconds": 69446.504,
+      "guidedCorrection": {
+        "loadedTileResponses": 36,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 3056.2625,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 42,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 189.72110000000248,
+            "browserObservedMilliseconds": 1369.2525000000023
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 227.91479999999865,
+            "browserObservedMilliseconds": 1453.2871999999988
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 783.0527000000002,
+            "browserObservedMilliseconds": 1382.8799
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 751.8156000000017,
+            "browserObservedMilliseconds": 3270.485800000002
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 1978.575499999999,
+            "browserObservedMilliseconds": 2031.1371999999974
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 898.5529000000024,
+            "browserObservedMilliseconds": 3286.4377999999997
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 2231.3157999999967,
+            "browserObservedMilliseconds": 2266.2335999999996
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 1219.5021999999954,
+            "browserObservedMilliseconds": 3191.198700000001
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "19b8398915f30d9d5ce37622f09c18ded6ab3b88d7c730af63c9ceeba0348caf",
+        "run-environment.json": "ebbab6d3505a7d25a7bcf717ee084b1b9a5be3965b34e68e461ecfb3e9f865b1",
+        "extracted-large-odd-foreground-receipt.json": "a6afdb4bb6a95528f45b79c23dbc7909df4eb979e0d9c4110a66de7c38c56a58",
+        "extracted-guided-correction-receipt.json": "ebf1fb901190eb3354da90d5bfc37065b01f70655edd51e98c73fb4519cf3b60",
+        "extracted-stack-timing.json": "cc2597815cc52131259693515401e87073a90decb903b1feff74379747134dc2"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "33660885ffbac1d9d59dcf4fa411d426d0bbaed486a95a237d382a710e4c0b9b",
+        "alignment-dark": "0e258cf7236525d89998b5fe7c01bd9d6b4a651275b05dda2de0aa1ace1b8531",
+        "alignment-inspector": "79060716a3d63c759851b0cfa92a640cb17b3365f470f91415a8579c53b44467",
+        "alignment-light": "3f07555f8c497dfff47d12616484ac25677847479631071bba08187029225c0d",
+        "alignment-region-preview": "b131be49a4d9270b02d3b5f9ab82fb7d38c8c2dd269fadc2e63bd6ddbe5bc9d1",
+        "alignment-two-point-saved": "8c8084fb9406649d0557a79b1b9ea12ca45662f4c7c000da927f4d592e885f30"
+      }
+    }
+  ],
+  "priorFailedAttempt": {
+    "browser": "chromium",
+    "category": "fixture assertion defect",
+    "passedJourneysExcludedFromTerminalCount": 2,
+    "failedJourneys": 1,
+    "assertionRetries": 0,
+    "failure": "Final unscoped Approximate sync locator matched both correctly labeled panes after reversed driving. Corrected assertions check each pane.",
+    "resultsSha256": "c7bd4fbb852c77a9ba906e7c771c8394edeea13bff2aa22c4635d2821713b0f0",
+    "launchLogSha256": "49d6867e4431877ac5c4c434cdf790439f22511ac75c97c146c85f2c73a64468",
+    "retainedFailureScreenshotSha256": {
+      "test-failed-1": "639cd22cbd2575e7ce3db3bbe9873a228cd19a59fe97cdbb95d4c473a7c4c499"
+    }
+  },
+  "cleanup": {
+    "originalListenersUnchanged": true,
+    "remainingTaggedOwnedServices": 0,
+    "productionTouched": false,
+    "privateCleanupReceiptSha256": "83d632ed0de17e3d41531bcd3883e2a8f6ddb06588a002ce9cbeb1758938f7bc"
+  },
+  "privateMeasurementIndexSha256": "704da81774a319fbc3b84a5f6c7baed586a31ce9e73dbfc36404b294186a4698"
+}

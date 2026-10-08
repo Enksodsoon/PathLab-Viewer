@@ -1,0 +1,59 @@
+# Alignment Usability Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Repair approximate alignment and simplify its workflow, comparing real engines and hybrids honestly.
+**Architecture:** Independent backend regional revisions, frontend navigation/workflow, and isolated engine/benchmark adapters share a fixed JSON contract. Registration continues to map original tiles. Root owns integration, datasets, final checks and reporting.
+**Tech Stack:** Python3.12/FastAPI/SQLAlchemy/OpenCV; React/TypeScript/OpenSeadragon; optional pinned registration runtimes.
+**Spec:** docs/superpowers/specs/2026-10-03-alignment-usability-design.md
+
+## Global Constraints
+All constraints in Spec apply. Work only in this isolated checkout. No merge/deploy/production activation; no publishing private slide data or identities. Optional absence is reported, never substituted with native and labeled another engine. All tests use this checkout's PYTHONPATH. Add meaningful regression tests before fixes and report actual red/green evidence. Do not alter global runtimes.
+
+## Review Focus
+Hidden reference and unrelated fragments; crop offsets/aniso calibration/direction; stale saves or job publication during preview; privileged shared actions; fair ranking counting failures and actual runtimes.
+
+### Task1: Backend region correction and anchor validation
+Files: new server/wsi_viewer/alignment_regions.py; models.py; alignment_routes.py; new migration; backend tests. Own these files. No worker/config/engine/frontend edits.
+Interface: ComparisonSet JSON gains regionalCorrections: list of {id,regionId,sourceSlideId,targetSlideId,sourceVersion,targetVersion,sourceBounds:[x,y,w,h],registration: existing map payload,createdAt}. POST /api/v1/admin/comparison-sets/{set_id}/region-corrections accepts version, operation:'preview'|'save'|'clear', sourceSlideId,targetSlideId, sourceBounds, movingPoints/referencePoints (1 or2 paired points), regionId optional (required clear). Preview returns ComparisonSet with ephemeral overlay, save immutable revision and incremented version; clear tombstone revision. Missing source versions must not survive source replacement; authentication/CSRF same legacy correction boundary. Store separately from canonical member maps. One point uses compatible coarse local affine or calibrated per-axis scale (pixel identity if unavailable, truthfully approximate); two points solves similarity in physical frame if calibrated. Tissue support intersection and bounds restrict triangles. Use supported geometry and reject nonfinite/degenerate/out-of-bounds inputs. Keep legacy correction unchanged. Validate anchors on both update and membership input, clear explicit {}.
+- [x] Regression tests: offset and similarity known points; outside-region no mapping; stale/unauthorized/cross-case/tissue invalid save; immutable history/clear; self/cycle and empty clear.
+- [x] Implement endpoint, bounded support map and migrations.
+- [x] Run focused API/region tests; review report.
+
+### Task2: Frontend navigation and alignment-only redesign
+Files: apps/web/src/pages/ComparisonPage.tsx; alignment.ts; api.ts; types.ts; focused new comparison components/CSS and tests. Own web files; no backend changes.
+Consumes Task1 contract above; add optional regionalCorrections field for backward compatibility. Mapping uses overlays first, local then overview, finite supported paths/cycle guard. Initializer chooses any supported opened slide, including approximate siblings with hidden root. Preserve progress-poll viewports. Quick correction localizes current viewport, permits displayed pair/root as source; freezes overlay while preview; cancel restores exact prior navigation; save uses returned version and cannot be overwritten by poll. Keep legacy three-point in Advanced.
+UI primary Slides/Sync/Adjust region; single Advanced drawer; Slides drawer swaps/adds panes/layout; compact expandable progress; consolidated candidates and inspector for active pane; reset/maximize accessible. Guided region workflow captures paired centers, one offset or two rotation/scale, Preview/Save/Cancel and visible bounds/approximate labeling. Existing fonts/theme/Phosphor, touch44px/focus/contrast/reduced motion. Fast/Accurate presets only exposed when qualified benchmark metadata exists. No fabricated winner.
+- [x] Failing hidden-primary and refinement-correction/navigation/permission regressions.
+- [x] Implement functional redesign, supported mapping and API types.
+- [x] Run frontend tests/typecheck/lint and browser journeys after integration.
+
+### Task3: Optional engines, recipes and fair benchmark infrastructure
+Files: alignment_engines.py/config.py/worker.py/alignment_fast.py/alignment_evaluation.py; new adapter/recipe/benchmark modules/scripts; optional deploy images/source locks/licenses; backend tests. Do not edit alignment_routes.py/models.py/web; send root necessary route registry integration notes.
+wsireg0.3.10 commit7bc3fb21c6a8f107f760799a5ac113896a710454 with itk-elastix0.25.4 optional isolated Python runtime. Engine Protocol EngineInput/EngineRun reused. Add true DeeperHistReg classical/learned optional adapters, no fake native substitution. Registry recipes native/valis/wsireg/hisalign/deeperhistreg-classical/deeperhistreg-learned/native-wsireg/valis-rigid-wsireg/native-valis. Hybrids explicitly bound initial transforms/crop frames and compose residual maps; record stage metadata. Timeout600 total and crop2048, cancellation process tree existing supervisor. Dependency unavailable returns clear unavailable. Existing successful maps preserved. Partial coarse failures try bounded component proposals using existing ambiguity/geometry rules.
+Benchmark evaluator measures approximate/ready maps as observations separate from qualification; calibration absent reports relative TRE separately, no inferred um. Unsupported/rejected/error rows stay denominator. WrongStructure missing blocks qualification; never change status to score. CLI consumes private explicit screening manifest, requires12positive4negative in screening mode, caches/resumes by input+recipe/settings digests, outputs anonymized aggregate JSON/Markdown and visual QA pairs outside tracked tree. Each recipe real run via child supervisor; separate cached versus cold timing. Select four finalists only with measured evidence; Fast/Accurate only passing gate and latency scope, never compute-only frontend winner. Inputs reviewed landmarks fit-free. Stage timings/resources/build/settings receipts.
+- [x] Failing evaluator/recipe direction/timeout/unavailable/partial-region and winner-denominator regressions.
+- [x] Implement adapters, optional runtime locks and benchmark runner/report.
+- [x] Run focused engine/worker/evaluation tests and real available-engine probes.
+
+### Task4: Integration, real benchmarking and qualification
+Root: provision pinned local workspace runtime; sync interfaces; acquire public landmarks within licenses and retain private manifests outside repo; assemble/freeze12positive4negative screening without tuning test landmarks. Run methods, then finalist ordered development pairs, real browser UI/navigation suite and bounded resource checks. Regenerate supply-chain inventories after new optional dependencies. Separate runtime-unavailable versus failed registrations. Leave no qualified winner if fresh reviewed gates or relevant latency evidence missing. Fresh broad review, resolve findings, run appropriate full checks. Retain docs/benchmark receipts without private identities/paths. Update ledger tasks with actual scope/evidence. Commit reviewable batches; no production merge/deploy.
+
+#### Task4 actual scope ledger - October8 source-bound observations
+
+- [x] Frozen public screen:144 cold +144 fresh-process repeats,12 positives/four negatives,947 landmarks; original and posthoc JSON preserved.
+- [x] Immutable expanded cold development:122 ordered pairs x four recipes =488 attempts,90 accepted engineering maps,398 retained rejections; no independent GT.
+- [x] Actual source68a16 guided browser journeys and corrected36 own Preview/36 Restore observations; first failed replay retained.
+- [x] Actual source544 published assisted protocols: frozen0/10 two-point with67 non-fitting landmarks; separate post-diagnosis GT10 one-point with68; no measured error improvement or human-effort claim.
+- [x] Actual maintained Windows76 full backend:2106 passes/118 skips/zero failures or errors,85.35% line coverage; unchanged source/runtime and zero owned active processes.
+- [x] Actual CI76 emulated ARM native/round-trip plus separate stdlib memory rejection and seven session-helper cases. Helper timeout/cancel closure is not worker heartbeat cancellation; Windows/native ARM and default heavy-child cold startup remain unverified.
+- [x] Exact CI76 accounted for all36 partitioned journeys (35 passes/one skip); browser289 passes/three skips. Overall CI is six successful/two failed checks, not fully green.
+- [x] Follow-up4327 full frontend:759 tests/93 files/zero failures or skips, TypeScript/ESLint pass; deterministic stale saved-view sort guard RED/GREEN preserved.
+- [x] Scanner repair:32 regressions and completed full introduced-history CLI audit; metadata commits overlapped the read-only audit, so this does not qualify a later final head.
+- [x] Fresh exact-source final CI9eab:all eight jobs/checks passed; backend2114/115, all508 synthetic capacity contracts, web759, browser289/3, PostgreSQL157/1 and fullstack35/one opt-in skip. Failed CI2cd remains preserved. QEMU ARM native/round-trip and seven owned-session cases passed; physical/Windows ARM remain unverified.
+- [x] Actual source9eab same-process warm campaign:144 attempts/288 planned ordinals;262 proven executed,13 unknown execution and13 not executed. Startup/terminal identities match and all owned processes ended. Shared600s/configured7GiB retained; kernel peaks above the configured limit are recorded without a ceiling-compliance claim. Retained model/decoded-cache warmth remains UNVERIFIED. Four accepted negative maps (VALIS/wsireg, two calls each) require independent review; no qualified winner.
+- [x] Source-bound post-terminal scoring and per-tissue/stain publication:947 planned eligible landmarks per recipe/call; unsupported/missing/rejected cases retained. The original warm scorer retains96 unmeasured stages. Separate producer-bound full-JPEG analysis measures24 saved stages and retains72 unmeasured; QA runtime is separately bound, original reports/guards unchanged. Common-landmark improvements and regressions are reported without hybrid adoption. Earlier12 cold stages remain separate; no registration, fitting or inferred flags.
+- [ ] Disjoint admitted held-out specimens, physical calibration and independent anatomical/wrong-structure review are unavailable; no qualification or Fast/Accurate preset may be marked complete from engineering acceptance.
+- [x] Final source-bound publication/privacy review:terminal assembly and independent receipt audit passed; numeric reports remain byte-identical, README presentation changes have separate hashes. Current-tree and introduced-history privacy checks passed. Publication changes only documentation; tested implementation remains9eab, with no merge/deploy/production activation. Unmeasured scientific/platform gates remain explicit above.
+
+The [consolidated report](../../alignment-results/implementation-2026-10-08/README.md) separates completion of implemented behavior and executed engineering checks from unmeasured scientific qualification. Failed/partial attempts and unsupported denominators remain visible. Unmeasured human effort, micrometer errors, anatomical accuracy and qualified winners stay NULL.

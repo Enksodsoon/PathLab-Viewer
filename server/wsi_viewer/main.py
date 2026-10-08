@@ -22,6 +22,8 @@ from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
 from .admission import SharedAdmission, lock_admission
+from .alignment_calibration import public_geometry_metadata
+from .alignment_routes import register_alignment_routes
 from .annotation_routes import register_annotation_routes
 from .assessment_admission import AssessmentAdmissionMiddleware
 from .assessment_assets import assessment_assets_ready
@@ -86,7 +88,12 @@ from .storage_accounting import reserve_new_slide, reserve_retry
 from .study_pack_contract import MAX_PACK_BYTES
 from .study_routes import register_study_routes
 from .tile_cache import TileCache
-from .tile_routes import TileRouteService, authorize_tile, private_static_target
+from .tile_routes import (
+    TileRouteService,
+    authorize_tile,
+    materialize_local_openslide_tile,
+    private_static_target,
+)
 from .time_support import as_utc, utc_now
 
 COOKIE_NAME = "pathlab_session"
@@ -180,10 +187,7 @@ def _token_hash(token: str) -> str:
 
 
 def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not metadata:
-        return None
-    allowed = ("width", "height", "physicalSizeX")
-    return {key: metadata[key] for key in allowed if metadata.get(key) is not None}
+    return public_geometry_metadata(metadata)
 
 
 def _slide_json(
@@ -425,17 +429,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with factory() as session:
             yield session
 
-    def classroom_database() -> Iterator[OrmSession]:
-        with factory() as session:
-            started = time.monotonic()
-            session.connection()
-            classroom_pool_waits_ms.append((time.monotonic() - started) * 1000)
-            ordered = sorted(classroom_pool_waits_ms)
-            index = max(0, min(len(ordered) - 1, int(len(ordered) * 0.95)))
-            classroom_pressure["poolWaitP95Ms"] = round(ordered[index], 3)
-            yield session
-
     Database = Annotated[OrmSession, Depends(database)]
+
+    def classroom_database(db: Database) -> Iterator[OrmSession]:
+        started = time.monotonic()
+        db.connection()
+        classroom_pool_waits_ms.append((time.monotonic() - started) * 1000)
+        ordered = sorted(classroom_pool_waits_ms)
+        index = max(0, min(len(ordered) - 1, int(len(ordered) * 0.95)))
+        classroom_pressure["poolWaitP95Ms"] = round(ordered[index], 3)
+        yield db
 
     def authenticated_session(
         db: Database, pathlab_session: Annotated[str | None, Cookie()] = None
@@ -540,6 +543,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             admin_dependency=legacy_admin_session,
             csrf_dependency=legacy_csrf,
             tile_routes=tile_routes,
+        )
+        register_alignment_routes(
+            app,
+            factory=factory,
+            storage=storage,
+            secret_key=current.secret_key,
+            tus_public_url=current.tus_public_url,
+            max_upload_bytes=current.max_upload_bytes,
+            database_dependency=database,
+            admin_dependency=legacy_admin_session,
+            csrf_dependency=legacy_csrf,
+            enabled=current.alignment_enabled,
+            hisalign_enabled=current.alignment_hisalign_enabled,
+            valis_enabled=current.alignment_valis_enabled,
+            wsireg_enabled=current.alignment_wsireg_enabled,
+            deeperhistreg_enabled=current.alignment_deeperhistreg_enabled,
         )
         register_annotation_routes(
             app,
@@ -782,11 +801,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         result = _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
         if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
-            result["tileSource"] = f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi"
+            revision = slide.sha256 or str(int(slide.updated_at.timestamp()))
+            result["tileSource"] = (
+                f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi?v={revision}"
+            )
             if slide.thumbnail_filename or slide.render_mode == "ome_dynamic":
                 result["thumbnailUrl"] = (
                     f"/api/v1/admin/slides/{slide.id}/preview/"
-                    f"{slide.thumbnail_filename or 'thumbnail.jpg'}"
+                    f"{slide.thumbnail_filename or 'thumbnail.jpg'}?v={revision}"
                 )
         return result
 
@@ -810,7 +832,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if authorized.render_mode == "ome_dynamic":
             return tile_routes().dynamic_response(authorized)
-        target = private_static_target(storage, slide.id, tile_path)
+        try:
+            target = private_static_target(storage, slide.id, tile_path)
+        except HTTPException as error:
+            if error.status_code != 404:
+                raise
+            target = materialize_local_openslide_tile(storage, slide.id, tile_path)
         media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
         return deliver_file(
             target,
@@ -918,6 +945,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # poll "uploading" forever; retain the private source for normal cleanup.
             slide.state = transition(slide.state, SlideState.FAILED)
             slide.error_code = "INVALID_TIFF_SIGNATURE"
+            slide.error_message = "The uploaded file is not a TIFF. Upload a valid OME-TIFF file."
             db.add(AuditEvent(action="upload.rejected", target_id=slide.id))
             db.commit()
             raise HTTPException(status_code=400, detail={"code": "INVALID_TIFF_SIGNATURE"})

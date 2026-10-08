@@ -1,0 +1,183 @@
+{
+  "schema": "pathlab.exact-ci-terminal-public-projection/1",
+  "runId": 37795336149,
+  "sourceHead": "76e8f5db4d443211e72fa2b04a39faa43534997e",
+  "attempt": 1,
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "name": "browser",
+      "conclusion": "success"
+    },
+    {
+      "name": "fullstack (workflows, ^(?!.*(?:every declared route renders|edge blocks internal routes and rejects oversized JSON before authentication|forged forwarding headers cannot evade shared login admission through Caddy)).*)",
+      "conclusion": "success"
+    },
+    {
+      "name": "web",
+      "conclusion": "failure"
+    },
+    {
+      "name": "postgres",
+      "conclusion": "success"
+    },
+    {
+      "name": "containers",
+      "conclusion": "success"
+    },
+    {
+      "name": "backend",
+      "conclusion": "failure"
+    },
+    {
+      "name": "fullstack (security, ^.* (?:edge blocks internal routes and rejects oversized JSON before authentication|forged forwarding headers cannot evade shared login admission through Caddy)$)",
+      "conclusion": "success"
+    },
+    {
+      "name": "fullstack (route-explorer, every declared route renders)",
+      "conclusion": "success"
+    }
+  ],
+  "successChecks": 6,
+  "failedChecks": 2,
+  "retainedRawJobLogs": 8,
+  "downloadedArtifactCount": 3,
+  "terminalReceiptSha256": "7255c070f0002a1521b7e017a3f78403a7e620e3e3c77d54f4ef6a8b06f2b11a",
+  "containersLogSha256": "b503ebc666d0fda342b19a7d18bb294922746c807390c93701deeba8ef5c5926",
+  "repositoryBlobSha256": {
+    ".github/workflows/ci.yml": "1c1587ce433b99738fe95986173dbd6d5818cb3430da102ee9343012c6731b2a",
+    "scripts/alignment_containment_smoke.py": "b1d8a26419815489cb670cdece458016a187aa13ac255ca906a5623bdee26648",
+    "scripts/alignment_image_smoke.py": "18e890ba5164d66dab7fc1228164fad2107332feabd6ddb4f9fd66be0f227364",
+    "server/wsi_viewer/alignment_processes.py": "0fee111af0ee10eca10430d2d9fc1baa8efd06f7cfd3e3f32f19624889571263",
+    "server/wsi_viewer/worker.py": "b10293b9917ecb26a45688e70b8df8ccb38ed97bf07bb42da36f8af61cd3f5dd",
+    "deploy/Dockerfile.alignment": "725b288eb08d697698b8d4a97916bc4c99fce432c254f006709c7cd8e7297a5e"
+  },
+  "workflowPartitions": {
+    "workflows": {
+      "passed": 32,
+      "skipped": 1,
+      "unexpected": 0,
+      "flaky": 0,
+      "durationMilliseconds": 836760.2,
+      "artifactResultsSha256": "b8bccd2b2ef4d9b71eb0b3b0c5a810b4382b26ba17fe1829f331c2d9ecdaf4c5"
+    },
+    "route-explorer": {
+      "passed": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0,
+      "durationMilliseconds": 375007.619,
+      "artifactResultsSha256": "a2108c388aabc195328e9f65f97b44ca0fc187a31831ad854d6a679a8d68f271"
+    },
+    "security": {
+      "passed": 2,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0,
+      "durationMilliseconds": 5264.7919999999995,
+      "artifactResultsSha256": "ef4a292705ea8fc983196dfbb5d1d8b338b88d5355e385ffd5f92b70530aa9d7"
+    }
+  },
+  "workflowPlannedJourneys": 36,
+  "workflowPassed": 35,
+  "workflowSkipped": 1,
+  "browserTests": {
+    "passed": 289,
+    "skipped": 3
+  },
+  "webUnitTests": {
+    "passed": 757,
+    "failed": 1,
+    "planned": 758,
+    "failure": "library-explorer saved-filter/sort last mocked query assertion; no production cause proved"
+  },
+  "backendTestsExecuted": false,
+  "backendFailure": "Public-repository classifier flagged privacy detection regex at report_alignment_warm_campaign.py:107 before tests",
+  "armNativeSmoke": {
+    "schema": "pathlab.native-image-smoke/1",
+    "architecture": "aarch64",
+    "python": "3.12.13",
+    "numpy": "2.5.3",
+    "opencvLoadedVersion": "4.14.0",
+    "nativeOperation": "register_prepared",
+    "nativeMapStatus": "approximate",
+    "coordinateRoundTripPassed": true,
+    "workerMemoryLimitBytes": 1,
+    "workerMemoryRejectionPassed": true,
+    "resourceFixture": "stdlib-only-separate-from-native-engine",
+    "memoryEvidence": {
+      "processContainment": "linux-owned-session",
+      "memoryMeasurementScope": "linux-owned-session-sampled-rss",
+      "peakMemoryBytes": 54738944
+    },
+    "defaultChildColdStartupVerified": false,
+    "anatomicalQualification": false
+  },
+  "armOwnedSessionHelperSmoke": {
+    "schema": "pathlab-linux-containment-smoke/1",
+    "cases": [
+      {
+        "mode": "normal",
+        "descendantsTerminal": 2,
+        "termResistantNewProcessGroup": true,
+        "unrelatedProcessUnaffected": true
+      },
+      {
+        "mode": "root-exit",
+        "descendantsTerminal": 2,
+        "termResistantNewProcessGroup": true,
+        "unrelatedProcessUnaffected": true
+      },
+      {
+        "mode": "timeout",
+        "descendantsTerminal": 2,
+        "termResistantNewProcessGroup": true,
+        "unrelatedProcessUnaffected": true
+      },
+      {
+        "mode": "cancel",
+        "descendantsTerminal": 2,
+        "termResistantNewProcessGroup": true,
+        "unrelatedProcessUnaffected": true
+      },
+      {
+        "mode": "rss-live-unreadable",
+        "descendantsTerminal": 2,
+        "termResistantNewProcessGroup": true,
+        "unrelatedProcessUnaffected": true,
+        "sameOwnedLiveIdentity": true,
+        "optionalTelemetryReturnsZero": true,
+        "enforcementRejected": true
+      },
+      {
+        "mode": "rss-after-loss",
+        "descendantsTerminal": 2,
+        "termResistantNewProcessGroup": true,
+        "unrelatedProcessUnaffected": true,
+        "secondAdmissionAfterProvedCleanup": true
+      },
+      {
+        "mode": "rss-exit-race",
+        "descendantsTerminal": 2,
+        "termResistantNewProcessGroup": true,
+        "unrelatedProcessUnaffected": true,
+        "confirmedExitIsBenign": true
+      }
+    ],
+    "scope": "owned-session; descendants creating a new session require cgroup containment"
+  },
+  "armScope": "QEMU-emulated Linux ARM64 integration. Timeout/cancel labels explicitly close the session helper, not worker heartbeat cancellation. Injected statm denial checks a real owned live identity. Descendant new sessions require cgroup containment. Native ARM hardware and default heavy-child cold startup remain unverified. No optional research engine admission or anatomical qualification.",
+  "dockerRunDeclaredLimits": {
+    "memoryBytes": 536870912,
+    "cpus": 1.75,
+    "helperCommandMaximumSeconds": 240,
+    "helperKillGraceSeconds": 15,
+    "helperCleanupMaximumSeconds": 15,
+    "helperStepMaximumSeconds": 300
+  },
+  "extraDispatches": 0,
+  "reruns": 0,
+  "merge": false,
+  "deployment": false,
+  "anatomicalQualification": false
+}

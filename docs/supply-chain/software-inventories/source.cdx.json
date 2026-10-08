@@ -22893,6 +22893,56 @@
       "version": "0.6.3"
     },
     {
+      "bom-ref": "dependency:pypi:opencv-python-headless@4.14.0.94",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/67/8a/51ff1c6287be0b6cd3070cf095875da4ff7d6eda38507e6ada5608786a78/opencv_python_headless-4.14.0.94.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/opencv-python-headless/4.14.0.94/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "opencv-python-headless",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:opencv-python-headless@4.14.0.94"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled-runtime"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/opencv-python-headless@4.14.0.94",
+      "type": "library",
+      "version": "4.14.0.94"
+    },
+    {
       "bom-ref": "dependency:pypi:opentelemetry-api@1.45.0",
       "externalReferences": [
         {
@@ -24325,11 +24375,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "deployment-only"
+          "value": "runtime-and-deployment"
         },
         {
           "name": "pathlab:distribution",
-          "value": "operator-tooling"
+          "value": "bundled-runtime-and-operator-tooling"
         },
         {
           "name": "pathlab:admission",
@@ -26838,6 +26888,47 @@
       "version": "1e1b9a7762e2ac81"
     },
     {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "52ab4f279f4640622ba298097c4fc0fd919941039a34e75956b8ea9ffec2a3d4"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural mathematical filter"
+          }
+        }
+      ],
+      "name": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "52ab4f279f464062"
+    },
+    {
       "bom-ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
       "hashes": [
         {
@@ -27205,7 +27296,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "cc36f33f585bb025e97fdf770a377916aa9d9ba67372c21160a50fe86283528d"
+          "content": "23004817896d854a6f2d3da2dd2765c1d1e837c15994fb0100142792728203f0"
         }
       ],
       "licenses": [
@@ -27237,7 +27328,7 @@
         }
       ],
       "type": "file",
-      "version": "cc36f33f585bb025"
+      "version": "23004817896d854a"
     },
     {
       "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
@@ -27841,6 +27932,7 @@
         "dependency:pypi:oci-cli@3.94.1",
         "dependency:pypi:oci@2.187.1",
         "dependency:pypi:ome-types@0.6.3",
+        "dependency:pypi:opencv-python-headless@4.14.0.94",
         "dependency:pypi:opentelemetry-api@1.45.0",
         "dependency:pypi:pillow@12.3.0",
         "dependency:pypi:prompt-toolkit@3.0.43",
@@ -27929,6 +28021,7 @@
         "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
         "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
@@ -27942,7 +28035,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:7ce9f0617a6708893cc4964b4501538dd35d8269"
+      "ref": "pathlab:source:e29562cd5d0b3f00fa4836f858687ac672a9a691"
     },
     {
       "dependsOn": [],
@@ -30010,6 +30103,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:opencv-python-headless@4.14.0.94"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:opentelemetry-api@1.45.0"
     },
     {
@@ -30362,6 +30459,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
       "ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1"
     },
     {
@@ -30411,15 +30512,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:7ce9f0617a6708893cc4964b4501538dd35d8269",
+      "bom-ref": "pathlab:source:e29562cd5d0b3f00fa4836f858687ac672a9a691",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7ce9f0617a6708893cc4964b4501538dd35d8269"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e29562cd5d0b3f00fa4836f858687ac672a9a691"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7ce9f0617a6708893cc4964b4501538dd35d8269"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/e29562cd5d0b3f00fa4836f858687ac672a9a691"
         }
       ],
       "licenses": [
@@ -30450,13 +30551,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@7ce9f0617a6708893cc4964b4501538dd35d8269",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@e29562cd5d0b3f00fa4836f858687ac672a9a691",
       "type": "application",
-      "version": "7ce9f0617a6708893cc4964b4501538dd35d8269"
+      "version": "e29562cd5d0b3f00fa4836f858687ac672a9a691"
     },
-    "timestamp": "2026-10-08T05:44:16Z"
+    "timestamp": "2026-10-08T16:06:39Z"
   },
-  "serialNumber": "urn:uuid:7ce9f061-7a67-4889-acc4-964b4501538d",
+  "serialNumber": "urn:uuid:e29562cd-5d0b-4f00-aa48-36f858687ac6",
   "specVersion": "1.6",
   "version": 1
 }

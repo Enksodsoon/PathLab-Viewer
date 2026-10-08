@@ -748,6 +748,17 @@ ome-types==0.6.3 \
     --hash=sha256:ce9753ff351bbc534ee5c5038d3cf60b1e4c13d69ad2e6b5a5b75de2a52521a5 \
     --hash=sha256:eef4138cda5edfdcb2a44cfb90b714a59ead1b69e4c5ce5f9892ad397ccaaa68
     # via pathlab-viewer (pyproject.toml)
+opencv-python-headless==4.14.0.94 \
+    --hash=sha256:1777f43c9fa064f54b916ad70d944b4fde0a644a17e49f04a966bb24a4b5f1e1 \
+    --hash=sha256:211e581f5a4670acbbe08fff36a35e9946039d2eea28b80394632d036d1be527 \
+    --hash=sha256:29714d7716dbfddf9fec20ffb878765e94ccaecd7d3ebd6750877420296e2dc5 \
+    --hash=sha256:4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577 \
+    --hash=sha256:5e02669eac0ba67b2a22d7245af1e8ee1a2ef1185ee526a063d8f0555224bd52 \
+    --hash=sha256:97c6e818c6f71c0cfa214e12293b1d0266d679c38f4e086de08357c8ac6ece0d \
+    --hash=sha256:bc7db37dc234f7bb3190a158fd9dd750357246fc7d8adb23698843ef721a993b \
+    --hash=sha256:cbed65415b8f6a9541c705afe3e64795840524d0ff3bc58f507826284a1dc64b \
+    --hash=sha256:f70296aa7ac9d7ade0d925c43fdc006c83e20a23f30e2f40f1b82c74a7a54460
+    # via pathlab-viewer (pyproject.toml)
 opentelemetry-api==1.45.0 \
     --hash=sha256:711ede81773c8025c2c03dac0450bc89f3d30aea6eabcc815c570d4e35a963f7 \
     --hash=sha256:80e068aba7cd56c8b58512d6a36f8d25cb1dfaa0c0a4cc1c938ccf9f362d9cb3
@@ -1147,6 +1158,10 @@ typing-inspection==0.4.4 \
     #   fastapi
     #   pydantic
     #   pydantic-settings
+tzdata==2026.4 \
+    --hash=sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81 \
+    --hash=sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79
+    # via psycopg
 uvicorn==0.54.0 \
     --hash=sha256:505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf \
     --hash=sha256:a2e33cbfaa0306f8e6b0c13e0cb89d7d7a2da3e62b90c66e18c33d9807b28620

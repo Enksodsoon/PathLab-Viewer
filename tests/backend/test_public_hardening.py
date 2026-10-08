@@ -204,6 +204,8 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
             "width": 48,
             "height": 32,
             "physicalSizeX": 0.25,
+            "physicalSizeY": 0.25,
+            "physicalSizeUnit": "micrometer",
         }
         assert body["tileSource"].startswith(f"/tiles/{public_id}/")
         assert body["tileSource"].endswith("/slide.dzi")

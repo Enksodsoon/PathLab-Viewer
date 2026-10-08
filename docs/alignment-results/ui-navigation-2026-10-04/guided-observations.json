@@ -1,0 +1,251 @@
+{
+  "schema": "pathlab.alignment-guided-browser/1",
+  "scope": "Actual Comparison UI, OpenSeadragon original nonuniform synthetic derivative pixels, authenticated region API preview/save/reload/cancel and engineering fixture worker stacks after main integration. Independent scientific map/latency evidence remains frozen.",
+  "totalJourneysPassed": 19,
+  "totalWorkerStackOpeningCases": 32,
+  "browsers": [
+    {
+      "browser": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "journeysPassed": 5,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "assertionRetries": 0,
+      "guidedCorrection": {
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "loadedOriginalTileResponses": 48,
+        "renderedTissuePixelOraclePassed": true,
+        "responsiveNoHorizontalOverflow": true,
+        "primaryControlsMinimumHeightPixels": 44
+      },
+      "workerStackOpeningCases": 8,
+      "workerStackSizes": [
+        2,
+        4,
+        8,
+        12
+      ],
+      "workerStackModes": [
+        "growing",
+        "repeated"
+      ],
+      "supplementaryJourneys": [
+        "library theme/layout/search reload",
+        "library failed creation retry",
+        "desktop keyboard traversal in library and Teaching Studio"
+      ],
+      "environmentCommit": "0e16997350af8d144c90f110e58b451f8186453c",
+      "environmentDiffSha256": "0530bdf299f367a1293126dd3fc5e56181c68191c9d46ff2a6d22f99cb7b7a4c",
+      "artifacts": {
+        "resultsSha256": "36eecd3c4ea7b78f39b50b1a9dd6c71e5fd0845aa2c11c9b7571654bce384128",
+        "guidedReceiptSha256": "266c5ab190b57cf38d8f24177d4c8a4d831e46774e7462d98651109240033874",
+        "workerReceiptSha256": "0e28e4928cd7445812efd22cbd953f4121531872e0f6e8edfbfba46c3d221399",
+        "environmentSha256": "1ac59cc04574d0acfc65e991953d6bb1b01cbbf646cdfd7e469adc312b34bf29",
+        "screenshots": {
+          "alignment-dark.png": "8452c714e308b1d8dc2d2181c145328b92d4d168cd370bd24b6b670f3bd82b1e",
+          "alignment-inspector.png": "5d83fadfd549cac7f0bb64f7c84b98216c005dfe272f691b09630791dcf91d47",
+          "alignment-light.png": "178ab6908e7886436a12f7ee6087fac2419eee01e701418dd231aeb87c2ccd40",
+          "alignment-region-preview.png": "44bc5df9e3d164fa72ee2b2e5401c8afd012036c2ee39da0512dbd867ddf0594",
+          "alignment-two-point-saved.png": "085662c99bda126a33bccb60f9d45c7e101e051339530f5164f52fb361b5d04a"
+        }
+      }
+    },
+    {
+      "browser": "firefox",
+      "browserVersion": "153.0",
+      "journeysPassed": 5,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "assertionRetries": 0,
+      "guidedCorrection": {
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "loadedOriginalTileResponses": 36,
+        "renderedTissuePixelOraclePassed": true,
+        "responsiveNoHorizontalOverflow": true,
+        "primaryControlsMinimumHeightPixels": 44
+      },
+      "workerStackOpeningCases": 8,
+      "workerStackSizes": [
+        2,
+        4,
+        8,
+        12
+      ],
+      "workerStackModes": [
+        "growing",
+        "repeated"
+      ],
+      "supplementaryJourneys": [
+        "library theme/layout/search reload",
+        "library failed creation retry",
+        "desktop keyboard traversal in library and Teaching Studio"
+      ],
+      "environmentCommit": "0e16997350af8d144c90f110e58b451f8186453c",
+      "environmentDiffSha256": "78770077ebdab3a76fdd8ab4022307fd788e5a14f46b3b84e2d81b07cbfa45e7",
+      "artifacts": {
+        "resultsSha256": "cd347fdf3241ab281b7cd13cac2454be9d532dcbe82ce84f5e1db155cc05f3c5",
+        "guidedReceiptSha256": "ebf1fb901190eb3354da90d5bfc37065b01f70655edd51e98c73fb4519cf3b60",
+        "workerReceiptSha256": "2076c35720e754a5c6665a889e1ef81b5a610bcfc65d66830bb5b7ee278aa5d1",
+        "environmentSha256": "6d26280f3c57bcf42c1add356d7e4cab01ff78a450fa19235413daa91d53b7fd",
+        "screenshots": {
+          "alignment-dark.png": "d99066a3482d6e9213e9c11657f56e1e07b4280f29f0882cfaa91bb05eb56302",
+          "alignment-inspector.png": "c336b73f7f237c35f02c16915967a441b44c52f08e1705e8a1ad57272875f7ab",
+          "alignment-light.png": "c8b62b8ead32f30d4576a468f1cf907b30feb78c58b630c0fb1355cd5306bdcd",
+          "alignment-region-preview.png": "27029a3ced8d7491847fa5e1ad1d48a7fa0e0d1a579634e21d50f00dd3d5acf0",
+          "alignment-two-point-saved.png": "5edd4c95aa8c9d250c15317574ee7b68a78736025331061aae55ef66e86b3e00"
+        }
+      }
+    },
+    {
+      "browser": "webkit",
+      "browserVersion": "26.5",
+      "journeysPassed": 5,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "assertionRetries": 0,
+      "guidedCorrection": {
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "loadedOriginalTileResponses": 43,
+        "renderedTissuePixelOraclePassed": true,
+        "responsiveNoHorizontalOverflow": true,
+        "primaryControlsMinimumHeightPixels": 44
+      },
+      "workerStackOpeningCases": 8,
+      "workerStackSizes": [
+        2,
+        4,
+        8,
+        12
+      ],
+      "workerStackModes": [
+        "growing",
+        "repeated"
+      ],
+      "supplementaryJourneys": [
+        "library theme/layout/search reload",
+        "library failed creation retry",
+        "desktop keyboard traversal in library and Teaching Studio"
+      ],
+      "environmentCommit": "0e16997350af8d144c90f110e58b451f8186453c",
+      "environmentDiffSha256": "acf47fd97b70a7b3ed8e5ebec929d7bf09144ab6376a6ea3a251c031d24aa8a9",
+      "artifacts": {
+        "resultsSha256": "f8123b4909a97b2e00570a31de5406f8b195c9a79ecbf5d2b88923ccde5a992f",
+        "guidedReceiptSha256": "8b0f99d0b41d0f1308543e5a4740f1d2e1f5133980e6346298f01b9027fef564",
+        "workerReceiptSha256": "cdfa7ce6acf30b2b6daf1b3cb872557bffecfd73615e65e62820695eb1161af9",
+        "environmentSha256": "88f81ab19a963cb2025d274355e56ee7cd068b6036e5aba4284d6db48d0b59b2",
+        "screenshots": {
+          "alignment-dark.png": "425044aff442273443e1009f2e459583d56eb8f6fe1983710e0644a54b8b3de9",
+          "alignment-inspector.png": "31aa64f307c09adfd9533cadd9c7a2eeca1273f7eb82b49d812056e1c22ae538",
+          "alignment-light.png": "55b0230692b7762d5ff263e819b1191c9579d0fd346cd312a9d34e63fddc6757",
+          "alignment-region-preview.png": "6d988ca05b35d18670eaedc803d4fa9d2b380d81b2c3b75ff80f910633a57833",
+          "alignment-two-point-saved.png": "b05f839e5df81e82554c43cf0ca7fa181d9f62227839af3d3fa5745a530cf9fa"
+        }
+      }
+    },
+    {
+      "browser": "mobile-chromium",
+      "browserVersion": "151.0.7922.34",
+      "journeysPassed": 4,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "assertionRetries": 0,
+      "guidedCorrection": {
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "loadedOriginalTileResponses": 40,
+        "renderedTissuePixelOraclePassed": true,
+        "responsiveNoHorizontalOverflow": true,
+        "primaryControlsMinimumHeightPixels": 44
+      },
+      "workerStackOpeningCases": 8,
+      "workerStackSizes": [
+        2,
+        4,
+        8,
+        12
+      ],
+      "workerStackModes": [
+        "growing",
+        "repeated"
+      ],
+      "supplementaryJourneys": [
+        "library theme/layout/search reload",
+        "library failed creation retry"
+      ],
+      "environmentCommit": "e08f88751e40def16a68342558d0d3cf40db4ef4",
+      "environmentDiffSha256": "e1b15b8aa16f6e9b0cbd2d8ba3df23d346e15d884c961eba8a34396648671dac",
+      "artifacts": {
+        "resultsSha256": "2def74a52f3c5e38ef062b0d9a214f9a7a3071e25b71d334583e084b7067e6df",
+        "guidedReceiptSha256": "13aeb8527f6bd6da8553de3ce5955f235f3327a92b675b403da35a7a6d52486e",
+        "workerReceiptSha256": "1fbd2a0a7d8313cb0f5dabc864871d3cfb447a2ee13ba7279e89d68763098873",
+        "environmentSha256": "23d0f72d439a651221dd9a0af55a6541c58fd8785f8d576b191be1c90909d5f3",
+        "screenshots": {
+          "alignment-dark.png": "0e258cf7236525d89998b5fe7c01bd9d6b4a651275b05dda2de0aa1ace1b8531",
+          "alignment-inspector.png": "79060716a3d63c759851b0cfa92a640cb17b3365f470f91415a8579c53b44467",
+          "alignment-light.png": "3f07555f8c497dfff47d12616484ac25677847479631071bba08187029225c0d",
+          "alignment-region-preview.png": "f9351b939dd4a6380d99529c9c064fff4953b80e32d62c00d7aa6c15f6d834c4",
+          "alignment-two-point-saved.png": "8c8084fb9406649d0557a79b1b9ea12ca45662f4c7c000da927f4d592e885f30"
+        }
+      }
+    }
+  ],
+  "sourceBaseCommit": "0e16997350af8d144c90f110e58b451f8186453c",
+  "sourceDigests": {
+    "apps/web/src/pages/ComparisonPage.tsx": "29a9d6f9a59572acee7e12128beaa8099106a685d3b271fa170d149291d6f54c",
+    "apps/web/src/pages/ComparisonPage.css": "96184266c2c7b113e0a68639d88d7ec4710b5902518045a3805fed95bc5bd143",
+    "apps/web/src/components/OpenSeadragonViewer.tsx": "966383a6645a9fba3f6847ba726f395fb531d06f842c9447f4fd3d095bfce7e0",
+    "apps/web/src/calibration.ts": "dab0a56aba1cd70c3c40e8308bdacad51f1966a14f021a91149f483ad764b2fd",
+    "apps/web/src/alignment.ts": "e25c3daed53051288e88cba2eae57c86c3ff5bb12edab71c2d5ddd3b90c8bbec",
+    "apps/web/src/api.ts": "5cf709bd53854b5569fc7f08723e58cf770f09d400debe270b7134ac46a94859",
+    "apps/web/src/types.ts": "4e8d18d2e48c5695fd4910dde87d35b6c58c69c4b507154a45cf5b2bf2aeebdc",
+    "apps/web/e2e-fullstack/alignment-region.spec.ts": "cd3a0b624ed7a8e746fbb0768cf03f91313ca2d312aade77ed0657a53f3a64ac",
+    "apps/web/e2e-fullstack/alignment-stack.spec.ts": "4e2bdba10f448a8230f3982c7df43b83a49498b13cd40bfa16af5d830cdea337",
+    "scripts/seed_frontend_qa.py": "edba2ed00a6a31170cd1d54353ab2e582e506083b079f886c28e4cb8258d0140",
+    "scripts/run_fullstack_tests.py": "b0e3a11012034beebc0d89f3d9e08e652ac27567d2fb87cf603414a8bff265b7"
+  },
+  "sourceSnapshotSha256": "6fa18a941cdd585a8569d90b042e65a24dc62d9c1dd80b1351e95e8b0ec23b98",
+  "retainedSetupFailure": {
+    "browser": "webkit",
+    "reason": "Agent supplied incorrect Caddy executable path; launcher failed before browser readiness, cleaned disposable services, then a separate corrected launch passed. No browser assertion retries.",
+    "browserSamples": 0,
+    "environmentSha256": "88f81ab19a963cb2025d274355e56ee7cd068b6036e5aba4284d6db48d0b59b2"
+  },
+  "excludedClaims": [
+    "anatomical accuracy",
+    "real-world stack qualification",
+    "foreground latency or scientific timing comparisons",
+    "active refinement editing: focused unit evidence only",
+    "hardware mobile keyboard qualification"
+  ]
+}

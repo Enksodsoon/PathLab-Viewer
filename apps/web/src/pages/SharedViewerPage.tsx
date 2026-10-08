@@ -12,12 +12,12 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { getSharedManifest } from '../api'
+import { getSharedComparisons, getSharedManifest } from '../api'
 import { Loader } from '../components/Loader'
 import { ignoresShortcut } from '../components/library/viewerNavigation'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
-import type { SharedManifest, SharedSlide } from '../types'
+import type { SharedComparisonSummary, SharedManifest, SharedSlide } from '../types'
 import '../shared-viewer.css'
 import '../shared-message.css'
 
@@ -115,6 +115,7 @@ function SharedFolderBranch({
 export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'collection' }) {
   const { publicId = '' } = useParams()
   const [manifest, setManifest] = useState<SharedManifest | null>(null)
+  const [comparisons, setComparisons] = useState<SharedComparisonSummary[]>([])
   const [position, setPosition] = useState(0)
   const [missing, setMissing] = useState(false)
   const [retry, setRetry] = useState(0)
@@ -138,6 +139,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
     let active = true
     setMissing(false)
     setManifest(null)
+    setComparisons([])
     void getSharedManifest(targetType, publicId)
       .then((result) => {
         if (!active) return
@@ -145,6 +147,11 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
         let saved = 0
         try { saved = Number(sessionStorage.getItem(storageKey)) } catch { /* Position memory is optional. */ }
         setPosition(Number.isInteger(saved) && saved >= 0 && saved < result.slides.length ? saved : 0)
+        if (targetType === 'collection') {
+          void getSharedComparisons(publicId).then((items) => {
+            if (active) setComparisons(items)
+          }).catch(() => { /* Keep ordinary shared viewing available. */ })
+        }
       })
       .catch(() => { if (active) setMissing(true) })
     return () => { active = false }
@@ -267,6 +274,11 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
         <div className="shared-slide-caption">
           <h2>{slide.displayName}</h2>
           <p>{[slide.organSite, slide.stain, slide.diagnosis].filter(Boolean).join(' · ')}</p>
+          {comparisons.map((comparison) => (
+            <Link key={comparison.id} className="share-compare-link" to={`/c/${publicId}/compare/${comparison.id}`}>
+              Compare slides · {comparison.name}
+            </Link>
+          ))}
         </div>
         <nav className="shared-viewer-tools" aria-label="Shared viewer controls">
           <button type="button" aria-label="Previous slide" disabled={position === 0} onClick={() => select(position - 1)}><ChevronLeft /></button>

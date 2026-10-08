@@ -1,0 +1,1044 @@
+{
+  "schema": "pathlab-alignment-reconciled-browser-acceptance/1",
+  "sourceHead": "68a81ef009134269e91b129b16dd082b9e653613",
+  "plannedJourneys": 16,
+  "passedJourneys": 16,
+  "assertionRetries": 0,
+  "failedJourneys": 0,
+  "skippedJourneys": 0,
+  "sourceStartTerminalEqual": true,
+  "runtimeStartTerminalEqual": true,
+  "runtimeReceiptSha256": "75b576dd6368c1db070ecf1c2bb4d5f896b488119ce5ed3f1c8bde5128480f89",
+  "originalServicesPreservedWithinEachOwnedProfile": true,
+  "resumedOriginalPortsAbsentBeforeWork": true,
+  "originalOctober4ServicesAlreadyGoneBeforeResume": true,
+  "allFourProfilesFreshOctober8": true,
+  "rows": [
+    {
+      "browser": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "stats": {
+        "startTime": "2026-10-08T12:57:53.645Z",
+        "duration": 123765.868,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "reportSha256": "a37e73d79a815a76e24d7b0044f8f8a5576b1adc00cd834b7f1d7004de422f3f",
+      "sourceReceiptSha256": "9d1b228a5ad106f5941358dd3661806b8b256d162a7b9b05f31cce591bb5116d",
+      "sourceStartTerminalEqual": true,
+      "cleanupReceiptSha256": "1bee056f646ed358a93c7e09ace0f758602d7336680fa32de3acc63346fb79ca",
+      "ownedIdentityCount": 69,
+      "heldHandleCount": 67,
+      "ownedProcessSurvivors": 0,
+      "ownedPortsRemaining": 0,
+      "ownedTemporaryDirectoriesRemaining": 0,
+      "launcherSeconds": 156.6886466,
+      "loadedTileResponses": {
+        "candidate": 12,
+        "guided": 80,
+        "largeOdd": 42
+      },
+      "candidate": {
+        "actualPointerStrokes": 6,
+        "resetMethods": [
+          "pointer",
+          "keyboard"
+        ],
+        "advancedKeyboardReceipts": [
+          {
+            "openKey": "Enter",
+            "closeKey": "Space",
+            "candidateControlsVisibleWhileOpen": true,
+            "candidateSectionHiddenAfterClose": true,
+            "focusRetainedOnSummary": true,
+            "nativeVisible": false,
+            "hitInsideClosedDrawer": false,
+            "focusInsideClosedDrawer": false
+          }
+        ],
+        "currentPair": true,
+        "comparisonVersionUnchangedDuringCaseInvalidation": true,
+        "independentMapSamples": 3,
+        "maximumCoordinateResidualPixels": 2.842170943040401e-14,
+        "restorationMaximumCircularRotationErrorDegrees": 0,
+        "restorationMaximumLinearCenterOrZoomError": 1.4210854715202004e-14
+      },
+      "guided": {
+        "delayedDziBothImagesRequired": true,
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "cancelBoundsContainBothCenters": true,
+        "nonzeroAndZeroRotationBoundsChecked": true,
+        "secondAdjustRecordedTwoPoints": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "assertionRetries": 0
+      },
+      "manualPathSamples": 10,
+      "largeOdd": {
+        "browserObservedMilliseconds": 3685.1327999999994,
+        "advancedOpened": false,
+        "foregroundStatus": "approximate",
+        "foregroundPhase": "preview",
+        "referenceSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        }
+      },
+      "screenshots": [
+        {
+          "name": "candidate-retained-overview-original-pixels.png",
+          "sha256": "1d81453efdc66ad004957e4097d70cb1b695c4ab01ec30b2247752093e03ce18"
+        },
+        {
+          "name": "candidate-source-invalidated.png",
+          "sha256": "3e04d7f287e5d17d01b24e17194e5c08c1cbe834664b4bc7ac1226ed6767ff11"
+        },
+        {
+          "name": "alignment-large-odd-original-pixels.png",
+          "sha256": "fd6dbb1e4758e989804cb822ce19c34abfa197c41dd9a4d7b3fe89ad23274ef4"
+        },
+        {
+          "name": "alignment-dark.png",
+          "sha256": "78d33ff7387f2d8b7d2f52c8bebf2777f541850da9f71e584d163128b8eace37"
+        },
+        {
+          "name": "alignment-inspector.png",
+          "sha256": "fbd15f4be9268e46c9f51642e1b1982a05400b3dea053a28d2e8a8420157ae41"
+        },
+        {
+          "name": "alignment-light.png",
+          "sha256": "420390361e2ca1efc2ffeb84fe5209fdddbbb26b6d2bc636a311449ad9bd751c"
+        },
+        {
+          "name": "alignment-outside-region-overview.png",
+          "sha256": "7859c406b69781ab993c2b00a8b91b3001fbf221555004925311a2893f0cbb13"
+        },
+        {
+          "name": "alignment-region-preview.png",
+          "sha256": "3d4bc3e91778ad751a32a5b4e736e8741bc0e74b3b4b6d4ccd95d096f556f580"
+        },
+        {
+          "name": "alignment-two-point-saved.png",
+          "sha256": "62639e4f23af6957035f0e11f5f5dbf0440de66170a2c9d746dd6c8d6737227b"
+        }
+      ],
+      "runtimeReceiptSha256": "75b576dd6368c1db070ecf1c2bb4d5f896b488119ce5ed3f1c8bde5128480f89",
+      "runtimeStartTerminalEqual": true,
+      "originalPortsAbsentBeforeAndAfter": true,
+      "manualPath": {
+        "coordinateTolerancePixels": 0.01,
+        "maximumCoordinateResidualPixels": 2.842170943040401e-14,
+        "phases": [
+          {
+            "phase": "one-point-preview",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regionalApplied": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      },
+      "guidedActualPointerStrokes": 10,
+      "allGuidedPointerReleasesInsideVisiblePaneAndWithoutCapture": true,
+      "restoredLiveReadback": {
+        "firstEventUnavailableCount": 2,
+        "settledOriginalCanvasesNonuniform": true,
+        "residuals": [
+          {
+            "centerErrorPixels": 8.987733679556355e-14,
+            "zoomError": 0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 7.105427357601002e-14
+          },
+          {
+            "centerErrorPixels": 0.0,
+            "zoomError": 0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 0.0
+          }
+        ],
+        "actualLauncherExitCode": 0,
+        "nativeLauncherExitCodeObserved": true
+      }
+    },
+    {
+      "browser": "firefox",
+      "browserVersion": "153.0",
+      "stats": {
+        "startTime": "2026-10-08T13:00:32.489Z",
+        "duration": 103783.29400000001,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "reportSha256": "803ab3c46af13ca0b66dd9abebd031718f45d28452a0f71abb77416fb509c657",
+      "sourceReceiptSha256": "9d1b228a5ad106f5941358dd3661806b8b256d162a7b9b05f31cce591bb5116d",
+      "sourceStartTerminalEqual": true,
+      "cleanupReceiptSha256": "c043dea695c3aea01ad7ed255c0941bf3d84faecc65308687d2de9404ba56fb7",
+      "ownedIdentityCount": 67,
+      "heldHandleCount": 64,
+      "ownedProcessSurvivors": 0,
+      "ownedPortsRemaining": 0,
+      "ownedTemporaryDirectoriesRemaining": 0,
+      "launcherSeconds": 134.5824525,
+      "loadedTileResponses": {
+        "candidate": 12,
+        "guided": 54,
+        "largeOdd": 42
+      },
+      "candidate": {
+        "actualPointerStrokes": 6,
+        "resetMethods": [
+          "pointer",
+          "keyboard"
+        ],
+        "advancedKeyboardReceipts": [
+          {
+            "openKey": "Enter",
+            "closeKey": "Space",
+            "candidateControlsVisibleWhileOpen": true,
+            "candidateSectionHiddenAfterClose": true,
+            "focusRetainedOnSummary": true,
+            "nativeVisible": false,
+            "hitInsideClosedDrawer": false,
+            "focusInsideClosedDrawer": false
+          }
+        ],
+        "currentPair": true,
+        "comparisonVersionUnchangedDuringCaseInvalidation": true,
+        "independentMapSamples": 3,
+        "maximumCoordinateResidualPixels": 2.842170943040401e-14,
+        "restorationMaximumCircularRotationErrorDegrees": 0,
+        "restorationMaximumLinearCenterOrZoomError": 1.4210854715202004e-14
+      },
+      "guided": {
+        "delayedDziBothImagesRequired": true,
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "cancelBoundsContainBothCenters": true,
+        "nonzeroAndZeroRotationBoundsChecked": true,
+        "secondAdjustRecordedTwoPoints": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "assertionRetries": 0
+      },
+      "manualPathSamples": 10,
+      "largeOdd": {
+        "browserObservedMilliseconds": 4187.377200000003,
+        "advancedOpened": false,
+        "foregroundStatus": "approximate",
+        "foregroundPhase": "preview",
+        "referenceSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        }
+      },
+      "screenshots": [
+        {
+          "name": "candidate-retained-overview-original-pixels.png",
+          "sha256": "c645e85f09fdac0e7d7c30d921f29b25c13e4382b2915d310956a1fa57105967"
+        },
+        {
+          "name": "candidate-source-invalidated.png",
+          "sha256": "fb79d882295cc96fe3bd5e4c1cd0a2cde15e1ed7bae7330776a4be33463be614"
+        },
+        {
+          "name": "alignment-large-odd-original-pixels.png",
+          "sha256": "8bb44fe64f8ae3f87d1605aa244910ae1386850127a45d81644f2495e7dc0676"
+        },
+        {
+          "name": "alignment-dark.png",
+          "sha256": "c023e1d22d1667516d3fbc7484265f79541dcd3d1153e315f350ab4da910f2bb"
+        },
+        {
+          "name": "alignment-inspector.png",
+          "sha256": "af879c1edb4e67b3f0c9c9fb36a5ef361fb515b75b9516cb12f810bdf5653742"
+        },
+        {
+          "name": "alignment-light.png",
+          "sha256": "9be710cb7401ce4b983de21135dd0d4c47b956edaf3118b2769215d29856bef8"
+        },
+        {
+          "name": "alignment-outside-region-overview.png",
+          "sha256": "5d01ed3b22e5f2fc8d06c836d0624424b4f798d2e626659e9a79ee12e07fbbba"
+        },
+        {
+          "name": "alignment-region-preview.png",
+          "sha256": "b478490836bedc33becb3a751a158571401d84d43b7b64ec306e085ec241c394"
+        },
+        {
+          "name": "alignment-two-point-saved.png",
+          "sha256": "7c46f1da919a01923d84da4328d66a330c62c033930a41c00d848ef56e371dcd"
+        }
+      ],
+      "runtimeReceiptSha256": "75b576dd6368c1db070ecf1c2bb4d5f896b488119ce5ed3f1c8bde5128480f89",
+      "runtimeStartTerminalEqual": true,
+      "originalPortsAbsentBeforeAndAfter": true,
+      "manualPath": {
+        "coordinateTolerancePixels": 0.01,
+        "maximumCoordinateResidualPixels": 5.684341886080802e-14,
+        "phases": [
+          {
+            "phase": "one-point-preview",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regionalApplied": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      },
+      "guidedActualPointerStrokes": 10,
+      "allGuidedPointerReleasesInsideVisiblePaneAndWithoutCapture": true,
+      "restoredLiveReadback": {
+        "firstEventUnavailableCount": 2,
+        "settledOriginalCanvasesNonuniform": true,
+        "residuals": [
+          {
+            "centerErrorPixels": 0.0,
+            "zoomError": 0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 0.0
+          },
+          {
+            "centerErrorPixels": 0.0,
+            "zoomError": 0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 0.0
+          }
+        ],
+        "actualLauncherExitCode": 0,
+        "nativeLauncherExitCodeObserved": true
+      }
+    },
+    {
+      "browser": "webkit",
+      "browserVersion": "26.5",
+      "stats": {
+        "startTime": "2026-10-08T13:02:51.123Z",
+        "duration": 114304.63900000001,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "reportSha256": "5f5d320caea8a6eb80460bc17c546d9dd474e409d6dbacf584ebb8f462853f96",
+      "sourceReceiptSha256": "9d1b228a5ad106f5941358dd3661806b8b256d162a7b9b05f31cce591bb5116d",
+      "sourceStartTerminalEqual": true,
+      "cleanupReceiptSha256": "d4b918047837febad523c1418f3ee8d372f9ecc47cd9cca526844025d83812ec",
+      "ownedIdentityCount": 90,
+      "heldHandleCount": 86,
+      "ownedProcessSurvivors": 0,
+      "ownedPortsRemaining": 0,
+      "ownedTemporaryDirectoriesRemaining": 0,
+      "launcherSeconds": 148.8443164,
+      "loadedTileResponses": {
+        "candidate": 14,
+        "guided": 51,
+        "largeOdd": 44
+      },
+      "candidate": {
+        "actualPointerStrokes": 6,
+        "resetMethods": [
+          "pointer",
+          "keyboard"
+        ],
+        "advancedKeyboardReceipts": [
+          {
+            "openKey": "Enter",
+            "closeKey": "Space",
+            "candidateControlsVisibleWhileOpen": true,
+            "candidateSectionHiddenAfterClose": true,
+            "focusRetainedOnSummary": true,
+            "nativeVisible": false,
+            "hitInsideClosedDrawer": false,
+            "focusInsideClosedDrawer": false
+          }
+        ],
+        "currentPair": true,
+        "comparisonVersionUnchangedDuringCaseInvalidation": true,
+        "independentMapSamples": 3,
+        "maximumCoordinateResidualPixels": 2.842170943040401e-14,
+        "restorationMaximumCircularRotationErrorDegrees": 0,
+        "restorationMaximumLinearCenterOrZoomError": 1.4210854715202004e-14
+      },
+      "guided": {
+        "delayedDziBothImagesRequired": true,
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "cancelBoundsContainBothCenters": true,
+        "nonzeroAndZeroRotationBoundsChecked": true,
+        "secondAdjustRecordedTwoPoints": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "assertionRetries": 0
+      },
+      "manualPathSamples": 10,
+      "largeOdd": {
+        "browserObservedMilliseconds": 3377.3425999999963,
+        "advancedOpened": false,
+        "foregroundStatus": "approximate",
+        "foregroundPhase": "preview",
+        "referenceSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        }
+      },
+      "screenshots": [
+        {
+          "name": "candidate-retained-overview-original-pixels.png",
+          "sha256": "36c1fc90b741159c0e21801c54a33b0196117f6f95aa7ea4f71f664aec31ec86"
+        },
+        {
+          "name": "candidate-source-invalidated.png",
+          "sha256": "85d2d8416cf97c4f8916b027f8d52e6bff7f60b404655e1edf2c1907b1703439"
+        },
+        {
+          "name": "alignment-large-odd-original-pixels.png",
+          "sha256": "16934900e5f13c27d68fd60f85285cf1f31545a5520aaea1b7847ccc40473ddc"
+        },
+        {
+          "name": "alignment-dark.png",
+          "sha256": "16235eb842fbbf7a1b55ef0ae4820df58f996f71473b25c5057105d3c6098a44"
+        },
+        {
+          "name": "alignment-inspector.png",
+          "sha256": "35f5d2e0ca7c12c34d542a5cdf1f9d48c108d671fbd0b498c747db62a9aaa07b"
+        },
+        {
+          "name": "alignment-light.png",
+          "sha256": "76aec17c2b88ba22609eca7205d34537b840bc02a147e8355098c2b0e47e97c6"
+        },
+        {
+          "name": "alignment-outside-region-overview.png",
+          "sha256": "c68a0b9651baf928404390c3021b451fbc3da946b8c689778dfb8fc3cb657eb4"
+        },
+        {
+          "name": "alignment-region-preview.png",
+          "sha256": "d18c47333ba208ccd6d531a3947fb7c3707603ff4bfc35e39b839cd408418542"
+        },
+        {
+          "name": "alignment-two-point-saved.png",
+          "sha256": "28c3c3bc94c2e204fa7525b4fba9ffc93b718b411d88b8bf19e1e7979b694cfa"
+        }
+      ],
+      "runtimeReceiptSha256": "75b576dd6368c1db070ecf1c2bb4d5f896b488119ce5ed3f1c8bde5128480f89",
+      "runtimeStartTerminalEqual": true,
+      "originalPortsAbsentBeforeAndAfter": true,
+      "manualPath": {
+        "coordinateTolerancePixels": 0.01,
+        "maximumCoordinateResidualPixels": 5.684341886080802e-14,
+        "phases": [
+          {
+            "phase": "one-point-preview",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regionalApplied": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      },
+      "guidedActualPointerStrokes": 10,
+      "allGuidedPointerReleasesInsideVisiblePaneAndWithoutCapture": true,
+      "restoredLiveReadback": {
+        "firstEventUnavailableCount": 2,
+        "settledOriginalCanvasesNonuniform": true,
+        "residuals": [
+          {
+            "centerErrorPixels": 0.0,
+            "zoomError": 0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 0.0
+          },
+          {
+            "centerErrorPixels": 0.0,
+            "zoomError": 0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 0.0
+          }
+        ],
+        "actualLauncherExitCode": 0,
+        "nativeLauncherExitCodeObserved": true
+      }
+    },
+    {
+      "browser": "mobile-chromium",
+      "browserVersion": "151.0.7922.34",
+      "stats": {
+        "startTime": "2026-10-08T13:05:18.682Z",
+        "duration": 138518.302,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "reportSha256": "76989aabd2d5302be6f2f71ebb44ddee582a970dd84b4cda6bcd1ad5c00e402a",
+      "sourceReceiptSha256": "9d1b228a5ad106f5941358dd3661806b8b256d162a7b9b05f31cce591bb5116d",
+      "sourceStartTerminalEqual": true,
+      "cleanupReceiptSha256": "1ae08a604b499c5a9ed53f8e6b36de64f5a815b225acc0263b76ff0349f55809",
+      "ownedIdentityCount": 72,
+      "heldHandleCount": 70,
+      "ownedProcessSurvivors": 0,
+      "ownedPortsRemaining": 0,
+      "ownedTemporaryDirectoriesRemaining": 0,
+      "launcherSeconds": 167.7303155,
+      "loadedTileResponses": {
+        "candidate": 12,
+        "guided": 84,
+        "largeOdd": 42
+      },
+      "candidate": {
+        "actualPointerStrokes": 8,
+        "resetMethods": [
+          "touch",
+          "keyboard"
+        ],
+        "advancedKeyboardReceipts": [],
+        "currentPair": true,
+        "comparisonVersionUnchangedDuringCaseInvalidation": true,
+        "independentMapSamples": 3,
+        "maximumCoordinateResidualPixels": 2.842170943040401e-14,
+        "restorationMaximumCircularRotationErrorDegrees": 0,
+        "restorationMaximumLinearCenterOrZoomError": 1.4210854715202004e-14
+      },
+      "guided": {
+        "delayedDziBothImagesRequired": true,
+        "hiddenReference": true,
+        "slidesKeyboardSelection": true,
+        "syncKeyboardRoundtrip": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "onePointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "cancelBoundsContainBothCenters": true,
+        "nonzeroAndZeroRotationBoundsChecked": true,
+        "secondAdjustRecordedTwoPoints": true,
+        "twoPointSavedReloaded": true,
+        "injectedTransientPreviewFailureRetainedPoints": true,
+        "assertionRetries": 0
+      },
+      "manualPathSamples": 10,
+      "largeOdd": {
+        "browserObservedMilliseconds": 3535.2189,
+        "advancedOpened": false,
+        "foregroundStatus": "approximate",
+        "foregroundPhase": "preview",
+        "referenceSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingSamplingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        }
+      },
+      "screenshots": [
+        {
+          "name": "candidate-retained-overview-original-pixels.png",
+          "sha256": "cc7ee35c57969d5bd2bcb5b08fb35f7f6cb7eb4353a6f2408587b53a764091a2"
+        },
+        {
+          "name": "candidate-source-invalidated.png",
+          "sha256": "fb9df45f6f1da7f6107ee8841ba296bd5b6b6faa186ea08f9db83f8eab650df4"
+        },
+        {
+          "name": "alignment-large-odd-original-pixels.png",
+          "sha256": "589fdb0ee81bfd42486c9612b092aabe53424ac9f38d844f562ca8a91150968d"
+        },
+        {
+          "name": "alignment-dark.png",
+          "sha256": "3801a540793e3cef6fde3fc1837b38290d9ebf5fbd82d41f256e5abe48dbe0bf"
+        },
+        {
+          "name": "alignment-inspector.png",
+          "sha256": "f7b0ec1ce4aa28cf10c025644685ac68f0f6e6cbaf53e89cef4dffbc8de87415"
+        },
+        {
+          "name": "alignment-light.png",
+          "sha256": "2e51f51acce91f4890ffccd0ac3ed7b8db91f0d553ad86df3d9d32569f1afac2"
+        },
+        {
+          "name": "alignment-outside-region-overview.png",
+          "sha256": "016cbe6240eff0ca975fd7bf2fce3af8cec7fed60f98e4e0130a7d0977d692b2"
+        },
+        {
+          "name": "alignment-region-preview.png",
+          "sha256": "e7449dc98e85f23a77768929139016e83b2c0cccd2d3fd8f1e6f9fd0c0f4765d"
+        },
+        {
+          "name": "alignment-two-point-saved.png",
+          "sha256": "0d63991012181b281b967aede585a20defbdd907a48b5be9d4546bc5e5e00ccc"
+        }
+      ],
+      "runtimeReceiptSha256": "75b576dd6368c1db070ecf1c2bb4d5f896b488119ce5ed3f1c8bde5128480f89",
+      "runtimeStartTerminalEqual": true,
+      "originalPortsAbsentBeforeAndAfter": true,
+      "manualPath": {
+        "coordinateTolerancePixels": 0.01,
+        "maximumCoordinateResidualPixels": 5.684341886080802e-14,
+        "phases": [
+          {
+            "phase": "one-point-preview",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regionalApplied": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "regionalApplied": true,
+            "supportedCapturedRegion": true,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      },
+      "guidedActualPointerStrokes": 12,
+      "allGuidedPointerReleasesInsideVisiblePaneAndWithoutCapture": true,
+      "restoredLiveReadback": {
+        "firstEventUnavailableCount": 2,
+        "settledOriginalCanvasesNonuniform": true,
+        "residuals": [
+          {
+            "centerErrorPixels": 0.0,
+            "zoomError": 0.0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 0.0
+          },
+          {
+            "centerErrorPixels": 0.0,
+            "zoomError": 0.0,
+            "rotationErrorDegrees": 0,
+            "maximumBoundsErrorPixels": 0.0
+          }
+        ],
+        "actualLauncherExitCode": 0,
+        "nativeLauncherExitCodeObserved": true
+      }
+    }
+  ],
+  "qualificationScope": "Synthetic engineering UI journeys with actual worker/API/OSD/original fixture pixels; no anatomical accuracy or production latency qualification. Historical failures retained separately.",
+  "humanCorrectionEffort": null,
+  "scientificAccuracy": null,
+  "fullFrontendProof": {
+    "freshTestsPassed": 758,
+    "filesPassed": 93,
+    "durationSeconds": 160.71,
+    "maxWorkers": 4,
+    "comparisonTestsPassed": 108,
+    "fullEslintExitCode": 0,
+    "tscExitCode": 0
+  },
+  "applicationSourceCommit": "abbf7c0038eecc7809fa78b183bcf24a594c0fc0",
+  "historicalFailuresPreserved": true,
+  "resumedOriginalPortsRemainAbsentAfterOwnedCleanup": true,
+  "nativeCloseEvidenceScope": "Registerednativeclose/latestcallback/cleanup and samehandleclose/reopen correction unit regressions; realbrowserchecks heldDZIremount readiness and1/2pointflows, not a separately induced actualretry.",
+  "compiledReceiptSha256": "e833306d4be0870ab1f57b10df1d51eeb701e8b63affb4f9b1754567f150f7f2"
+}

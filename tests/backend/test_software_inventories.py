@@ -32,12 +32,12 @@ def test_checked_in_software_inventories_reconcile_and_repeat() -> None:
 
     assert manifest["coverage"] == {
         "assetRecordIdsSha256": manifest["coverage"]["assetRecordIdsSha256"],
-        "assetRecords": 16,
+        "assetRecords": 17,
         "buildComponents": manifest["coverage"]["buildComponents"],
         "currentShippedInputs": manifest["coverage"]["currentShippedInputs"],
         "dependencyRecordIdsSha256": manifest["coverage"]["dependencyRecordIdsSha256"],
-        "dependencyRecords": 586,
-        "sourceComponents": 616,
+        "dependencyRecords": 587,
+        "sourceComponents": 618,
         "toolchainRecordIdsSha256": manifest["coverage"]["toolchainRecordIdsSha256"],
         "toolchainRecords": 14,
     }
@@ -65,7 +65,9 @@ def test_browser_absence_does_not_erase_source_notice_or_admission() -> None:
             encoding="utf-8"
         )
     assert manifest["releaseAdmission"] == "BLOCKED"
-    assert manifest["coverage"]["currentShippedInputs"] == 177
+    # The merged locks add OpenCV to the runtime and promote existing tzdata
+    # from OCI-only tooling to a backend-and-OCI dependency: 177 + 2 inputs.
+    assert manifest["coverage"]["currentShippedInputs"] == 179
 
 
 def test_generation_is_byte_identical_across_directories(tmp_path: Path) -> None:
@@ -220,6 +222,10 @@ def test_notice_bundle_includes_exact_archive_text_and_rejects_tampering(tmp_pat
 
 
 def test_web_notice_copy_and_python_container_packaging_use_same_artifact(tmp_path):
+    from scripts.generate_software_inventories import inventory_input_paths
+
+    assert "deploy/Dockerfile.alignment" in inventory_input_paths()
+    assert "deploy/Dockerfile.alignment-valis" in inventory_input_paths()
     import subprocess
     import tomllib
 
@@ -247,7 +253,7 @@ def test_web_notice_copy_and_python_container_packaging_use_same_artifact(tmp_pa
     targets = config["tool"]["hatch"]["build"]["targets"]
     assert targets["wheel"]["force-include"][source] == "wsi_viewer/THIRD_PARTY_NOTICES.txt"
     assert targets["sdist"]["force-include"][source] == source
-    for name in ("backend", "web"):
+    for name in ("backend", "web", "alignment"):
         docker = (root / f"deploy/Dockerfile.{name}").read_text()
         assert (
             f"COPY {source} ./docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"

@@ -409,15 +409,18 @@ def python_record(item: tuple[str, Path, dict[str, Any]]) -> dict[str, Any]:
     metadata_url = f"https://pypi.org/pypi/{normalized}/{version}/json"
     metadata_bytes = read_url(metadata_url)
     metadata = json.loads(metadata_bytes)
-    artifacts = metadata.get("urls", [])
-    candidates = sorted(
-        (entry for entry in artifacts if entry.get("packagetype") in {"sdist", "bdist_wheel"}),
-        key=lambda entry: entry.get("packagetype") != "sdist",
-    )
-    selected = next(
-        (entry for entry in candidates if entry["digests"]["sha256"] in requirement["hashes"]),
-        candidates[0] if candidates else None,
-    )
+    artifacts = [
+        entry
+        for entry in metadata.get("urls", [])
+        if entry.get("digests", {}).get("sha256") in requirement["hashes"]
+    ]
+    selected = next((entry for entry in artifacts if entry.get("packagetype") == "sdist"), None)
+    if selected is None:
+        selected = next(
+            (entry for entry in artifacts if entry.get("packagetype") == "bdist_wheel"),
+            None,
+        )
+
     blockers: list[str] = []
     notices: list[dict[str, str]] = []
     source = "MISSING"

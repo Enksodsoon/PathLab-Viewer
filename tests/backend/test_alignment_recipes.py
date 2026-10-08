@@ -1,0 +1,442 @@
+import numpy as np
+import pytest
+from PIL import Image
+from wsi_viewer import alignment_engines as engines
+from wsi_viewer.alignment import AlignmentRejected, map_registration_point
+
+
+def test_native_adapter_retains_accepted_map_compatibility_version():
+    from wsi_viewer.alignment_fast import PREPARATION_VERSION
+
+    assert engines.ADAPTER_VERSIONS[engines.ENGINE_NATIVE] == (
+        "pathlab-adapter-v2-high-resolution-components"
+    )
+    assert PREPARATION_VERSION == "overview-orb1536-v6-component-fallback"
+
+
+def test_native_recipe_uses_bounded_overview_without_changing_legacy_identity(
+    tmp_path, monkeypatch
+):
+    from unittest.mock import MagicMock
+
+    from wsi_viewer import alignment_fast
+
+    image = Image.new("RGB", (400, 300), "white")
+    prepared = object()
+    calls = []
+
+    def prepare(self, source, supplied, full_size, **kwargs):
+        calls.append((source, supplied, full_size))
+        return prepared, False
+
+    result = MagicMock()
+    result.as_json.return_value = {
+        "status": "approximate",
+        "evidence": {},
+        "triangles": [],
+        "overviewTriangles": [],
+    }
+    monkeypatch.setattr(alignment_fast.PreparationCache, "prepare", prepare)
+    monkeypatch.setattr(
+        alignment_fast,
+        "register_prepared",
+        lambda ref, mov: (
+            result if ref is prepared and mov is prepared else pytest.fail("wrong prepared inputs")
+        ),
+    )
+    monkeypatch.setattr(
+        engines, "register_pair", lambda *args, **kwargs: pytest.fail("legacy path used")
+    )
+    run = engines.get_engine("native").register(
+        engines.EngineInput(image, image, (4000, 3000), (8000, 6000), tmp_path), lambda _: None
+    )
+    assert run.registration["engine"] == "native-overview-v6"
+    assert run.registration["status"] == "approximate"
+    assert [call[2] for call in calls] == [(4000, 3000), (8000, 6000)]
+    assert engines.get_engine("native-v12").name == engines.ENGINE_NATIVE
+    assert engines.RECIPE_STAGES["native-wsireg"][0] == engines.ENGINE_NATIVE_OVERVIEW
+    assert engines.RECIPE_STAGES["native-valis"][0] == engines.ENGINE_NATIVE_OVERVIEW
+
+
+def test_recipe_registry_exposes_real_engines_and_hybrids():
+    for recipe in (
+        "native",
+        "valis",
+        "wsireg",
+        "hisalign",
+        "deeperhistreg-classical",
+        "deeperhistreg-learned",
+        "native-wsireg",
+        "valis-rigid-wsireg",
+        "native-valis",
+    ):
+        assert engines.get_engine(recipe).name in engines.SUPPORTED_ENGINES
+
+
+def test_hybrid_keeps_both_nonzero_crop_origins_without_double_translation(tmp_path, monkeypatch):
+    from wsi_viewer.alignment_geometry import original_frame_registration
+    from wsi_viewer.alignment_recipes import RecipeEngine
+
+    image = Image.fromarray(
+        np.random.default_rng(17).integers(0, 255, (100, 100, 3), dtype=np.uint8)
+    )
+    geometry = {
+        "schema": "pathlab-sampling-frame/1",
+        "kind": "component-region",
+        "sourceSize": [1000, 1000],
+        "analysisSize": [100, 100],
+        "coordinateFrameSize": [100, 100],
+        "samplingScale": [1, 1],
+        "cropOrigin": [100, 200],
+    }
+    settings = {
+        "referenceGeometry": geometry,
+        "movingGeometry": {**geometry, "cropOrigin": [300, 400]},
+    }
+    calls = []
+
+    class Stage:
+        def register(self, inputs, progress):
+            calls.append(inputs)
+            assert inputs.moving.tobytes() == image.tobytes()
+            points = [[20, 20], [70, 20], [20, 70]]
+            return engines.EngineRun(
+                {
+                    "status": "approximate",
+                    "movingToReference": [[1, 0, 0], [0, 1, 0]],
+                    "overviewTriangles": [{"reference": points, "moving": points}],
+                },
+                None,
+                None,
+                0.01,
+            )
+
+    monkeypatch.setattr(engines, "get_engine", lambda _: Stage())
+    run = RecipeEngine("native-wsireg").register(
+        engines.EngineInput(image, image, image.size, image.size, tmp_path, settings),
+        lambda _: None,
+    )
+    payload = original_frame_registration(run.registration, run.registration["engineSettings"])
+    assert np.asarray(payload["movingToReference"]) == pytest.approx(
+        np.array([[1, 0, -200], [0, 1, -200]])
+    )
+    assert map_registration_point(payload, 325, 425) == pytest.approx((125, 225))
+    saved = __import__("json").loads((tmp_path / engines.INITIALIZER_ARTIFACT_NAME).read_text())
+    assert saved["overviewTriangles"][0]["moving"][0] == [320, 420]
+
+
+def test_failed_wsireg_releases_filter_retained_by_upstream_traceback(tmp_path):
+    from types import SimpleNamespace
+
+    from wsi_viewer import alignment_optional
+
+    path = tmp_path / "IterationInfo.1.R0.txt"
+    closed = []
+
+    class Filter:
+        def __init__(self):
+            self.stream = path.open("wb")
+
+        def __del__(self):
+            self.stream.close()
+            closed.append(True)
+
+    def register(*args, **kwargs):
+        selx = Filter()
+        assert selx.stream.write(b"upstream iteration")
+        raise RuntimeError("actual upstream samples outside buffer")
+
+    with pytest.raises(AlignmentRejected, match="upstream.*samples outside buffer"):
+        alignment_optional._call_wsireg_registration(
+            SimpleNamespace(register_2d_images_itkelx=register), None, None, [], tmp_path
+        )
+    assert closed == [True]
+    path.unlink()  # Windows must permit real cleanup while the caught failure is still alive.
+
+
+def test_hybrid_composes_residual_in_initial_warp_frame(tmp_path, monkeypatch):
+    from wsi_viewer.alignment_recipes import RecipeEngine
+
+    reference_geometry = {
+        "schema": "pathlab-sampling-frame/1",
+        "kind": "dzi-pyramid",
+        "sourceSize": [397, 398],
+        "analysisSize": [400, 400],
+        "coordinateFrameSize": [400, 400],
+        "samplingScale": [1, 1],
+        "cropOrigin": [0, 0],
+        "pyramidDivisor": 1,
+    }
+    moving_geometry = {**reference_geometry, "sourceSize": [399, 397]}
+
+    initializer = [[2, 0, 10], [0, 3, 20]]
+    seed = {
+        "status": "approximate",
+        "movingToReference": initializer,
+        "overviewTriangles": [
+            {"moving": [[0, 0], [100, 0], [0, 100]], "reference": [[10, 20], [210, 20], [10, 320]]}
+        ],
+    }
+    residual = {
+        "status": "approximate",
+        "movingToReference": [[1, 0, 5], [0, 1, -2]],
+        "overviewTriangles": [
+            {
+                "moving": [[10, 20], [210, 20], [10, 320]],
+                "reference": [[15, 18], [215, 18], [15, 318]],
+            }
+        ],
+    }
+    calls = []
+
+    class Stage:
+        def available(self):
+            return True, None
+
+        def register(self, inputs, progress):
+            calls.append(inputs)
+            return engines.EngineRun(seed if len(calls) == 1 else residual, None, None, 0.01)
+
+    monkeypatch.setattr(engines, "get_engine", lambda name: Stage())
+    image = Image.new("RGB", (400, 400), "white")
+    run = RecipeEngine("native-wsireg").register(
+        engines.EngineInput(
+            image,
+            image,
+            image.size,
+            image.size,
+            tmp_path,
+            {
+                "referenceMicronsPerPixel": [0.25, 0.5],
+                "movingMicronsPerPixel": [0.5, 1],
+                "referenceCropped": True,
+                "movingCropped": False,
+                "referenceGeometry": reference_geometry,
+                "movingGeometry": moving_geometry,
+                "stages": {engines.ENGINE_WSIREG: {"movingMicronsPerPixel": [3, 4]}},
+            },
+        ),
+        lambda _: None,
+    )
+    assert np.asarray(run.registration["movingToReference"]) == pytest.approx(
+        np.asarray([[2, 0, 15], [0, 3, 18]])
+    )
+    cell = run.registration["overviewTriangles"][0]
+    assert map_registration_point({"triangles": [cell]}, 20, 30) == pytest.approx((55, 108))
+    assert run.registration["status"] == "approximate"
+    assert len(run.registration["recipeStages"]) == 2
+    assert calls[1].moving_full_size == image.size
+    assert calls[0].settings["movingMicronsPerPixel"] == [0.5, 1]
+    assert calls[0].settings["referenceMicronsPerPixel"] == [0.25, 0.5]
+    assert calls[1].settings["movingMicronsPerPixel"] == [0.25, 0.5]
+    assert calls[1].settings["referenceMicronsPerPixel"] == [0.25, 0.5]
+    assert calls[0].settings["movingCropped"] is False
+    assert calls[1].settings["referenceCropped"] is True
+    assert calls[1].settings["movingCropped"] is True
+    assert calls[0].settings["movingGeometry"] == moving_geometry
+    assert calls[1].settings["referenceGeometry"] == reference_geometry
+    assert calls[1].settings["movingGeometry"] == reference_geometry
+    assert run.registration["engineSettings"]["movingGeometry"] == moving_geometry
+    assert run.registration["engineSettings"]["referenceGeometry"] == reference_geometry
+    assert (
+        run.registration["engineSettings"]["stageEffectiveSettings"][0]["settings"][
+            "timeoutSeconds"
+        ]
+        == 600
+    )
+    assert run.registration["recipeStages"][0]["remainingBudgetSeconds"] <= 600
+    assert run.registration["movingSupport"] == pytest.approx([0, 0, 100, 100])
+    assert run.registration["referenceSupport"] == pytest.approx([15, 18, 215, 318])
+
+
+def test_missing_wsireg_never_runs_native(tmp_path, monkeypatch):
+    monkeypatch.setattr(engines.importlib.util, "find_spec", lambda name: None)
+    monkeypatch.setattr(
+        engines.NativeEngine, "register", lambda *_: pytest.fail("native substitution")
+    )
+    available, reason = engines.get_engine("wsireg").available()
+    assert not available and "wsireg" in reason.lower()
+    with pytest.raises(AlignmentRejected, match="unavailable|installed"):
+        engines.run_engine(
+            "wsireg",
+            reference=Image.new("RGB", (10, 10)),
+            moving=Image.new("RGB", (10, 10)),
+            reference_full_size=(10, 10),
+            moving_full_size=(10, 10),
+            workspace_root=tmp_path,
+        )
+
+
+def test_dhr_normalized_pull_direction_handles_non_square_pixel_centers():
+    from wsi_viewer.alignment_optional import theta_pull_to_pixel
+
+    # A target pixel samples a source five pixels to the right and seven down.
+    pull = theta_pull_to_pixel(np.asarray([[1, 0, 10 / 400], [0, 1, 14 / 300]]), (400, 300))
+    assert pull @ [100, 50, 1] == pytest.approx([105, 57, 1])
+    assert np.linalg.inv(pull) @ [105, 57, 1] == pytest.approx([100, 50, 1])
+
+
+def test_recipe_total_budget_does_not_reset_between_stages(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_recipes
+
+    clock = [0.0]
+    calls = []
+
+    class SlowStage:
+        def register(self, inputs, progress):
+            calls.append(inputs.settings["timeoutSeconds"])
+            clock[0] += 7
+            return engines.EngineRun(
+                {
+                    "status": "approximate",
+                    "movingToReference": [[1, 0, 0], [0, 1, 0]],
+                    "overviewTriangles": [
+                        {"moving": [[0, 0], [5, 0], [0, 5]], "reference": [[0, 0], [5, 0], [0, 5]]}
+                    ],
+                },
+                None,
+                None,
+                7,
+            )
+
+    monkeypatch.setattr(engines, "get_engine", lambda name: SlowStage())
+    monkeypatch.setattr(alignment_recipes.time, "monotonic", lambda: clock[0])
+    image = Image.new("RGB", (10, 10))
+    with pytest.raises(AlignmentRejected, match="pair timeout"):
+        alignment_recipes.RecipeEngine("native-wsireg").register(
+            engines.EngineInput(
+                image, image, image.size, image.size, tmp_path, {"timeoutSeconds": 10}
+            ),
+            lambda _: None,
+        )
+    assert calls == [10, 3]
+
+
+def test_wsireg_one_elastix_chain_composes_noncommuting_transforms():
+    pytest.importorskip("wsireg")
+    from wsi_viewer.alignment_optional import wsireg_pull_transform
+
+    geometry = {
+        "Spacing": ["1", "1"],
+        "Size": ["100", "100"],
+        "Origin": ["0", "0"],
+        "Direction": ["1", "0", "0", "1"],
+        "ResampleInterpolator": ["FinalLinearInterpolator"],
+        "CenterOfRotationPoint": ["0", "0"],
+    }
+    translation = {
+        **geometry,
+        "Transform": ["TranslationTransform"],
+        "TransformParameters": ["10", "0"],
+    }
+    scaling = {
+        **geometry,
+        "Transform": ["AffineTransform"],
+        "TransformParameters": ["2", "0", "0", "2", "0", "0"],
+    }
+    pull = wsireg_pull_transform([translation, scaling])
+    assert pull.TransformPoint((0, 0)) == pytest.approx((20, 0))
+    assert pull.GetInverse().TransformPoint((20, 0)) == pytest.approx((0, 0))
+
+
+def test_bounded_nonlinear_inverse_recovers_curved_coupled_map():
+    from wsi_viewer.alignment_optional import invert_coordinate_pull
+
+    def pull(points):
+        x, y = points.T
+        return np.column_stack((x + 4 * np.sin(y / 30), y + 2 * np.sin(x / 40)))
+
+    reference = np.asarray([[30, 40], [200, 150], [60, 220]], dtype=float)
+    recovered = invert_coordinate_pull(pull, pull(reference), initial=reference + [1, 2])
+    assert recovered == pytest.approx(reference, abs=0.025)
+
+
+def test_bounded_nonlinear_inverse_rejects_fold_and_sample_budget():
+    from wsi_viewer.alignment_optional import invert_coordinate_pull
+
+    with pytest.raises(AlignmentRejected, match="fold|Jacobian"):
+        invert_coordinate_pull(lambda points: points * [-1, 1], np.asarray([[10.0, 20.0]]))
+    with pytest.raises(AlignmentRejected, match="sample budget"):
+        invert_coordinate_pull(lambda points: points, np.zeros((2402, 2)))
+
+
+@pytest.mark.parametrize("residual_fails", [False, True])
+def test_initializer_provenance_survives_temporary_cleanup_and_residual_failure(
+    tmp_path, monkeypatch, residual_fails
+):
+    import hashlib
+    import json
+
+    from wsi_viewer.alignment_recipes import RecipeEngine
+
+    workspaces = []
+    calls = []
+    seed = {
+        "status": "approximate",
+        "movingToReference": [[1, 0, 0], [0, 1, 0]],
+        "overviewTriangles": [
+            {"moving": [[0, 0], [5, 0], [0, 5]], "reference": [[0, 0], [5, 0], [0, 5]]}
+        ],
+    }
+
+    class Stage:
+        def register(self, inputs, progress):
+            workspaces.append(inputs.workspace)
+            calls.append(True)
+            if len(calls) == 2:
+                # Already durable before residual execution, including a hard
+                # timeout/termination that cannot run Python finally blocks.
+                assert (artifact_dir / "initializer-coordinate-map.json").is_file()
+            if len(calls) == 2 and residual_fails:
+                raise AlignmentRejected("residual failed")
+            return engines.EngineRun(seed, None, None, 0.1)
+
+    monkeypatch.setattr(
+        engines,
+        "get_engine",
+        lambda name: RecipeEngine(name) if name == "native-wsireg" else Stage(),
+    )
+    image = Image.new("RGB", (10, 10))
+    artifact_dir = tmp_path / "private-artifacts"
+    kwargs = dict(
+        reference=image,
+        moving=image,
+        reference_full_size=image.size,
+        moving_full_size=image.size,
+        workspace_root=tmp_path,
+        artifact_dir=artifact_dir,
+    )
+    if residual_fails:
+        with pytest.raises(AlignmentRejected, match="residual failed"):
+            engines.run_engine("native-wsireg", **kwargs)
+    else:
+        result = engines.run_engine("native-wsireg", **kwargs)
+        descriptor = result.registration["initializerArtifact"]
+        assert set(descriptor) == {"name", "sha256"}
+        assert descriptor["name"] == "initializer-coordinate-map.json"
+        assert (
+            descriptor["sha256"]
+            == hashlib.sha256((artifact_dir / descriptor["name"]).read_bytes()).hexdigest()
+        )
+        assert result.registration["recipeFrames"]["initializerSupportAppliedToWarp"] is False
+    assert json.loads((artifact_dir / "initializer-coordinate-map.json").read_text()) == seed
+    assert all(not path.exists() for path in workspaces)
+
+
+def test_initializer_provenance_copy_rejects_unsafe_name_digest_and_size(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "initializer-coordinate-map.json").write_text('{"status":"approximate"}')
+    destination = tmp_path / "output"
+    with pytest.raises(AlignmentRejected, match="basename"):
+        engines._copy_initializer_provenance(
+            workspace, destination, {"name": "../secret", "sha256": "bad"}
+        )
+    with pytest.raises(AlignmentRejected, match="digest"):
+        engines._copy_initializer_provenance(
+            workspace, destination, {"name": "initializer-coordinate-map.json", "sha256": "bad"}
+        )
+    monkeypatch.setattr(engines, "MAX_INITIALIZER_ARTIFACT_BYTES", 8)
+    with pytest.raises(AlignmentRejected, match="size ceiling"):
+        engines._copy_initializer_provenance(workspace, destination, None)
+    assert not destination.exists()

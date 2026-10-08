@@ -1,0 +1,1330 @@
+"""Adapters for reproducible open-source slide registration engines.
+
+Engine-specific objects never cross this module boundary.  Every engine is
+sampled into the same paired-triangle representation used by the viewer, so a
+single triangle correspondence supplies both forward and inverse navigation.
+"""
+
+from __future__ import annotations
+
+import gc
+import hashlib
+import importlib.util
+import json
+import shutil
+import sys
+import tempfile
+import time
+import types
+from collections.abc import Callable
+from contextlib import ExitStack
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Any, Protocol
+
+import cv2
+import numpy as np
+from PIL import Image, ImageFilter
+
+from .alignment import (
+    AlignmentRejected,
+    RegistrationResult,
+    _registration_triangles,
+    _structure,
+    compose_transforms,
+    register_pair,
+    rescale_registration,
+)
+
+ENGINE_NATIVE = "native-v12"
+ENGINE_NATIVE_OVERVIEW = "native-overview-v6"
+ENGINE_HISALIGN = "hisalign-0.2.1"
+ENGINE_VALIS = "valis-1.2.0"
+ENGINE_WSIREG = "wsireg-0.3.10"
+ENGINE_DHR_CLASSICAL = "deeperhistreg-classical"
+ENGINE_DHR_LEARNED = "deeperhistreg-learned"
+INITIALIZER_ARTIFACT_NAME = "initializer-coordinate-map.json"
+MAX_INITIALIZER_ARTIFACT_BYTES = 16 * 1024**2
+RECIPE_STAGES = {
+    "native-wsireg": (ENGINE_NATIVE_OVERVIEW, ENGINE_WSIREG),
+    "valis-rigid-wsireg": (ENGINE_VALIS, ENGINE_WSIREG),
+    "native-valis": (ENGINE_NATIVE_OVERVIEW, ENGINE_VALIS),
+}
+ENGINE_ALIASES = {
+    "native": ENGINE_NATIVE_OVERVIEW,
+    "native-overview": ENGINE_NATIVE_OVERVIEW,
+    "hisalign": ENGINE_HISALIGN,
+    "valis": ENGINE_VALIS,
+    "wsireg": ENGINE_WSIREG,
+}
+ENGINE_VERSIONS = {
+    ENGINE_NATIVE: "piecewise-affine-components-v27",
+    ENGINE_NATIVE_OVERVIEW: "overview-orb1536-v6-component-fallback",
+    ENGINE_HISALIGN: "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
+    ENGINE_VALIS: "325828c1dec444e6bb672a78e875537436dd3c20",
+    ENGINE_WSIREG: "7bc3fb21c6a8f107f760799a5ac113896a710454-itk-elastix-0.25.4",
+    ENGINE_DHR_CLASSICAL: "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6-sift-ransac",
+    ENGINE_DHR_LEARNED: "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6-superpoint-superglue",
+}
+ADAPTER_VERSIONS = {
+    ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
+    ENGINE_NATIVE_OVERVIEW: "pathlab-adapter-v3-per-axis-original-frame-support",
+    ENGINE_HISALIGN: "pathlab-adapter-v6-explicit-sampling-frame",
+    ENGINE_VALIS: "pathlab-adapter-v18-explicit-sampling-and-admitted-resources",
+    ENGINE_WSIREG: "pathlab-adapter-v5-explicit-frame-upstream-owner-release",
+    ENGINE_DHR_CLASSICAL: "pathlab-adapter-v3-explicit-sampling-frame",
+    ENGINE_DHR_LEARNED: "pathlab-adapter-v3-explicit-sampling-frame",
+}
+for _recipe, _stages in RECIPE_STAGES.items():
+    ENGINE_VERSIONS[_recipe] = "+".join(ENGINE_VERSIONS[stage] for stage in _stages)
+    ADAPTER_VERSIONS[_recipe] = "pathlab-recipe-v5-effective-stage-provenance:" + "+".join(
+        ADAPTER_VERSIONS[stage] for stage in _stages
+    )
+SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
+
+
+class Progress(Protocol):
+    def __call__(self, values: dict[str, Any]) -> None: ...
+
+
+@dataclass(frozen=True)
+class EngineInput:
+    reference: Image.Image
+    moving: Image.Image
+    reference_full_size: tuple[int, int]
+    moving_full_size: tuple[int, int]
+    workspace: Path
+    settings: dict[str, Any] | None = None
+    artifact_dir: Path | None = None
+
+
+@dataclass(frozen=True)
+class EngineRun:
+    registration: dict[str, Any]
+    artifact_path: Path | None
+    artifact_sha256: str | None
+    runtime_seconds: float
+
+
+class RegistrationEngine(Protocol):
+    name: str
+
+    def available(self) -> tuple[bool, str | None]: ...
+
+    def register(self, inputs: EngineInput, progress: Progress) -> EngineRun: ...
+
+
+def engine_availability() -> dict[str, dict[str, str | bool | None]]:
+    result: dict[str, dict[str, str | bool | None]] = {}
+    for name in SUPPORTED_ENGINES:
+        engine = get_engine(name)
+        available, reason = engine.available()
+        result[name] = {
+            "available": available,
+            "reason": reason,
+            "buildVersion": ENGINE_VERSIONS[name],
+        }
+    return result
+
+
+def settings_digest(engine: str, settings: dict[str, Any] | None = None) -> str:
+    engine = ENGINE_ALIASES.get(engine, engine)
+    payload = {
+        "engine": engine,
+        "buildVersion": ENGINE_VERSIONS[engine],
+        "adapterVersion": ADAPTER_VERSIONS[engine],
+        "settings": settings or {},
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _hash_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def configured_engine_resources(config: Any, name: str) -> dict[str, Any]:
+    canonical = ENGINE_ALIASES.get(name, name)
+    if canonical == ENGINE_DHR_LEARNED:
+        result = {}
+        for resource in ("superpoint", "superglue"):
+            for suffix, field in (("Path", "path"), ("Sha256", "sha256")):
+                value = getattr(config, f"alignment_deeperhistreg_{resource}_weights_{field}", None)
+                if value is not None:
+                    result[f"{resource}Weights{suffix}"] = str(value)
+        return result
+    if canonical != ENGINE_VALIS and ENGINE_VALIS not in RECIPE_STAGES.get(canonical, ()):
+        return {}
+    result = {}
+    for asset, field in (("Disk", "disk"), ("LightGlue", "lightglue")):
+        for suffix, config_suffix in (("Path", "path"), ("Sha256", "sha256")):
+            value = getattr(config, f"alignment_valis_{field}_weights_{config_suffix}", None)
+            if value is not None:
+                result[f"valis{asset}Weights{suffix}"] = str(value)
+    return result
+
+
+def engine_resource_availability(name: str, settings: dict[str, Any]) -> tuple[bool, str | None]:
+    """Check optional immutable research assets without importing models."""
+    canonical = ENGINE_ALIASES.get(name, name)
+    if canonical in RECIPE_STAGES:
+        for stage in RECIPE_STAGES[canonical]:
+            available, reason = engine_resource_availability(
+                stage, {**settings, **settings.get("stages", {}).get(stage, {})}
+            )
+            if not available:
+                return available, reason
+    if canonical == ENGINE_VALIS:
+        from .alignment_resources import EngineResourceUnavailable, verified_valis_resources
+
+        try:
+            verified_valis_resources(settings)
+        except (EngineResourceUnavailable, OSError):
+            return False, "verified-valis-weights-unavailable"
+    if ENGINE_ALIASES.get(name, name) == ENGINE_DHR_LEARNED:
+        for key in ("superpoint", "superglue"):
+            path = Path(str(settings.get(f"{key}WeightsPath", "")))
+            digest = settings.get(f"{key}WeightsSha256")
+            if not path.is_file() or not digest or _hash_file(path) != digest:
+                return False, "verified-research-weights-unavailable"
+    return True, None
+
+
+def _affine_from_controls(controls: list[dict[str, Any]]) -> list[list[float]]:
+    moving = np.asarray([item["moving"] for item in controls], dtype=np.float32)
+    reference = np.asarray([item["reference"] for item in controls], dtype=np.float32)
+    matrix, _ = cv2.estimateAffinePartial2D(moving, reference, method=cv2.LMEDS)
+    if matrix is None:
+        raise AlignmentRejected("engine transform did not yield a stable affine overview")
+    values = np.asarray(matrix, dtype=np.float64).round(10)
+    return [[float(value) for value in row] for row in values]
+
+
+def _scanner_frame_candidate(
+    reference_rgb: np.ndarray[Any, Any],
+    moving_rgb: np.ndarray[Any, Any],
+    *,
+    maximum: int = 1024,
+    reference_cropped: bool = False,
+    moving_cropped: bool = False,
+) -> tuple[np.ndarray[Any, Any], float, float] | None:
+    """Return a bounded, stain-independent scanner-frame proposal.
+
+    The proposal is useful as an external engine initializer, not anatomical
+    evidence. Callers must still validate the resulting coordinate map.
+    """
+
+    def bounded(rgb: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+        height, width = rgb.shape[:2]
+        scale = min(1.0, maximum / max(width, height))
+        if scale == 1.0:
+            return rgb
+        return cv2.resize(
+            rgb,
+            (max(1, round(width * scale)), max(1, round(height * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+
+    reference_small = bounded(reference_rgb)
+    moving_small = bounded(moving_rgb)
+    reference_structure, reference_mask = _structure(reference_small, cropped=reference_cropped)
+    moving_structure, moving_mask = _structure(moving_small, cropped=moving_cropped)
+    forward = np.asarray(
+        [
+            [reference_mask.shape[1] / moving_mask.shape[1], 0.0, 0.0],
+            [0.0, reference_mask.shape[0] / moving_mask.shape[0], 0.0],
+        ],
+        dtype=np.float32,
+    )
+    inverse = cv2.invertAffineTransform(forward)
+    try:
+        score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
+            cv2.GaussianBlur(reference_structure, (0, 0), 4).astype(np.float32) / 255,
+            cv2.GaussianBlur(moving_structure, (0, 0), 4).astype(np.float32) / 255,
+            inverse,
+            cv2.MOTION_TRANSLATION,
+            (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 100, 1e-6),
+            None,
+            7,
+        )
+    except cv2.error:
+        return None
+    transform: np.ndarray[Any, Any] = cv2.invertAffineTransform(inverse)
+    warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
+        moving_mask,
+        transform,
+        (reference_mask.shape[1], reference_mask.shape[0]),
+    )
+    intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
+    overlap = (
+        2
+        * intersection
+        / max(
+            1,
+            int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask)),
+        )
+    )
+    if score < 0.45 or overlap < 0.5:
+        return None
+    reference_scale = np.asarray(
+        [
+            reference_rgb.shape[1] / reference_small.shape[1],
+            reference_rgb.shape[0] / reference_small.shape[0],
+        ]
+    )
+    moving_scale = np.asarray(
+        [
+            moving_rgb.shape[1] / moving_small.shape[1],
+            moving_rgb.shape[0] / moving_small.shape[0],
+        ]
+    )
+    full = np.zeros((2, 3), dtype=np.float64)
+    full[:, :2] = np.diag(reference_scale) @ transform[:, :2] @ np.diag(1 / moving_scale)
+    full[:, 2] = transform[:, 2] * reference_scale
+    return full, float(score), float(overlap)
+
+
+def _sample_coordinate_map(
+    *,
+    reference_rgb: np.ndarray[Any, Any],
+    moving_rgb: np.ndarray[Any, Any],
+    map_moving_to_reference: Callable[[np.ndarray[Any, Any]], np.ndarray[Any, Any]],
+    map_reference_to_moving: Callable[[np.ndarray[Any, Any]], np.ndarray[Any, Any]],
+    provenance: str,
+    grid_size: int = 25,
+    minimum_tissue_dice: float = 0.68,
+    reference_cropped: bool = False,
+    moving_cropped: bool = False,
+) -> RegistrationResult:
+    """Sample an upstream dense transform into invertible paired triangles."""
+    _, moving_mask = _structure(moving_rgb, cropped=moving_cropped)
+    _, reference_mask = _structure(reference_rgb, cropped=reference_cropped)
+    height, width = moving_mask.shape
+    nonzero = cv2.findNonZero(moving_mask)
+    if nonzero is None:
+        raise AlignmentRejected("engine map has no moving tissue support")
+    bx, by, bw, bh = cv2.boundingRect(nonzero)
+    xs = np.linspace(bx, bx + bw - 1, grid_size)
+    ys = np.linspace(by, by + bh - 1, grid_size)
+    moving_points = np.asarray([(x, y) for y in ys for x in xs], dtype=np.float64)
+    tissue = (
+        moving_mask[
+            np.clip(np.rint(moving_points[:, 1]).astype(int), 0, height - 1),
+            np.clip(np.rint(moving_points[:, 0]).astype(int), 0, width - 1),
+        ]
+        > 0
+    )
+    moving_points = moving_points[tissue]
+    if len(moving_points) < 9:
+        raise AlignmentRejected(
+            f"engine map has insufficient distributed tissue support ({len(moving_points)} samples)"
+        )
+    reference_points = np.asarray(map_moving_to_reference(moving_points), dtype=np.float64)
+    if reference_points.shape != moving_points.shape or not np.isfinite(reference_points).all():
+        raise AlignmentRejected("engine returned invalid forward coordinates")
+    restored = np.asarray(map_reference_to_moving(reference_points), dtype=np.float64)
+    if restored.shape != moving_points.shape or not np.isfinite(restored).all():
+        raise AlignmentRejected("engine returned invalid inverse coordinates")
+    cycle = np.linalg.norm(restored - moving_points, axis=1)
+    inside = (
+        (reference_points[:, 0] >= 0)
+        & (reference_points[:, 1] >= 0)
+        & (reference_points[:, 0] < reference_mask.shape[1])
+        & (reference_points[:, 1] < reference_mask.shape[0])
+    )
+    reference_tissue = np.zeros(len(reference_points), dtype=bool)
+    valid_indexes = np.where(inside)[0]
+    reference_tissue[valid_indexes] = (
+        reference_mask[
+            np.clip(
+                np.rint(reference_points[valid_indexes, 1]).astype(int),
+                0,
+                reference_mask.shape[0] - 1,
+            ),
+            np.clip(
+                np.rint(reference_points[valid_indexes, 0]).astype(int),
+                0,
+                reference_mask.shape[1] - 1,
+            ),
+        ]
+        > 0
+    )
+    accepted = inside & reference_tissue & (cycle <= 0.5)
+    if int(np.count_nonzero(accepted)) < 9:
+        raise AlignmentRejected(
+            "engine map failed tissue support or round-trip validation "
+            f"({int(np.count_nonzero(accepted))}/{len(moving_points)} accepted, "
+            f"cycle p95 {float(np.percentile(cycle, 95)):.3f}px)"
+        )
+    moving_points = moving_points[accepted]
+    reference_points = reference_points[accepted]
+    cycle = cycle[accepted]
+    controls = [
+        {
+            "moving": source.round(4).tolist(),
+            "reference": target.round(4).tolist(),
+            "errorPixels": round(float(error), 4),
+            "provenance": provenance,
+        }
+        for source, target, error in zip(moving_points, reference_points, cycle, strict=True)
+    ]
+    affine = _affine_from_controls(controls)
+    warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
+        moving_mask,
+        np.asarray(affine, dtype=np.float32),
+        (reference_mask.shape[1], reference_mask.shape[0]),
+    )
+    intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
+    tissue_dice = (
+        2
+        * intersection
+        / max(1, int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask)))
+    )
+    if tissue_dice < minimum_tissue_dice:
+        raise AlignmentRejected(
+            f"engine map failed whole-tissue overlap validation ({tissue_dice:.3f} Dice)"
+        )
+    triangles = _registration_triangles(
+        controls,
+        moving_mask=moving_mask,
+        reference_mask=reference_mask,
+    )
+    for triangle in triangles:
+        triangle["provenance"] = provenance
+    if not triangles:
+        raise AlignmentRejected("engine map contains no non-folded supported cells")
+    moving_support = cv2.boundingRect(cv2.findNonZero(moving_mask))
+    reference_support = cv2.boundingRect(cv2.findNonZero(reference_mask))
+    mx, my, mw, mh = moving_support
+    rx, ry, rw, rh = reference_support
+    cycle_p95 = float(np.percentile(cycle, 95))
+    return RegistrationResult(
+        status="ready",
+        moving_to_reference=affine,
+        reference_support=(rx, ry, rx + rw, ry + rh),
+        moving_support=(mx, my, mx + mw, my + mh),
+        confidence=max(0.0, min(0.99, 1.0 - cycle_p95 / 2.0)),
+        inlier_count=len(controls),
+        match_count=len(controls),
+        median_error_pixels=float(np.median(cycle)),
+        control_points=controls,
+        triangles=triangles,
+        evidence={
+            "mode": "matched-regions",
+            "engine": provenance,
+            "triangleCount": len(triangles),
+            "sampledControlCount": len(controls),
+            "coordinateGridSize": grid_size,
+            "roundTripP95Pixels": round(cycle_p95, 6),
+            "tissueDice": round(tissue_dice, 6),
+            "withheldCheck": "engine-cycle-tissue-support-and-overlap",
+        },
+    )
+
+
+def _mark_approximate_engine_map(payload: dict[str, Any], *, reason: str) -> dict[str, Any]:
+    """Keep a useful whole-slide proposal without claiming local anatomy.
+
+    Dense-flow cycle consistency only proves that an engine can invert its own
+    transform. It does not prove that the transform joins corresponding
+    anatomy, so maps without distributed matched features are overview-only.
+    """
+    tissue_dice = float((payload.get("evidence") or {}).get("tissueDice") or 0.0)
+    if not np.isfinite(tissue_dice) or tissue_dice < 0.65:
+        raise AlignmentRejected("Needs refinement: coarse map has insufficient tissue support")
+    result = dict(payload)
+    result["status"] = "approximate"
+    result["reason"] = reason
+    result["confidence"] = min(0.49, float(result.get("confidence") or 0.0))
+    result["overviewTriangles"] = list(result.get("triangles") or [])
+    result["triangles"] = []
+    result["controlPoints"] = []
+    result["inlierCount"] = 0
+    result["supportPolygons"] = {"moving": [], "reference": []}
+    evidence = dict(result.get("evidence") or {})
+    evidence.update(
+        {
+            "mode": "approximate-overview",
+            "withheldCheck": "insufficient-distributed-anatomical-features",
+        }
+    )
+    result["evidence"] = evidence
+    return result
+
+
+class NativeEngine:
+    name = ENGINE_NATIVE
+
+    def available(self) -> tuple[bool, str | None]:
+        return True, None
+
+    def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
+        started = time.monotonic()
+        progress({"stage": "native-registration", "progress": 30})
+        result = register_pair(inputs.reference, inputs.moving, max_dimension=4096)
+        result = rescale_registration(
+            result,
+            reference_thumbnail_size=inputs.reference.size,
+            moving_thumbnail_size=inputs.moving.size,
+            reference_full_size=inputs.reference_full_size,
+            moving_full_size=inputs.moving_full_size,
+        )
+        payload = result.as_json()
+        payload["engine"] = self.name
+        payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["engineSettings"] = inputs.settings or {}
+        return EngineRun(payload, None, None, time.monotonic() - started)
+
+
+class NativeOverviewEngine:
+    name = ENGINE_NATIVE_OVERVIEW
+
+    def available(self) -> tuple[bool, str | None]:
+        return True, None
+
+    def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
+        from .alignment_fast import PREPARATION_VERSION, PreparationCache, register_prepared
+
+        started = time.monotonic()
+        cache = PreparationCache()
+        progress({"stage": "native-overview-preparation", "progress": 15})
+        settings = inputs.settings or {}
+        reference, _ = cache.prepare(
+            "reference",
+            inputs.reference,
+            inputs.reference_full_size,
+            cropped=settings.get("referenceCropped") is True,
+        )
+        moving, _ = cache.prepare(
+            "moving",
+            inputs.moving,
+            inputs.moving_full_size,
+            cropped=settings.get("movingCropped") is True,
+        )
+        preparation_seconds = time.monotonic() - started
+        progress({"stage": "native-overview-components", "progress": 30})
+        payload = register_prepared(reference, moving).as_json()
+        payload.update(
+            engine=self.name, engineVersion=ENGINE_VERSIONS[self.name], engineSettings=settings
+        )
+        payload["evidence"] = {
+            **payload.get("evidence", {}),
+            "preparationVersion": PREPARATION_VERSION,
+            "preparationSeconds": preparation_seconds,
+            "maximumPreparationDimension": 1024,
+            "originalPixelsPreserved": True,
+        }
+        return EngineRun(payload, None, None, time.monotonic() - started)
+
+
+class HisAlignEngine:
+    name = ENGINE_HISALIGN
+
+    @staticmethod
+    def _prepare_imports() -> None:
+        # HISAlign imports its optional KFB reader from package __init__ even
+        # when registration receives in-memory arrays. The adapter never opens
+        # KFB files, so provide only the unused module boundary.
+        sys.modules.setdefault("kfbslide", types.ModuleType("kfbslide"))
+
+    def available(self) -> tuple[bool, str | None]:
+        if importlib.util.find_spec("hisalign") is None:
+            return False, "HISAlign runtime is not installed in this worker image"
+        # Discovery must not load models into the API/foreground worker.
+        # Import and execution are validated in the isolated registration child.
+        return True, None
+
+    def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
+        self._prepare_imports()
+        available, reason = self.available()
+        if not available:
+            raise AlignmentRejected(reason or "HISAlign is unavailable")
+        optical_density_gray = importlib.import_module(
+            "hisalign.preprocessing"
+        ).optical_density_gray
+        feature_detectors = importlib.import_module("hisalign.registration.feature_detectors")
+        feature_matcher = importlib.import_module("hisalign.registration.feature_matcher")
+        NonRigidRegistrar = importlib.import_module(
+            "hisalign.registration.non_rigid"
+        ).NonRigidRegistrar
+        RigidRegistrar = importlib.import_module("hisalign.registration.rigid").RigidRegistrar
+
+        started = time.monotonic()
+        reference_rgb = np.asarray(inputs.reference.convert("RGB"), dtype=np.uint8)
+        moving_rgb = np.asarray(inputs.moving.convert("RGB"), dtype=np.uint8)
+        progress({"stage": "hisalign-preprocessing", "progress": 20})
+        reference_gray = optical_density_gray(reference_rgb)
+        moving_gray = optical_density_gray(moving_rgb)
+        height = max(reference_gray.shape[0], moving_gray.shape[0])
+        width = max(reference_gray.shape[1], moving_gray.shape[1])
+
+        def pad(image: np.ndarray[Any, Any]) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]:
+            matrix = np.asarray(
+                [
+                    [1.0, 0.0, (width - image.shape[1]) / 2],
+                    [0.0, 1.0, (height - image.shape[0]) / 2],
+                    [0.0, 0.0, 1.0],
+                ],
+                dtype=np.float64,
+            )
+            return cv2.warpPerspective(image, matrix, (width, height)), matrix
+
+        reference_padded, reference_padding = pad(reference_gray)
+        moving_padded, moving_padding = pad(moving_gray)
+        detector = feature_detectors.create_feature_detector("kaze", n_levels=3)
+        matcher = feature_matcher.Matcher(feature_detector=detector, max_ratio=0.8)
+        progress({"stage": "hisalign-rigid", "progress": 40})
+        rigid = RigidRegistrar(
+            ref_img=reference_padded,
+            moving_img=moving_padded,
+            ref_name="reference",
+            moving_name="moving",
+        )
+        rigid.fit(feature_detector=detector, matcher=matcher, transform_type="similarity")
+        reference_cropped = (inputs.settings or {}).get("referenceCropped") is True
+        moving_cropped = (inputs.settings or {}).get("movingCropped") is True
+        _, reference_mask = _structure(reference_rgb, cropped=reference_cropped)
+        _, moving_mask = _structure(moving_rgb, cropped=moving_cropped)
+
+        def padded_tissue_dice(matrix: np.ndarray[Any, Any]) -> float:
+            reference_padded_mask: np.ndarray[Any, Any] = cv2.warpPerspective(
+                reference_mask, reference_padding, (width, height)
+            )
+            moving_padded_mask = cv2.warpPerspective(moving_mask, moving_padding, (width, height))
+            warped: np.ndarray[Any, Any] = cv2.warpPerspective(
+                moving_padded_mask,
+                matrix,
+                (width, height),
+            )
+            intersection = int(np.count_nonzero((warped > 0) & (reference_padded_mask > 0)))
+            return (
+                2
+                * intersection
+                / max(
+                    1,
+                    int(np.count_nonzero(warped)) + int(np.count_nonzero(reference_padded_mask)),
+                )
+            )
+
+        feature_dice = padded_tissue_dice(np.asarray(rigid.M))
+        initializer = "hisalign-kaze"
+        scanner_score = -1.0
+        scanner_dice = -1.0
+        scanner = _scanner_frame_candidate(
+            reference_rgb,
+            moving_rgb,
+            reference_cropped=reference_cropped,
+            moving_cropped=moving_cropped,
+        )
+        if scanner is not None:
+            scanner_transform, scanner_score, _ = scanner
+            scanner_homogeneous = np.eye(3, dtype=np.float64)
+            scanner_homogeneous[:2] = scanner_transform
+            scanner_padded = reference_padding @ scanner_homogeneous @ np.linalg.inv(moving_padding)
+            scanner_dice = padded_tissue_dice(scanner_padded)
+            if rigid.n_matches < 8 or scanner_dice >= feature_dice + 0.05:
+                rigid.M = scanner_padded
+                initializer = "scanner-structure"
+        progress({"stage": "hisalign-non-rigid", "progress": 60})
+        non_rigid = NonRigidRegistrar(
+            ref_img=reference_padded,
+            moving_img=moving_padded,
+            M=rigid.M,
+            ref_name="reference",
+            moving_name="moving",
+        )
+        non_rigid.fit()
+        reference_matches = np.asarray(
+            rigid.matched_kp_ref if rigid.matched_kp_ref is not None else [],
+            dtype=np.float64,
+        ).reshape((-1, 2))
+        moving_matches = np.asarray(
+            rigid.matched_kp_moving if rigid.matched_kp_moving is not None else [],
+            dtype=np.float64,
+        ).reshape((-1, 2))
+        feature_spread = 0.0
+        feature_residual = float("inf")
+        if len(reference_matches) >= 3 and len(moving_matches) == len(reference_matches):
+            reference_area = float(
+                cv2.contourArea(cv2.convexHull(reference_matches.astype(np.float32)))
+            )
+            moving_area = float(cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32))))
+            feature_spread = min(reference_area, moving_area) / max(1.0, float(width * height))
+            warped_matches = np.asarray(non_rigid.warp_xy(moving_matches), dtype=np.float64)
+            feature_residual = float(
+                np.median(np.linalg.norm(warped_matches - reference_matches, axis=1))
+            )
+        feature_residual_limit = 0.02 * float(np.hypot(width, height))
+        local_evidence_qualified = bool(
+            rigid.n_matches >= 8
+            and feature_spread >= 0.08
+            and feature_residual <= feature_residual_limit
+        )
+        moving_padding_inverse = np.linalg.inv(moving_padding)
+        reference_padding_inverse = np.linalg.inv(reference_padding)
+
+        def homogeneous(
+            points: np.ndarray[Any, Any], matrix: np.ndarray[Any, Any]
+        ) -> np.ndarray[Any, Any]:
+            values = np.column_stack([points, np.ones(len(points))]) @ matrix.T
+            return np.asarray(values[:, :2] / values[:, 2:3], dtype=np.float64)
+
+        def forward(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+            padded = homogeneous(points, moving_padding)
+            mapped = non_rigid.warp_xy(padded)
+            return np.asarray(
+                homogeneous(np.asarray(mapped), reference_padding_inverse),
+                dtype=np.float64,
+            )
+
+        def inverse(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+            padded = homogeneous(points, reference_padding)
+            mapped = non_rigid.inverse_warp_xy(padded)
+            return np.asarray(
+                homogeneous(np.asarray(mapped), moving_padding_inverse),
+                dtype=np.float64,
+            )
+
+        progress({"stage": "hisalign-coordinate-map", "progress": 75})
+        result = _sample_coordinate_map(
+            reference_rgb=reference_rgb,
+            moving_rgb=moving_rgb,
+            map_moving_to_reference=forward,
+            map_reference_to_moving=inverse,
+            provenance=self.name,
+            reference_cropped=reference_cropped,
+            moving_cropped=moving_cropped,
+        )
+        result = rescale_registration(
+            result,
+            reference_thumbnail_size=inputs.reference.size,
+            moving_thumbnail_size=inputs.moving.size,
+            reference_full_size=inputs.reference_full_size,
+            moving_full_size=inputs.moving_full_size,
+        )
+        artifact = inputs.workspace / "hisalign-coordinate-model.npz"
+        np.savez_compressed(
+            artifact,
+            rigid=np.asarray(rigid.M),
+            backward_dx=np.asarray(non_rigid.bk_dxdy[0]),
+            backward_dy=np.asarray(non_rigid.bk_dxdy[1]),
+            forward_dx=np.asarray(non_rigid.fwd_dxdy[0]),
+            forward_dy=np.asarray(non_rigid.fwd_dxdy[1]),
+        )
+        payload = result.as_json()
+        if not local_evidence_qualified:
+            payload = _mark_approximate_engine_map(
+                payload,
+                reason=(
+                    "HISAlign produced a whole-slide proposal but did not find enough "
+                    "spatially distributed anatomical feature matches for local synchronization"
+                ),
+            )
+        payload["engine"] = self.name
+        payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["engineSettings"] = inputs.settings or {}
+        payload["evidence"] = {
+            **payload.get("evidence", {}),
+            "rigidInitializer": initializer,
+            "adapterVersion": ADAPTER_VERSIONS[self.name],
+            "hisalignFeatureMatches": int(rigid.n_matches),
+            "hisalignFeatureTissueDice": round(feature_dice, 6),
+            "hisalignFeatureSpatialSpread": round(feature_spread, 6),
+            "hisalignFeatureResidualPixels": (
+                round(feature_residual, 6) if np.isfinite(feature_residual) else None
+            ),
+            "hisalignLocalEvidenceQualified": local_evidence_qualified,
+            "scannerStructureScore": round(scanner_score, 6),
+            "scannerTissueDice": round(scanner_dice, 6),
+        }
+        return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)
+
+
+def _feature_tissue_coverage(
+    points: np.ndarray[Any, Any], rgb: np.ndarray[Any, Any], *, cropped: bool = False
+) -> float:
+    """Measure distributed matches over tissue, without counting surrounding glass."""
+    if len(points) < 3 or not np.isfinite(points).all():
+        return 0.0
+    _, mask = _structure(rgb, cropped=cropped)
+    height, width = mask.shape
+    if np.any(points < 0) or np.any(points[:, 0] >= width) or np.any(points[:, 1] >= height):
+        return 0.0
+    hull = cv2.convexHull(points.astype(np.float32))
+    covered = np.zeros_like(mask)
+    cv2.fillConvexPoly(covered, np.rint(hull).astype(np.int32), (255,))
+    covered_tissue = int(np.count_nonzero((covered > 0) & (mask > 0)))
+    tissue = max(1, int(np.count_nonzero(mask)))
+    return covered_tissue / tissue
+
+
+def _feature_supported_triangles(
+    triangles: list[dict[str, Any]], moving: np.ndarray[Any, Any], reference: np.ndarray[Any, Any]
+) -> list[dict[str, Any]]:
+    """Never extend local feature evidence beyond its hull on either slide."""
+    hulls = {}
+    for side, points in (("moving", moving), ("reference", reference)):
+        if len(points) < 3 or not np.isfinite(points).all():
+            return []
+        hull = cv2.convexHull(points.astype(np.float32))
+        if cv2.contourArea(hull) <= 0:
+            return []
+        hulls[side] = hull
+    return [
+        cell
+        for cell in triangles
+        if all(
+            cv2.pointPolygonTest(hulls[side], (float(x), float(y)), True) >= -1e-4
+            for side in ("moving", "reference")
+            for x, y in cell[side]
+        )
+    ]
+
+
+def merge_component_maps(
+    parts: list[tuple[dict[str, Any], tuple[int, int, int], tuple[int, int, int]]],
+) -> dict[str, Any]:
+    """Keep independent fragment geometry in a shared level-zero coordinate frame."""
+    qualified = [
+        part
+        for part in parts
+        if part[0].get("status") == "ready"
+        and part[0].get("evidence", {}).get("valisLocalEvidenceQualified") is True
+        and part[0].get("triangles")
+        or part[0].get("status") == "approximate"
+        and part[0].get("overviewTriangles")
+    ]
+    if not qualified:
+        raise AlignmentRejected("No accepted component correspondence")
+    primary, (rx, ry, _), (mx, my, _) = next(
+        (part for part in qualified if part[0].get("status") == "ready"), qualified[0]
+    )
+    result = {**primary, "triangles": [], "overviewTriangles": [], "controlPoints": []}
+    result["movingToReference"] = compose_transforms(
+        [[1, 0, rx], [0, 1, ry]],
+        compose_transforms(primary["movingToReference"], [[1, 0, -mx], [0, 1, -my]]),
+    )
+    component_evidence = []
+    for payload, reference_frame, moving_frame in qualified:
+        rx, ry, _ = reference_frame
+        mx, my, _ = moving_frame
+        for key in ("triangles", "overviewTriangles", "controlPoints"):
+            if payload.get("status") != "ready" and key != "overviewTriangles":
+                continue
+            for item in payload.get(key) or []:
+                if key == "controlPoints":
+                    translated = {
+                        **item,
+                        "moving": [item["moving"][0] + mx, item["moving"][1] + my],
+                        "reference": [item["reference"][0] + rx, item["reference"][1] + ry],
+                    }
+                else:
+                    translated = {
+                        **item,
+                        "moving": [[x + mx, y + my] for x, y in item["moving"]],
+                        "reference": [[x + rx, y + ry] for x, y in item["reference"]],
+                    }
+                result[key].append(translated)
+        component_evidence.append({"status": payload["status"], **payload.get("evidence", {})})
+    cells = result["triangles"] + result["overviewTriangles"]
+    if not cells:
+        raise AlignmentRejected("Component maps have no supported cells")
+    for side in ("moving", "reference"):
+        points = np.asarray([point for cell in cells for point in cell[side]])
+        result[f"{side}Support"] = [*points.min(axis=0).tolist(), *points.max(axis=0).tolist()]
+    result["supportPolygons"] = {
+        side: [cell[side] for cell in result["triangles"]] for side in ("moving", "reference")
+    }
+    result["status"] = "ready" if result["triangles"] else "approximate"
+    result["inlierCount"] = len(result["controlPoints"])
+    result["matchCount"] = sum(int(payload.get("matchCount") or 0) for payload, _, _ in qualified)
+    result["confidence"] = min(float(payload.get("confidence") or 0) for payload, _, _ in qualified)
+    local_count = sum(payload.get("status") == "ready" for payload, _, _ in qualified)
+    result["evidence"] = {
+        "source": "bounded-pyramid-component-valis",
+        "componentCount": len(qualified),
+        "localComponentCount": local_count,
+        "approximateComponentCount": len(qualified) - local_count,
+        "componentEvidence": component_evidence,
+        "triangleCount": len(result["triangles"]),
+        "overviewTriangleCount": len(result["overviewTriangles"]),
+        "valisLocalEvidenceQualified": bool(result["triangles"]),
+        "withheldCheck": "pending-independent-landmarks",
+    }
+    if local_count < len(qualified):
+        result["reason"] = "Partial component coverage; unresolved tissue needs refinement"
+    return result
+
+
+def _register_valis_bounded(
+    registrar: Any, maximum_dimension: int, *, rigid_only: bool = False
+) -> Any:
+    """Bound rematching tensors as well as the initial reader images."""
+    # Pinned VALIS 325828c1 creates this only for a nonrigid registrar, but
+    # register() unconditionally clears its class key after error measurement.
+    if rigid_only and not hasattr(registrar, "non_rigid_reg_kwargs"):
+        registrar.non_rigid_reg_kwargs = {}
+    oversized = False
+    with ExitStack() as cleanup:
+        detectors = {
+            id(matcher.feature_detector): matcher.feature_detector
+            for matcher in registrar.rigid_reg_kwargs.values()
+            if hasattr(matcher, "feature_detector")
+        }
+        if not detectors:
+            raise AlignmentRejected("VALIS feature detectors cannot be bounded")
+        for detector in detectors.values():
+            original = detector.detect_and_compute
+
+            def bounded(image: Any, *args: Any, detect: Any = original, **kwargs: Any) -> Any:
+                nonlocal oversized
+                if max(image.shape[:2]) > 2 * maximum_dimension:
+                    oversized = True
+                    raise AlignmentRejected("VALIS rematching canvas exceeds the image ceiling")
+                return detect(image, *args, **kwargs)
+
+            cleanup.callback(setattr, detector, "detect_and_compute", original)
+            detector.detect_and_compute = bounded
+        result = registrar.register()
+        if oversized:
+            raise AlignmentRejected("VALIS rematching canvas exceeds the image ceiling")
+        return result
+
+
+class ValisEngine:
+    name = ENGINE_VALIS
+
+    def available(self) -> tuple[bool, str | None]:
+        if importlib.util.find_spec("valis") is None:
+            return False, "VALIS runtime is not installed in this worker image"
+        # VALIS import can initialize Torch models and a JVM. Keep that cost
+        # inside the bounded child, never in capability polling.
+        return True, None
+
+    def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
+        from .alignment_resources import admitted_valis_resources
+
+        with admitted_valis_resources(inputs.settings or {}):
+            return self._register_admitted(inputs, progress)
+
+    def _register_admitted(self, inputs: EngineInput, progress: Progress) -> EngineRun:
+        available, reason = self.available()
+        if not available:
+            raise AlignmentRejected(reason or "VALIS is unavailable")
+        registration = importlib.import_module("valis.registration")
+
+        started = time.monotonic()
+        source = inputs.workspace / "valis-input"
+        output = inputs.workspace / "valis-output"
+        source.mkdir(parents=True, exist_ok=True)
+        reference_path = source / "00-reference.png"
+        moving_path = source / "01-moving.png"
+        blur = (inputs.settings or {}).get("inputBlurRadius", 0)
+        if isinstance(blur, bool) or not isinstance(blur, (int, float)) or not 0 <= blur <= 1:
+            raise AlignmentRejected("VALIS input blur radius must be between zero and one pixel")
+        # Registration inputs only; support validation and displayed pixels stay unchanged.
+        for image, path in ((inputs.reference, reference_path), (inputs.moving, moving_path)):
+            (image.filter(ImageFilter.GaussianBlur(blur)) if blur else image).save(path)
+        progress({"stage": "valis-rigid-and-non-rigid", "progress": 35})
+        maximum_dimension = int((inputs.settings or {}).get("maxImageDimension", 896))
+        if maximum_dimension not in {768, 896}:
+            raise AlignmentRejected("VALIS image dimension must use a qualified profile")
+        rigid_matcher = (inputs.settings or {}).get("rigidMatcher", "default")
+        if rigid_matcher not in {"default", "vgg", "disk"}:
+            raise AlignmentRejected("Unsupported VALIS rigid matcher")
+        matcher_options = (
+            {"matcher": registration.DEFAULT_MATCHER_FOR_SORTING}
+            if rigid_matcher == "vgg"
+            else {"matcher_for_sorting": registration.DEFAULT_MATCHER}
+            if rigid_matcher == "disk"
+            else {}
+        )
+        feature_limit = (inputs.settings or {}).get("maxFeatures")
+        if feature_limit is not None:
+            if (
+                type(feature_limit) is not int
+                or not 256 <= feature_limit <= 7500
+                or rigid_matcher == "vgg"
+            ):
+                raise AlignmentRejected("VALIS feature limit requires 256–7500 DISK features")
+            detectors = importlib.import_module("valis.feature_detectors")
+            matchers = importlib.import_module("valis.feature_matcher")
+            matcher = matchers.LightGlueMatcher(
+                feature_detector=detectors.DiskFD(num_features=feature_limit),
+                match_filter_method=matchers.DEFAULT_RANSAC_NAME,
+            )
+            matcher_options["matcher"] = matcher
+            if rigid_matcher == "disk":
+                matcher_options["matcher_for_sorting"] = matcher
+        registrar = registration.Valis(
+            str(source),
+            str(output),
+            reference_img_f=reference_path.name,
+            imgs_ordered=True,
+            align_to_reference=True,
+            **matcher_options,
+            **(
+                {"non_rigid_registrar_cls": None}
+                if (inputs.settings or {}).get("rigidOnly")
+                else {}
+            ),
+            # VALIS otherwise promotes its default 1024-pixel reader limit to
+            # max_processed_image_dim_px and materializes several 4096-pixel
+            # float images during non-rigid registration.  That exceeded the
+            # worker's 7 GiB process ceiling for ordinary two-slide stacks.
+            # VALIS can expand a rotated rematching canvas to roughly twice
+            # this dimension. 896 retains more feature detail than the safe
+            # 768 fallback while leaving enough headroom below the 7 GiB child
+            # process ceiling on the development pair.
+            max_image_dim_px=maximum_dimension,
+            max_processed_image_dim_px=maximum_dimension,
+            max_non_rigid_registration_dim_px=1024,
+        )
+        _, _, error_df = _register_valis_bounded(
+            registrar, maximum_dimension, rigid_only=bool((inputs.settings or {}).get("rigidOnly"))
+        )
+        if error_df is None:
+            if blur == 0 and rigid_matcher == "default":
+                # Retry only this failed fragment, never discard an accepted raw map.
+                del registrar
+                gc.collect()
+                progress({"stage": "valis-input-blur-fallback", "progress": 35})
+                retry = self._register_admitted(
+                    replace(
+                        inputs,
+                        workspace=inputs.workspace / "input-blur-fallback",
+                        settings={**(inputs.settings or {}), "inputBlurRadius": 0.6},
+                    ),
+                    progress,
+                )
+                payload = {
+                    **retry.registration,
+                    "evidence": {
+                        **retry.registration.get("evidence", {}),
+                        "valisInitialFailure": "missing-validation-evidence",
+                    },
+                }
+                assert retry.artifact_path is not None
+                retry.artifact_path.write_text(json.dumps(payload, separators=(",", ":")))
+                return EngineRun(
+                    payload,
+                    retry.artifact_path,
+                    _hash_file(retry.artifact_path),
+                    time.monotonic() - started,
+                )
+            raise AlignmentRejected("VALIS registration did not produce validation evidence")
+        moving_slide = registrar.get_slide(moving_path.name)
+        reference_slide = registrar.get_slide(reference_path.name)
+        if moving_slide is None or reference_slide is None:
+            raise AlignmentRejected("VALIS did not expose both registered slides")
+
+        def forward(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+            return np.asarray(
+                moving_slide.warp_xy_from_to(
+                    points,
+                    reference_slide,
+                    **({"non_rigid": False} if (inputs.settings or {}).get("rigidOnly") else {}),
+                ),
+                dtype=np.float64,
+            )
+
+        def inverse(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+            return np.asarray(
+                reference_slide.warp_xy_from_to(
+                    points,
+                    moving_slide,
+                    **({"non_rigid": False} if (inputs.settings or {}).get("rigidOnly") else {}),
+                ),
+                dtype=np.float64,
+            )
+
+        progress({"stage": "valis-coordinate-map", "progress": 75})
+        result = _sample_coordinate_map(
+            reference_rgb=np.asarray(inputs.reference.convert("RGB")),
+            moving_rgb=np.asarray(inputs.moving.convert("RGB")),
+            map_moving_to_reference=forward,
+            map_reference_to_moving=inverse,
+            provenance=self.name,
+            # Keep curvature lost by the old 25-point grid out of viewer navigation.
+            grid_size=49,
+            reference_cropped=(inputs.settings or {}).get("referenceCropped") is True,
+            moving_cropped=(inputs.settings or {}).get("movingCropped") is True,
+            # Serial sections can have real missing edge tissue, so VALIS is
+            # allowed to produce a preview map below the strict whole-outline
+            # threshold. Distributed feature evidence below decides whether
+            # the result may be called locally aligned.
+            minimum_tissue_dice=0.45,
+        )
+        raw_moving_matches = getattr(moving_slide, "xy_matched_to_prev", None)
+        raw_reference_matches = getattr(moving_slide, "xy_in_prev", None)
+        moving_matches = np.asarray(
+            raw_moving_matches if raw_moving_matches is not None else [],
+            dtype=np.float64,
+        ).reshape(-1, 2)
+        reference_matches = np.asarray(
+            raw_reference_matches if raw_reference_matches is not None else [],
+            dtype=np.float64,
+        ).reshape(-1, 2)
+        if len(moving_matches):
+            moving_matches *= np.asarray(
+                moving_slide.slide_dimensions_wh[0], dtype=np.float64
+            ) / np.asarray(moving_slide.processed_img_shape_rc[::-1], dtype=np.float64)
+        if len(reference_matches):
+            reference_matches *= np.asarray(
+                reference_slide.slide_dimensions_wh[0], dtype=np.float64
+            ) / np.asarray(reference_slide.processed_img_shape_rc[::-1], dtype=np.float64)
+        match_count = min(len(moving_matches), len(reference_matches))
+        moving_matches = moving_matches[:match_count]
+        reference_matches = reference_matches[:match_count]
+        match_spread = 0.0
+        if match_count >= 3:
+            moving_area = float(cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32))))
+            reference_area = float(
+                cv2.contourArea(cv2.convexHull(reference_matches.astype(np.float32)))
+            )
+            match_spread = min(
+                moving_area / max(1.0, float(np.prod(inputs.moving.size))),
+                reference_area / max(1.0, float(np.prod(inputs.reference.size))),
+            )
+        match_residual = float("inf")
+        tissue_match_coverage = min(
+            _feature_tissue_coverage(
+                moving_matches,
+                np.asarray(inputs.moving.convert("RGB")),
+                cropped=(inputs.settings or {}).get("movingCropped") is True,
+            ),
+            _feature_tissue_coverage(
+                reference_matches,
+                np.asarray(inputs.reference.convert("RGB")),
+                cropped=(inputs.settings or {}).get("referenceCropped") is True,
+            ),
+        )
+        if match_count:
+            match_residual = float(
+                np.median(
+                    np.linalg.norm(
+                        forward(moving_matches) - reference_matches,
+                        axis=1,
+                    )
+                )
+            )
+        valis_non_rigid_rtre = float("inf")
+        try:
+            error_rows = error_df.to_dict(orient="records")
+            moving_names = {moving_path.name, moving_path.stem}
+            moving_row = next(
+                row
+                for row in error_rows
+                if str(row.get("from") or "") in moving_names
+                or Path(str(row.get("filename") or "")).name == moving_path.name
+            )
+            raw_rtre = moving_row.get("non_rigid_rTRE")
+            if raw_rtre is None or not np.isfinite(float(raw_rtre)):
+                raw_rtre = moving_row.get("rigid_rTRE")
+            if raw_rtre is not None and np.isfinite(float(raw_rtre)):
+                valis_non_rigid_rtre = float(raw_rtre)
+        except (StopIteration, TypeError, ValueError):
+            pass
+        tissue_dice = float(result.evidence.get("tissueDice") or 0.0)
+        # Evaluate the sampled transform at actual matches, not just upstream rTRE.
+        # This is an engineering support gate; reviewed anatomical error is separate.
+        feature_residual_limit = max(3.0, 0.005 * max(inputs.reference.size))
+        local_evidence_qualified = bool(
+            match_count >= 8
+            and match_spread >= 0.08
+            and match_residual <= feature_residual_limit
+            and valis_non_rigid_rtre <= 0.02
+            and tissue_dice >= 0.45
+        )
+        original_cells = result.triangles
+        if local_evidence_qualified:
+            supported_cells = _feature_supported_triangles(
+                original_cells, moving_matches, reference_matches
+            )
+            local_evidence_qualified = bool(supported_cells)
+            if supported_cells:
+                vertices = {tuple(point) for cell in supported_cells for point in cell["moving"]}
+                controls = [
+                    point for point in result.control_points if tuple(point["moving"]) in vertices
+                ]
+                result = replace(
+                    result,
+                    triangles=supported_cells,
+                    overview_triangles=original_cells,
+                    control_points=controls,
+                    inlier_count=len(controls),
+                    match_count=len(controls),
+                    evidence={
+                        **result.evidence,
+                        "triangleCount": len(supported_cells),
+                        "sampledControlCount": len(controls),
+                    },
+                )
+        result = rescale_registration(
+            result,
+            reference_thumbnail_size=inputs.reference.size,
+            moving_thumbnail_size=inputs.moving.size,
+            reference_full_size=inputs.reference_full_size,
+            moving_full_size=inputs.moving_full_size,
+        )
+        artifact = inputs.workspace / "valis-coordinate-map.json"
+        payload = result.as_json()
+        if not local_evidence_qualified:
+            payload = _mark_approximate_engine_map(
+                payload,
+                reason=(
+                    "VALIS produced a whole-slide proposal but did not find enough "
+                    "spatially distributed anatomical feature matches for local synchronization"
+                ),
+            )
+        payload["engine"] = self.name
+        payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["engineSettings"] = inputs.settings or {}
+        payload["evidence"] = {
+            **payload.get("evidence", {}),
+            "adapterVersion": ADAPTER_VERSIONS[self.name],
+            "valisImageDimension": maximum_dimension,
+            "valisRigidMatcher": rigid_matcher,
+            "valisInputBlurRadius": blur,
+            "valisFeatureLimit": feature_limit or 7500,
+            "valisFeatureMatches": match_count,
+            "valisFeatureSpatialSpread": round(match_spread, 6),
+            "valisFeatureTissueCoverage": round(tissue_match_coverage, 6),
+            "valisFeatureResidualPixels": (
+                round(match_residual, 6) if np.isfinite(match_residual) else None
+            ),
+            "valisFeatureResidualLimitPixels": round(feature_residual_limit, 6),
+            "valisNonRigidRTRE": (
+                round(valis_non_rigid_rtre, 8) if np.isfinite(valis_non_rigid_rtre) else None
+            ),
+            "valisLocalEvidenceQualified": local_evidence_qualified,
+            "valisFeatureSupportedCellCount": len(payload.get("triangles") or []),
+            "valisFeatureUnsupportedCellCount": len(original_cells)
+            - len(payload.get("triangles") or []),
+        }
+        artifact.write_text(json.dumps(payload, separators=(",", ":")))
+        return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)
+
+
+def get_engine(name: str) -> RegistrationEngine:
+    name = ENGINE_ALIASES.get(name, name)
+    if name in RECIPE_STAGES:
+        from .alignment_recipes import RecipeEngine
+
+        return RecipeEngine(name)
+    if name in (ENGINE_WSIREG, ENGINE_DHR_CLASSICAL, ENGINE_DHR_LEARNED):
+        from .alignment_optional import DeeperHistRegEngine, WsiregEngine
+
+        return WsiregEngine() if name == ENGINE_WSIREG else DeeperHistRegEngine(name)
+    if name == ENGINE_NATIVE:
+        return NativeEngine()
+    if name == ENGINE_NATIVE_OVERVIEW:
+        return NativeOverviewEngine()
+    if name == ENGINE_HISALIGN:
+        return HisAlignEngine()
+    if name == ENGINE_VALIS:
+        return ValisEngine()
+    raise ValueError(f"Unsupported registration engine: {name}")
+
+
+def _copy_initializer_provenance(
+    workspace: Path, destination: Path, descriptor: dict[str, Any] | None
+) -> None:
+    if descriptor is not None and descriptor.get("name") != INITIALIZER_ARTIFACT_NAME:
+        raise AlignmentRejected("initializer provenance requires its fixed safe basename")
+    source = workspace / INITIALIZER_ARTIFACT_NAME
+    if not source.is_file():
+        if descriptor is not None:
+            raise AlignmentRejected("initializer provenance artifact is missing")
+        return
+    if source.is_symlink() or source.stat().st_size > MAX_INITIALIZER_ARTIFACT_BYTES:
+        raise AlignmentRejected("initializer provenance exceeds its size ceiling")
+    with source.open("rb") as stream:
+        content = stream.read(MAX_INITIALIZER_ARTIFACT_BYTES + 1)
+    if len(content) > MAX_INITIALIZER_ARTIFACT_BYTES:
+        raise AlignmentRejected("initializer provenance exceeds its size ceiling")
+    digest = hashlib.sha256(content).hexdigest()
+    if descriptor is not None and descriptor.get("sha256") != digest:
+        raise AlignmentRejected("initializer provenance digest does not match its receipt")
+    try:
+        if not isinstance(json.loads(content), dict):
+            raise ValueError("initializer map is not an object")
+    except (ValueError, UnicodeError) as error:
+        raise AlignmentRejected("initializer provenance is not a JSON map") from error
+    destination.mkdir(parents=True, exist_ok=True)
+    temporary = destination / f".{INITIALIZER_ARTIFACT_NAME}.tmp"
+    temporary.write_bytes(content)
+    temporary.replace(destination / INITIALIZER_ARTIFACT_NAME)
+
+
+def run_engine(
+    name: str,
+    *,
+    reference: Image.Image,
+    moving: Image.Image,
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+    workspace_root: Path | None = None,
+    artifact_dir: Path | None = None,
+    settings: dict[str, Any] | None = None,
+    progress: Progress = lambda _values: None,
+) -> EngineRun:
+    from .alignment_geometry import original_frame_registration, validate_input_geometry
+
+    validate_input_geometry(
+        settings or {},
+        {"reference": reference.size, "moving": moving.size},
+        {"reference": reference_full_size, "moving": moving_full_size},
+    )
+    root = workspace_root or Path(tempfile.gettempdir())
+    with tempfile.TemporaryDirectory(prefix=f"pathlab-{name}-", dir=root) as temporary:
+        run: EngineRun | None = None
+        try:
+            run = get_engine(name).register(
+                EngineInput(
+                    reference=reference,
+                    moving=moving,
+                    reference_full_size=reference_full_size,
+                    moving_full_size=moving_full_size,
+                    workspace=Path(temporary),
+                    settings=settings,
+                    artifact_dir=artifact_dir,
+                ),
+                progress,
+            )
+        finally:
+            if name in RECIPE_STAGES and artifact_dir is not None:
+                _copy_initializer_provenance(
+                    Path(temporary),
+                    artifact_dir,
+                    run.registration.get("initializerArtifact") if run is not None else None,
+                )
+        effective_settings = run.registration.get("engineSettings", settings or {})
+        registration = original_frame_registration(
+            {**run.registration, "engineSettings": effective_settings}, effective_settings
+        )
+        if registration is not run.registration:
+            run = replace(run, registration=registration)
+            if run.artifact_path is not None:
+                run.artifact_path.write_text(
+                    json.dumps(registration, sort_keys=True), encoding="utf-8"
+                )
+                run = replace(run, artifact_sha256=_hash_file(run.artifact_path))
+        if run.artifact_path is None or artifact_dir is None:
+            return run
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        destination = artifact_dir / run.artifact_path.name
+        temporary_destination = artifact_dir / f".{run.artifact_path.name}.tmp"
+        shutil.copyfile(run.artifact_path, temporary_destination)
+        temporary_destination.replace(destination)
+        return EngineRun(
+            run.registration,
+            destination,
+            run.artifact_sha256,
+            run.runtime_seconds,
+        )

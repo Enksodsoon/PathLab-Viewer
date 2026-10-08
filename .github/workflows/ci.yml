@@ -277,6 +277,7 @@ jobs:
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
       - name: Verify qualified browser distribution against actual emitted bytes
+        id: verify_browser_distribution
         run: |
           if [[ -f docs/supply-chain/browser-distribution-receipt.json ]]; then
             BROWSER_SUBJECT="$(python -c 'import json; print(json.load(open("docs/supply-chain/browser-distribution-receipt.json"))["subjectCommit"])')"
@@ -287,6 +288,17 @@ jobs:
             python scripts/browser_distribution.py verify \
               --dist apps/web/dist --packaged-legal-files
           fi
+      - name: Retain emitted browser identity files after verification failure
+        if: ${{ failure() && steps.verify_browser_distribution.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-distribution-mismatch-identity
+          path: |
+            apps/web/dist/.vite/manifest.json
+            apps/web/dist/index.html
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - name: Verify web distribution license files
         run: |
           cmp LICENSE apps/web/dist/LICENSE
@@ -373,6 +385,16 @@ jobs:
   fullstack:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - journey: workflows
+            grep: '^(?!.*(?:every declared route renders|edge blocks internal routes and rejects oversized JSON before authentication|forged forwarding headers cannot evade shared login admission through Caddy)).*'
+          - journey: route-explorer
+            grep: 'every declared route renders'
+          - journey: security
+            grep: '^.* (?:edge blocks internal routes and rejects oversized JSON before authentication|forged forwarding headers cannot evade shared login admission through Caddy)$'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -383,8 +405,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.14.0", cache: pnpm }
       - name: Install native test services at repository runtime versions
+        env:
+          GOTOOLCHAIN: go1.26.8
         run: |
           set -euo pipefail
+          test "$(go env GOVERSION)" = "$GOTOOLCHAIN"
+          go version
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libvips-tools
           go install github.com/tus/tusd/v2/cmd/tusd@v2.9.2
@@ -395,12 +421,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium
       - name: Run disposable real imaging journey
-        run: python scripts/run_fullstack_tests.py --report-dir "${RUNNER_TEMP}/fullstack-evidence"
+        env:
+          FULLSTACK_GREP: ${{ matrix.grep }}
+        run: python scripts/run_fullstack_tests.py --grep "${FULLSTACK_GREP}" --report-dir "${RUNNER_TEMP}/fullstack-evidence"
       - name: Retain synthetic full-stack diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: fullstack-synthetic-diagnostics
+          name: fullstack-synthetic-diagnostics-${{ matrix.journey }}
           path: ${{ runner.temp }}/fullstack-evidence/
           if-no-files-found: warn
           retention-days: 7
@@ -451,6 +479,55 @@ jobs:
           --cache-from type=gha,scope=backend
           --cache-to type=gha,mode=max,scope=backend
           -f deploy/Dockerfile.backend .
+      - name: Build ARM64 native alignment image
+        run: >-
+          docker buildx build --platform linux/arm64
+          --cache-from type=gha,scope=alignment
+          --cache-to type=gha,mode=max,scope=alignment
+          --build-arg PATHLAB_RELEASE_IMAGE_TAG=ci
+          -t pathlab-viewer-alignment:ci
+          --load
+          -f deploy/Dockerfile.alignment .
+      - name: Execute ARM64 native preview and process-limit smoke tests
+        run: >-
+          docker run --rm --platform linux/arm64
+          --memory 512m --cpus 1.75
+          --entrypoint python
+          pathlab-viewer-alignment:ci
+          scripts/alignment_image_smoke.py
+      - name: Execute ARM64 owned-session descendant and RSS smoke
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          cid_directory=$(mktemp -d "${RUNNER_TEMP}/alignment-stdlib-arm64.XXXXXX")
+          cidfile="$cid_directory/container.cid"
+          test ! -e "$cidfile"
+          cleanup() {
+            status=$?
+            trap - EXIT
+            if [[ ! -s "$cidfile" ]]; then
+              echo "Container admission returned no CID; creation/cleanup state unproved; no unknown container removed." >&2
+              if [[ "$status" -eq 0 ]]; then status=1; fi
+            else
+              cid=$(<"$cidfile")
+              if [[ ! "$cid" =~ ^[a-f0-9]{64}$ ]]; then
+                echo "Invalid owned CID receipt; cleanup unproved; no container removed." >&2
+                if [[ "$status" -eq 0 ]]; then status=1; fi
+              elif ! timeout --kill-after=5s 10s docker rm -f "$cid" >/dev/null; then
+                echo "Owned-container removal failed; cleanup unproved." >&2
+                if [[ "$status" -eq 0 ]]; then status=1; fi
+              fi
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          timeout --signal=TERM --kill-after=15s 240s \
+            docker run --cidfile "$cidfile" --platform linux/arm64 \
+            --memory 512m --cpus 1.75 \
+            --mount type=bind,source="$PWD/scripts/alignment_containment_smoke.py",target=/app/scripts/alignment_containment_smoke.py,readonly \
+            --entrypoint python \
+            pathlab-viewer-alignment:ci \
+            scripts/alignment_containment_smoke.py
       - name: Build ARM64 web image
         run: >-
           docker buildx build --platform linux/arm64

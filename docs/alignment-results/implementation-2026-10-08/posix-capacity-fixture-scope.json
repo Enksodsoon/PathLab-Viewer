@@ -1,0 +1,22 @@
+{
+  "schema": "pathlab.posix-capacity-fixture-ci-scope/1",
+  "sourceHead": "9eab3edeeedded8b2fca9c0521c88cdec388e0cc",
+  "runId": 37808320998,
+  "ciStep": "Verify capacity harness and evidence contracts without load",
+  "actualCommand": "pytest -q tests/load",
+  "stepConclusion": "success",
+  "observedBatchPassedProgressMarkers": 508,
+  "observedBatchSkippedMarkers": 0,
+  "module": "tests/load/test_restore_capacity_runtime_guards.py",
+  "sourceSha256": "92abf773d058b1852dbce08bafff3c34c57f8315c413c9386f2c19cd4baecbf2",
+  "declaredFunctions": 15,
+  "declaredParameterizedCases": 23,
+  "moduleIncludedInSuccessfulBatch": true,
+  "independentPerModuleSummaryEmitted": false,
+  "countBasis": "AST-expanded frozen source declarations; module result inferred from successful all-load batch with no skips/errors",
+  "scope": "Synthetic command traces and release-manifest fixtures with real POSIX flock and competing subprocesses; compose/watchdog commands replaced by bounded fixture scripts",
+  "productionDeploymentExecuted": false,
+  "productionLoadExecuted": false,
+  "readinessRepair": "Wait within original first-child deadline, retain child diagnostics on failure, preserve competing-lock and no-mutation assertions",
+  "rawBackendLogSha256": "060c0ae1d7638c2fb18731984f8daf7adf5572f36def81a5518e438eeda5f764"
+}

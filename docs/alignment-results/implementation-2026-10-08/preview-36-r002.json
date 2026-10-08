@@ -1,0 +1,1167 @@
+{
+  "schema": "pathlab.preview-36-sanitized/1",
+  "head": "68a81ef009134269e91b129b16dd082b9e653613",
+  "attempt": "r002",
+  "plannedRows": 36,
+  "ownApplicationObservedRows": 36,
+  "restorationObservedRows": 36,
+  "overallBrowserOutcome": "passed",
+  "clockScope": "Actual Preview click dispatch to supported own candidate-cell application/readback and subsequent two-animation-frame nonuniform-original-pane observation; includes React scheduling. Not first OSD draw or pure registration compute.",
+  "scope": "Current production Preview over immutable copied historical candidate maps/original JPEGs. Unchanged-field arm with production automatic own focus; no forced field/maps. Read-only replay, not new engine compute or anatomical qualification.",
+  "anatomicalQualification": false,
+  "sourceBeforeAfterIdentical": true,
+  "nativeBeforeAfterIdentical": true,
+  "copiedOriginalBytesUnchanged": true,
+  "allAlignmentAndJobRowsUnchanged": true,
+  "noWorkerOrRegistrationPosts": true,
+  "lifetime": {
+    "actualSeconds": 142.90700000000652,
+    "aggregateCommittedMemoryLimitBytes": 7516192768,
+    "cpuPolicy": "thread environment1; no aggregate CPU quota claim",
+    "maximumSeconds": 900,
+    "outerJobClosed": true,
+    "temporaryRemoved": true,
+    "withinBound": true
+  },
+  "allBrowsersClosed": true,
+  "ownedServiceManagerClosed": true,
+  "artifactsSha256": {
+    "observations.json": "e24ef23ecb7b78305764a0e8887bd03bccb670dc5c523905917b170fe6474362",
+    "source-start.json": "ac941bc9f1d787563bd4422d3e63625816891e6335d0078a98d6c74b41958832",
+    "source-terminal.json": "ac941bc9f1d787563bd4422d3e63625816891e6335d0078a98d6c74b41958832",
+    "runtime-native-start.json": "5d1a3acfa95e8532762bbda9eab8c2d0964333a62957a52f94d92097b4801add",
+    "runtime-native-terminal.json": "f750152e45dc306510411df12c3a41943775140f9788649c4810b85ab9d9ba32",
+    "alignment-rows-terminal.json": "a17576f2f9ce32cb4108fe569859300b2902b4e164080d2c2c54ff70e3feca40",
+    "lifetime.json": "56447861ffadfe1f352a4d31f2e560bed9338c5db6b00d766931155feca38a9e",
+    "inner-cleanup.json": "ec2f9a369aba839b85dda3cd8606f4bf1e2428d2e59579b91fd15cf18aac37fa"
+  },
+  "rows": [
+    {
+      "profile": "chromium",
+      "recipe": "native-overview-v6",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.1148999999910593,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 311,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "80de45d369d62fb7ebfd9b01597e245986a1921f06f67612944bc48c9808070a",
+      "candidateRegistrationDigest": "3365a2e7f2392778c4da626966056f2263f35ed3cc84c27deafe0be4564b8c25",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "valis-1.2.0",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.11520000000298024,
+      "ownSupport": {
+        "localCells": 2309,
+        "overviewCells": 2854,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "c1074d4604310c3648ff7b8e4f75e01e613efc3d3c1639c859d8f72ad27a1a11",
+      "candidateRegistrationDigest": "90929ceaed8dfbe981200501fe491e918f17f2bac52156ce8db5c440ba4a3359",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "wsireg-0.3.10",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.11079999999701977,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2881,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "53d71cd19a06d7d060bd1cfce45e61a953ae5226a549c2b3412af50107dc6e70",
+      "candidateRegistrationDigest": "5c2c6404f780aae1269ffa2193747e79f427685e1ea92a2f025cdd42cd9c1850",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "hisalign-0.2.1",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.11470000000298024,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 637,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.684341886080802e-14,
+        "actualGetterCenterResidualPixels": 5.684341886080802e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "cc8071ac7da9061efc856dc1e95c5fe0ff725722af589f27cf2ec5eecfaf37d3",
+      "candidateRegistrationDigest": "895b47337348d0933a65f0a3950c8a28e38b3938f2e5b49af6191e521553f773",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "deeperhistreg-classical",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.118,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2729,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 6.355287432313019e-14,
+        "actualGetterCenterResidualPixels": 6.355287432313019e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "8474982638e81ff9d2bb5df34daa441832c77306b5652096c7edfb113695f93c",
+      "candidateRegistrationDigest": "c87fcf286c27f90f6aea04076fc7ee754f2530113ef698a02e1ce00056b96dc1",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "deeperhistreg-learned",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.10729999999701977,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2883,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "9687c444886fabb9ce115f3297d0007864c6d875f84d639596814d764da546f6",
+      "candidateRegistrationDigest": "7f0e43c615346eeb375a00f62b067c125e8f1db1a2acfeab1f8d529824748d0a",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "native-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.12179999999701976,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2914,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "6a258bdfa465e38fb6daf899e768fe12a333ef7a23740edf6e1523f172570efd",
+      "candidateRegistrationDigest": "ee90a8d1ebd8197073fb15035ec91e40998dc4a45f3ff45194b024b7ca21f873",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "valis-rigid-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.1148999999910593,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2919,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "33b4161d3f3c9681aa26da80681e77c2049442a709d5099bdf1de102d3d92262",
+      "candidateRegistrationDigest": "b0572bbb05b40c9670d0cd5d092344733739d58193164a289dc98cf8565fe4d9",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "chromium",
+      "recipe": "native-valis",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.12870000000298024,
+      "ownSupport": {
+        "localCells": 2389,
+        "overviewCells": 2917,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "a07d91ccbe2bfc2af21680516005be6e49a24c570b60c8c7cc49fb8eb2e6f508",
+      "candidateRegistrationDigest": "fe3411c2965c029ff05f6424a9623286282c0ef41bd86f177974f65772decc95",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "native-overview-v6",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.074,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 311,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "80de45d369d62fb7ebfd9b01597e245986a1921f06f67612944bc48c9808070a",
+      "candidateRegistrationDigest": "3365a2e7f2392778c4da626966056f2263f35ed3cc84c27deafe0be4564b8c25",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "valis-1.2.0",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.104,
+      "ownSupport": {
+        "localCells": 2309,
+        "overviewCells": 2854,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "c1074d4604310c3648ff7b8e4f75e01e613efc3d3c1639c859d8f72ad27a1a11",
+      "candidateRegistrationDigest": "90929ceaed8dfbe981200501fe491e918f17f2bac52156ce8db5c440ba4a3359",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "wsireg-0.3.10",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.079,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2881,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "53d71cd19a06d7d060bd1cfce45e61a953ae5226a549c2b3412af50107dc6e70",
+      "candidateRegistrationDigest": "5c2c6404f780aae1269ffa2193747e79f427685e1ea92a2f025cdd42cd9c1850",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "hisalign-0.2.1",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.13,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 637,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.684341886080802e-14,
+        "actualGetterCenterResidualPixels": 5.684341886080802e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "cc8071ac7da9061efc856dc1e95c5fe0ff725722af589f27cf2ec5eecfaf37d3",
+      "candidateRegistrationDigest": "895b47337348d0933a65f0a3950c8a28e38b3938f2e5b49af6191e521553f773",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "deeperhistreg-classical",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.08,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2729,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 6.355287432313019e-14,
+        "actualGetterCenterResidualPixels": 6.355287432313019e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "8474982638e81ff9d2bb5df34daa441832c77306b5652096c7edfb113695f93c",
+      "candidateRegistrationDigest": "c87fcf286c27f90f6aea04076fc7ee754f2530113ef698a02e1ce00056b96dc1",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "deeperhistreg-learned",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.082,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2883,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "9687c444886fabb9ce115f3297d0007864c6d875f84d639596814d764da546f6",
+      "candidateRegistrationDigest": "7f0e43c615346eeb375a00f62b067c125e8f1db1a2acfeab1f8d529824748d0a",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "native-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.075,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2914,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "6a258bdfa465e38fb6daf899e768fe12a333ef7a23740edf6e1523f172570efd",
+      "candidateRegistrationDigest": "ee90a8d1ebd8197073fb15035ec91e40998dc4a45f3ff45194b024b7ca21f873",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "valis-rigid-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.088,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2919,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "33b4161d3f3c9681aa26da80681e77c2049442a709d5099bdf1de102d3d92262",
+      "candidateRegistrationDigest": "b0572bbb05b40c9670d0cd5d092344733739d58193164a289dc98cf8565fe4d9",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "firefox",
+      "recipe": "native-valis",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.086,
+      "ownSupport": {
+        "localCells": 2389,
+        "overviewCells": 2917,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "a07d91ccbe2bfc2af21680516005be6e49a24c570b60c8c7cc49fb8eb2e6f508",
+      "candidateRegistrationDigest": "fe3411c2965c029ff05f6424a9623286282c0ef41bd86f177974f65772decc95",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "native-overview-v6",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.095,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 311,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "80de45d369d62fb7ebfd9b01597e245986a1921f06f67612944bc48c9808070a",
+      "candidateRegistrationDigest": "3365a2e7f2392778c4da626966056f2263f35ed3cc84c27deafe0be4564b8c25",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "valis-1.2.0",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.097,
+      "ownSupport": {
+        "localCells": 2309,
+        "overviewCells": 2854,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "c1074d4604310c3648ff7b8e4f75e01e613efc3d3c1639c859d8f72ad27a1a11",
+      "candidateRegistrationDigest": "90929ceaed8dfbe981200501fe491e918f17f2bac52156ce8db5c440ba4a3359",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "wsireg-0.3.10",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.094,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2881,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "53d71cd19a06d7d060bd1cfce45e61a953ae5226a549c2b3412af50107dc6e70",
+      "candidateRegistrationDigest": "5c2c6404f780aae1269ffa2193747e79f427685e1ea92a2f025cdd42cd9c1850",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "hisalign-0.2.1",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.089,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 637,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.684341886080802e-14,
+        "actualGetterCenterResidualPixels": 5.684341886080802e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "cc8071ac7da9061efc856dc1e95c5fe0ff725722af589f27cf2ec5eecfaf37d3",
+      "candidateRegistrationDigest": "895b47337348d0933a65f0a3950c8a28e38b3938f2e5b49af6191e521553f773",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "deeperhistreg-classical",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.094,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2729,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 6.355287432313019e-14,
+        "actualGetterCenterResidualPixels": 6.355287432313019e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "8474982638e81ff9d2bb5df34daa441832c77306b5652096c7edfb113695f93c",
+      "candidateRegistrationDigest": "c87fcf286c27f90f6aea04076fc7ee754f2530113ef698a02e1ce00056b96dc1",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "deeperhistreg-learned",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.116,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2883,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "9687c444886fabb9ce115f3297d0007864c6d875f84d639596814d764da546f6",
+      "candidateRegistrationDigest": "7f0e43c615346eeb375a00f62b067c125e8f1db1a2acfeab1f8d529824748d0a",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "native-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.117,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2914,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "6a258bdfa465e38fb6daf899e768fe12a333ef7a23740edf6e1523f172570efd",
+      "candidateRegistrationDigest": "ee90a8d1ebd8197073fb15035ec91e40998dc4a45f3ff45194b024b7ca21f873",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "valis-rigid-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.122,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2919,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "33b4161d3f3c9681aa26da80681e77c2049442a709d5099bdf1de102d3d92262",
+      "candidateRegistrationDigest": "b0572bbb05b40c9670d0cd5d092344733739d58193164a289dc98cf8565fe4d9",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "webkit",
+      "recipe": "native-valis",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.106,
+      "ownSupport": {
+        "localCells": 2389,
+        "overviewCells": 2917,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 2.220446049250313e-16,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "a07d91ccbe2bfc2af21680516005be6e49a24c570b60c8c7cc49fb8eb2e6f508",
+      "candidateRegistrationDigest": "fe3411c2965c029ff05f6424a9623286282c0ef41bd86f177974f65772decc95",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "native-overview-v6",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.17720000000298022,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 311,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "80de45d369d62fb7ebfd9b01597e245986a1921f06f67612944bc48c9808070a",
+      "candidateRegistrationDigest": "3365a2e7f2392778c4da626966056f2263f35ed3cc84c27deafe0be4564b8c25",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "valis-1.2.0",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.1745,
+      "ownSupport": {
+        "localCells": 2309,
+        "overviewCells": 2854,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "c1074d4604310c3648ff7b8e4f75e01e613efc3d3c1639c859d8f72ad27a1a11",
+      "candidateRegistrationDigest": "90929ceaed8dfbe981200501fe491e918f17f2bac52156ce8db5c440ba4a3359",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "wsireg-0.3.10",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.151,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2881,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "53d71cd19a06d7d060bd1cfce45e61a953ae5226a549c2b3412af50107dc6e70",
+      "candidateRegistrationDigest": "5c2c6404f780aae1269ffa2193747e79f427685e1ea92a2f025cdd42cd9c1850",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "hisalign-0.2.1",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.1505,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 637,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.684341886080802e-14,
+        "actualGetterCenterResidualPixels": 5.684341886080802e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "cc8071ac7da9061efc856dc1e95c5fe0ff725722af589f27cf2ec5eecfaf37d3",
+      "candidateRegistrationDigest": "895b47337348d0933a65f0a3950c8a28e38b3938f2e5b49af6191e521553f773",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "deeperhistreg-classical",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.14890000000596046,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2729,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 6.355287432313019e-14,
+        "actualGetterCenterResidualPixels": 6.355287432313019e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "8474982638e81ff9d2bb5df34daa441832c77306b5652096c7edfb113695f93c",
+      "candidateRegistrationDigest": "c87fcf286c27f90f6aea04076fc7ee754f2530113ef698a02e1ce00056b96dc1",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "deeperhistreg-learned",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.18090000000596046,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2883,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 5.859285502108464e-14,
+        "actualGetterCenterResidualPixels": 5.859285502108464e-14,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "9687c444886fabb9ce115f3297d0007864c6d875f84d639596814d764da546f6",
+      "candidateRegistrationDigest": "7f0e43c615346eeb375a00f62b067c125e8f1db1a2acfeab1f8d529824748d0a",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "native-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.16479999999701977,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2914,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "6a258bdfa465e38fb6daf899e768fe12a333ef7a23740edf6e1523f172570efd",
+      "candidateRegistrationDigest": "ee90a8d1ebd8197073fb15035ec91e40998dc4a45f3ff45194b024b7ca21f873",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "valis-rigid-wsireg",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.16790000000596048,
+      "ownSupport": {
+        "localCells": 0,
+        "overviewCells": 2919,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "33b4161d3f3c9681aa26da80681e77c2049442a709d5099bdf1de102d3d92262",
+      "candidateRegistrationDigest": "b0572bbb05b40c9670d0cd5d092344733739d58193164a289dc98cf8565fe4d9",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    },
+    {
+      "profile": "mobile-chromium",
+      "recipe": "native-valis",
+      "outcome": "own-application-observed",
+      "reason": null,
+      "browserApplicationSeconds": 0.19859999999403954,
+      "ownSupport": {
+        "localCells": 2389,
+        "overviewCells": 2917,
+        "originalNonuniformCanvases": 2,
+        "retainedOverview": false,
+        "regional": false,
+        "centerResidualPixels": 0,
+        "actualGetterCenterResidualPixels": 0.0,
+        "direction": "candidate-to-anchor"
+      },
+      "restore": {
+        "observed": true,
+        "maximumCenterResidualPixels": 0,
+        "maximumZoomResidual": 0,
+        "maximumRotationResidualDegrees": 0
+      },
+      "unexpectedMutationRefused": false,
+      "candidateSettingsDigest": "a07d91ccbe2bfc2af21680516005be6e49a24c570b60c8c7cc49fb8eb2e6f508",
+      "candidateRegistrationDigest": "fe3411c2965c029ff05f6424a9623286282c0ef41bd86f177974f65772decc95",
+      "queueSeconds": null,
+      "computeSeconds": null,
+      "humanEffort": null
+    }
+  ],
+  "perRecipe": [
+    {
+      "recipe": "native-overview-v6",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.074,
+      "maximumSeconds": 0.17720000000298022,
+      "medianSeconds": 0.10494999999552965
+    },
+    {
+      "recipe": "valis-1.2.0",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.097,
+      "maximumSeconds": 0.1745,
+      "medianSeconds": 0.10960000000149012
+    },
+    {
+      "recipe": "wsireg-0.3.10",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.079,
+      "maximumSeconds": 0.151,
+      "medianSeconds": 0.10239999999850988
+    },
+    {
+      "recipe": "hisalign-0.2.1",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.089,
+      "maximumSeconds": 0.1505,
+      "medianSeconds": 0.12235000000149013
+    },
+    {
+      "recipe": "deeperhistreg-classical",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.08,
+      "maximumSeconds": 0.14890000000596046,
+      "medianSeconds": 0.106
+    },
+    {
+      "recipe": "deeperhistreg-learned",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.082,
+      "maximumSeconds": 0.18090000000596046,
+      "medianSeconds": 0.11164999999850989
+    },
+    {
+      "recipe": "native-wsireg",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.075,
+      "maximumSeconds": 0.16479999999701977,
+      "medianSeconds": 0.11939999999850989
+    },
+    {
+      "recipe": "valis-rigid-wsireg",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.088,
+      "maximumSeconds": 0.16790000000596048,
+      "medianSeconds": 0.11844999999552966
+    },
+    {
+      "recipe": "native-valis",
+      "plannedProfiles": 4,
+      "ownMeasured": 4,
+      "restored": 4,
+      "minimumSeconds": 0.086,
+      "maximumSeconds": 0.19859999999403954,
+      "medianSeconds": 0.11735000000149012
+    }
+  ]
+}

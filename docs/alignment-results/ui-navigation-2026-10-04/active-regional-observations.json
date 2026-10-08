@@ -1,0 +1,1059 @@
+{
+  "schema": "pathlab.ui-active-regional/1",
+  "status": "passed",
+  "scope": "Disposable synthetic original JPEG DZI tissue derivatives; real worker, regional API and OpenSeadragon active regional label and numerical viewport application. Engineering evidence only.",
+  "sourceBinding": {
+    "applicationCommit": "296af2b425e8a8fb6ae3c64268b0c2d46e88195d",
+    "effectiveE2eScenarioCommit": "a166af335809e68fbba5b74b44445f80755bfc56",
+    "capturedOriginalStartupHead": "296af2b425e8a8fb6ae3c64268b0c2d46e88195d",
+    "capturedFinalScenarioStartupHead": "a166af335809e68fbba5b74b44445f80755bfc56",
+    "terminalHead": "132be50bf8ac200495b96fece9c210d6cea014e8",
+    "originalStartupReceiptSha256": "5b0ca98749115d397c758793d1f013ab33153364cade88ec018b82ce2994d889",
+    "finalScenarioReceiptSha256": "6cc234bf3dab7eb018e1365fc1237fd851fc4a4a432366bb215b5d1f58758c4a",
+    "terminalSourceComparisonSha256": "6a4cba3daab6a7703e25bfbe88383f55b803bfa595a730383632b638a5fd2a81",
+    "productionSourceDigestsReceiptSha256": "a3e6152fd16090980b031b512c1dbfe9f4add163df2ca8d97e69bdd0192f80dc",
+    "frontend704TestQaReceiptSha256": "d42363ac12fbb735e50fcba824164f1814f84d03028aa98d6766705d1d8c9101",
+    "frontendProductionUnchangedFrom704TestQa": true,
+    "codeDigests": {
+      "apps/web/e2e-fullstack/alignment-region.spec.ts": "5e687b163d8f6790855edf0fd56cdef0239c59e5ad082ebb3fb1bd86de4c2b63",
+      "apps/web/e2e-fullstack/alignment-stack.spec.ts": "4e2bdba10f448a8230f3982c7df43b83a49498b13cd40bfa16af5d830cdea337",
+      "apps/web/e2e-fullstack/alignment-large-odd.spec.ts": "e6ee927cac5ef2f6defd628d31ddb5b8111939885923403e5d92aaf46e72305b",
+      "apps/web/playwright.fullstack.config.ts": "009fd574a020b025fc903b0fe3cdf052b228554ec98497100f528b1cf2227f50",
+      "scripts/run_fullstack_tests.py": "b0e3a11012034beebc0d89f3d9e08e652ac27567d2fb87cf603414a8bff265b7",
+      "scripts/seed_frontend_qa.py": "1a8a2e7740c34660b515859bf14615ff6023b876a1b5c01160ad5d13fc5e314d"
+    }
+  },
+  "totals": {
+    "browsers": 4,
+    "passedJourneys": 12,
+    "failedJourneys": 0,
+    "skippedJourneys": 0,
+    "flakyJourneys": 0,
+    "assertionRetries": 0,
+    "workerStackCases": 32,
+    "largeOddSupportedPanDirections": 8,
+    "largeOddNonuniformMainCanvasAssertions": 8,
+    "supportedManualApplications": 36,
+    "outsideRegionOverviewFallbacks": 4,
+    "manualPaneLabelAssertions": 72
+  },
+  "timingScope": "Times begin after seed construction and include real API/worker queue/preparation, page loading and initial OSD application; exclude fixture generation. Thresholds and observations describe these synthetic journeys, not production latency, warm-worker qualification or anatomical accuracy.",
+  "excludedClaims": [
+    "anatomical accuracy or clinical/diagnostic qualification",
+    "scientific recipe ranking or benchmark results",
+    "full production foreground latency",
+    "warm-worker qualification",
+    "same-version publication race exercised in browser (separately covered by frontend and actual backend endpoint tests)"
+  ],
+  "browsers": [
+    {
+      "browser": "chromium",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "a166af335809e68fbba5b74b44445f80755bfc56",
+      "resultsDurationMilliseconds": 67043.596,
+      "guidedCorrection": {
+        "loadedTileResponses": 72,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 2407.8596,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 42,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 401.78889999999956,
+            "browserObservedMilliseconds": 1519.569500000005
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 168.03650000000198,
+            "browserObservedMilliseconds": 1425.811600000001
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 547.7195999999967,
+            "browserObservedMilliseconds": 1412.9233999999997
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 759.4354999999996,
+            "browserObservedMilliseconds": 3338.472499999996
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 1993.1557999999932,
+            "browserObservedMilliseconds": 2035.0307999999932
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 867.7169999999969,
+            "browserObservedMilliseconds": 1863.7226999999984
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 2205.7468999999983,
+            "browserObservedMilliseconds": 2246.5076999999947
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 1179.8582999999999,
+            "browserObservedMilliseconds": 3497.3992
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "a05201e20f28d5cd15dde57a54dc9ca40a2e914790eaade72914383e20f641bd",
+        "run-environment.json": "2110bf5b56c39ecab4754ce8917d69434466188b2b19ff30d2c65dd46261ec8a",
+        "extracted-large-odd-foreground-receipt.json": "e07d4e921098d94ccecc6ad06dfeb2ac93b7629ccc3353ca67a408b956430d11",
+        "extracted-guided-correction-receipt.json": "a24d99a1cc67093a37999fe3b640cf51c5d29baaa1fdfdc23daca720d87c9c94",
+        "extracted-stack-timing.json": "23c3629f49b8aae646ac8b74fb261d80fbbf91db9f01b5f22b6ac2af124bf0b0",
+        "extracted-manual-path-receipt.json": "a6aaf7cc5759d93b64d2db405dda2deb10fb7aee430681aa6b11ec58697e943b"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "639cd22cbd2575e7ce3db3bbe9873a228cd19a59fe97cdbb95d4c473a7c4c499",
+        "alignment-dark": "c58482ae5fc5667d150b4b810a1c43006334ec7bdaeb1d4bad7923d78d8ef5f2",
+        "alignment-inspector": "511fdea14095069da8e3b6dabffd37477bd12d54225e55925190995a9a583b2d",
+        "alignment-light": "add7f25643bf7d582c27c6406d99141ea9807ea4b8946891eee791dccaff7cfd",
+        "alignment-outside-region-overview": "f17178e0b51b2b1bf8fa6137c935775f62ac52b54a8625975cfbb132bbceb150",
+        "alignment-region-preview": "754d51d1e7fc020e3c3704f8cbb0f3251ed06a14be750d13a88723b308780b87",
+        "alignment-two-point-saved": "69ccb927347ebf4a1373e74e6dbd292982fae1f633b3dab0776b5516f4d76314"
+      },
+      "manualRegionPath": {
+        "visibleLabel": "Manually adjusted approximation",
+        "previewPrimaryText": "Unsaved correction preview",
+        "previewSecondaryText": "Manually adjusted approximation",
+        "actualAppliedRegionalEventAsserted": true,
+        "coordinateOracle": "Independent forward/inverse affine from regional API response against real OSD viewport readback; numerical application residual, not anatomical error.",
+        "coordinateTolerancePixels": 0.01,
+        "supportedApplications": 9,
+        "overviewFallbacksOutsideAllRegions": 1,
+        "manualPaneLabelAssertions": 18,
+        "maxObservedCenterResidualPixels": 1.1368683772161603e-13,
+        "capturedSourceBoundsAsserted": true,
+        "labelsClearOfPaneControlsAsserted": true,
+        "overviewFallbackRegionalFalseAndManualLabelsAbsentAsserted": true,
+        "observations": [
+          {
+            "phase": "one-point-preview",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "maxCenterResidualPixels": 1.4210854715202004e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "maxCenterResidualPixels": 1.1368683772161603e-13,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "maxCenterResidualPixels": 1.1368683772161603e-13,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "maxCenterResidualPixels": 1.1368683772161603e-13,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "maxCenterResidualPixels": 2.842170943040401e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regional": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "maxCenterResidualPixels": 2.842170943040401e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      }
+    },
+    {
+      "browser": "firefox",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "132be50bf8ac200495b96fece9c210d6cea014e8",
+      "resultsDurationMilliseconds": 58273.572,
+      "guidedCorrection": {
+        "loadedTileResponses": 36,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 3678.004,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 42,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 1151.8772000000026,
+            "browserObservedMilliseconds": 3193.4087
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 161.53779999999824,
+            "browserObservedMilliseconds": 793.329700000002
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 562.7016999999978,
+            "browserObservedMilliseconds": 935.9926999999952
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 538.2513000000035,
+            "browserObservedMilliseconds": 961.1198999999979
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 1742.6997999999949,
+            "browserObservedMilliseconds": 1807.7693999999974
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 829.9555000000037,
+            "browserObservedMilliseconds": 3417.3600000000006
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 2212.525499999996,
+            "browserObservedMilliseconds": 2275.4392000000007
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 994.1835000000065,
+            "browserObservedMilliseconds": 1095.7111000000004
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "32f996ccee6e9814c5dd837a496bf1d61f298b133b4f366747fdcc835d3ca424",
+        "run-environment.json": "70bcd57180fded592399036d3a4b93e9000cb47fcd1782f09e0e120cef1b44bf",
+        "extracted-large-odd-foreground-receipt.json": "8b2e90bc42964b3ac379702d3c37ea1e4688fe25e8cc8dc12aa7a868cf54e48f",
+        "extracted-guided-correction-receipt.json": "ebf1fb901190eb3354da90d5bfc37065b01f70655edd51e98c73fb4519cf3b60",
+        "extracted-stack-timing.json": "d8d3003fe20e433dd98fbad43d755c421b562e6b04dcd75432861b1835285580",
+        "extracted-manual-path-receipt.json": "5f4d22a99fe06dbf693943bd4b4a74b8a44b90486083beb6046292b64e2696c5"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "f8873dd8bdbeff75bad0de5a3652da69a215864b736b4cb7eaa7ce91c02508cb",
+        "alignment-dark": "4dbc0e350df35bac8e48e53b09a4d4ada30d7bef206f9b3a8a8b013dc66c1f27",
+        "alignment-inspector": "5d6980eeb3b80c02acf649f50fafaf71017b239a9bb84ac8d481327ca986f679",
+        "alignment-light": "00234a90a4eb47ec556244b47ac4264ae15e4e67f5e980836bd01383dada0e70",
+        "alignment-outside-region-overview": "062909815da9802dcb6157d7ea9dc9a6db6e2667559cd5c342786eace4aa35de",
+        "alignment-region-preview": "58a4ec87b4d4616a4f121a6847fd6f8448073d2627b66011297525a41f52c935",
+        "alignment-two-point-saved": "80f3adf327dbe1a948ca1aacd1961dd81735a7ef5fe087e4157b8f71a0bf4aec"
+      },
+      "manualRegionPath": {
+        "visibleLabel": "Manually adjusted approximation",
+        "previewPrimaryText": "Unsaved correction preview",
+        "previewSecondaryText": "Manually adjusted approximation",
+        "actualAppliedRegionalEventAsserted": true,
+        "coordinateOracle": "Independent forward/inverse affine from regional API response against real OSD viewport readback; numerical application residual, not anatomical error.",
+        "coordinateTolerancePixels": 0.01,
+        "supportedApplications": 9,
+        "overviewFallbacksOutsideAllRegions": 1,
+        "manualPaneLabelAssertions": 18,
+        "maxObservedCenterResidualPixels": 5.684341886080802e-14,
+        "capturedSourceBoundsAsserted": true,
+        "labelsClearOfPaneControlsAsserted": true,
+        "overviewFallbackRegionalFalseAndManualLabelsAbsentAsserted": true,
+        "observations": [
+          {
+            "phase": "one-point-preview",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "maxCenterResidualPixels": 1.4210854715202004e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regional": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      }
+    },
+    {
+      "browser": "webkit",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "132be50bf8ac200495b96fece9c210d6cea014e8",
+      "resultsDurationMilliseconds": 64462.382000000005,
+      "guidedCorrection": {
+        "loadedTileResponses": 43,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 3487.306600000001,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 44,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 1101.636900000005,
+            "browserObservedMilliseconds": 3158.6105000000025
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 274.9070999999967,
+            "browserObservedMilliseconds": 680.1483000000007
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 774.8282000000036,
+            "browserObservedMilliseconds": 848.9334999999992
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 806.7402999999977,
+            "browserObservedMilliseconds": 2834.9760000000024
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 1660.3524000000034,
+            "browserObservedMilliseconds": 1752.926400000004
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 944.9519,
+            "browserObservedMilliseconds": 3008.995299999995
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 2293.4348000000027,
+            "browserObservedMilliseconds": 2360.525999999998
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 1011.8445999999967,
+            "browserObservedMilliseconds": 1080.9824999999983
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "bd1a5c530c6940bd28a8d4878b0fd2370b0267ec784d524919697a81dc92be42",
+        "run-environment.json": "f7e671c9796f4fa95d3a10be8f859176dac8a1e6684e5983be306d4001630024",
+        "extracted-large-odd-foreground-receipt.json": "3f0d407ebcdad85dee16d0b76b295fd288f71eaddfa901d3adaaf423eab14cce",
+        "extracted-guided-correction-receipt.json": "8b0f99d0b41d0f1308543e5a4740f1d2e1f5133980e6346298f01b9027fef564",
+        "extracted-stack-timing.json": "a193f6f1813ea07cb444838b53ac0aceffa3149f522125954f49edb03c78f12d",
+        "extracted-manual-path-receipt.json": "7284afe6817aeed34bb3f234f7455a854268325c0f5cb811e2515f3722785762"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "e4bfcd3cf5ba34afc1822dbd30dd008bf809976c779cc20fe85746644b2ef557",
+        "alignment-dark": "15033344d18f930b76624355f194030398815e61257b328b596b54ce0b0125dc",
+        "alignment-inspector": "50ac020798d89e68fb70cb67ddf002a0d7981f2f5216fa8b05534a62822ebf1d",
+        "alignment-light": "613a76e7c5cf2bff1e897bf06fd40f65d363ebfa66a8a025cbd9d87a66d07dad",
+        "alignment-outside-region-overview": "cd85522c270d75817154d9c549d8cb719a08c9df27882362c0bc4b0a21cc4d23",
+        "alignment-region-preview": "e584c47323e23a15e355c76c1553d508ebb91f3afd3168a1c69243b178fa1b28",
+        "alignment-two-point-saved": "8fc40c4ac40b43c9d784f053ab41f08d3383f268513a6c1cf1fb20b37ccf7328"
+      },
+      "manualRegionPath": {
+        "visibleLabel": "Manually adjusted approximation",
+        "previewPrimaryText": "Unsaved correction preview",
+        "previewSecondaryText": "Manually adjusted approximation",
+        "actualAppliedRegionalEventAsserted": true,
+        "coordinateOracle": "Independent forward/inverse affine from regional API response against real OSD viewport readback; numerical application residual, not anatomical error.",
+        "coordinateTolerancePixels": 0.01,
+        "supportedApplications": 9,
+        "overviewFallbacksOutsideAllRegions": 1,
+        "manualPaneLabelAssertions": 18,
+        "maxObservedCenterResidualPixels": 5.684341886080802e-14,
+        "capturedSourceBoundsAsserted": true,
+        "labelsClearOfPaneControlsAsserted": true,
+        "overviewFallbackRegionalFalseAndManualLabelsAbsentAsserted": true,
+        "observations": [
+          {
+            "phase": "one-point-preview",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "maxCenterResidualPixels": 1.4210854715202004e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "maxCenterResidualPixels": 2.842170943040401e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "maxCenterResidualPixels": 2.842170943040401e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "maxCenterResidualPixels": 1.4210854715202004e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regional": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "maxCenterResidualPixels": 1.4210854715202004e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      }
+    },
+    {
+      "browser": "mobile-chromium",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "skippedJourneys": 0,
+      "flakyJourneys": 0,
+      "assertionRetries": 0,
+      "runEnvironmentCapturedHead": "132be50bf8ac200495b96fece9c210d6cea014e8",
+      "resultsDurationMilliseconds": 77323.469,
+      "guidedCorrection": {
+        "loadedTileResponses": 60,
+        "hiddenReference": true,
+        "onePointSavedReloaded": true,
+        "onePointPreviewBasisStringAndSaveBodyEqualityAsserted": true,
+        "twoPointSavedReloaded": true,
+        "twoPointPreviewCancelled": true,
+        "transientPreviewFailureRetainedPoints": true,
+        "advancedOpenedDuringGuidedCorrection": false,
+        "slidesAndSyncKeyboardRoundtrips": true,
+        "themeAndInspectorReloadChecks": true
+      },
+      "largeOddDzi": {
+        "engine": "native-overview-v6",
+        "status": "approximate",
+        "phase": "preview",
+        "referenceGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "movingGeometry": {
+          "schema": "pathlab-sampling-frame/1",
+          "kind": "dzi-pyramid",
+          "sourceSize": [
+            5003,
+            4009
+          ],
+          "analysisSize": [
+            626,
+            502
+          ],
+          "coordinateFrameSize": [
+            5008,
+            4016
+          ],
+          "samplingScale": [
+            8,
+            8
+          ],
+          "cropOrigin": [
+            0,
+            0
+          ],
+          "pyramidDivisor": 8,
+          "selectedLevel": 10
+        },
+        "browserObservedMilliseconds": 2308.3957,
+        "engineeringThresholdMilliseconds": 10000,
+        "loadedTileResponses": 42,
+        "supportedPanDirections": 2,
+        "nonuniformMainCanvasesAsserted": 2,
+        "mappedCentersInsideSourceDimensionsAsserted": true,
+        "positiveFiniteZoomAsserted": true,
+        "knownSyntheticTranslationResidualPerAxisTolerancePixels": 40,
+        "bothApproximatePaneStatusesAsserted": true,
+        "advancedOpened": false
+      },
+      "workerStacks": {
+        "cases": 8,
+        "observations": [
+          {
+            "slides": 2,
+            "mode": "growing",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 1821.3934999999983,
+            "browserObservedMilliseconds": 3014.717199999999
+          },
+          {
+            "slides": 2,
+            "mode": "repeated",
+            "mappedMovingSlides": 1,
+            "mapsAvailableMilliseconds": 229.8472000000038,
+            "browserObservedMilliseconds": 1326.3591000000015
+          },
+          {
+            "slides": 4,
+            "mode": "growing",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 807.5959000000003,
+            "browserObservedMilliseconds": 1394.6790000000037
+          },
+          {
+            "slides": 4,
+            "mode": "repeated",
+            "mappedMovingSlides": 3,
+            "mapsAvailableMilliseconds": 743.7260000000024,
+            "browserObservedMilliseconds": 3303.755400000002
+          },
+          {
+            "slides": 8,
+            "mode": "growing",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 1998.3181999999942,
+            "browserObservedMilliseconds": 2037.2758999999933
+          },
+          {
+            "slides": 8,
+            "mode": "repeated",
+            "mappedMovingSlides": 7,
+            "mapsAvailableMilliseconds": 848.9759000000049,
+            "browserObservedMilliseconds": 1805.6956000000064
+          },
+          {
+            "slides": 12,
+            "mode": "growing",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 2592.006800000003,
+            "browserObservedMilliseconds": 2637.5695000000123
+          },
+          {
+            "slides": 12,
+            "mode": "repeated",
+            "mappedMovingSlides": 11,
+            "mapsAvailableMilliseconds": 1434.7247999999963,
+            "browserObservedMilliseconds": 1510.8233000000037
+          }
+        ],
+        "engineeringThresholdMilliseconds": 10000
+      },
+      "privateReceiptSha256": {
+        "results.json": "44651faad81f6668df9f69debe18e09c6cc68b579e45643b68ab78795cfd6542",
+        "run-environment.json": "6d8e134cc0aec47c5c2bd781c47c5b8381571741c0d3185d191a1ebfc9535fa9",
+        "extracted-large-odd-foreground-receipt.json": "17c79a7f33bd1c2a34378f850f8b303d4e58384969ec209dc3c395039771aeb4",
+        "extracted-guided-correction-receipt.json": "007c395973b733b206b5327f8d56707f61e4187ed7d117b853e982be9573e79e",
+        "extracted-stack-timing.json": "d0d7cf77cd91074bbc1ec72484a55b8f4216a24dab7f3d530d974fe34a61a365",
+        "extracted-manual-path-receipt.json": "7f326384511e2820ef28a99f1be7f5e5532df73cdfde33e124710140e4139be6"
+      },
+      "screenshotSha256": {
+        "alignment-large-odd-original-pixels": "33660885ffbac1d9d59dcf4fa411d426d0bbaed486a95a237d382a710e4c0b9b",
+        "alignment-dark": "0e258cf7236525d89998b5fe7c01bd9d6b4a651275b05dda2de0aa1ace1b8531",
+        "alignment-inspector": "ad95b5893ac83e2f342da1be43038ec0f1c8e5b8bafb28558db388f499e5f94c",
+        "alignment-light": "3f07555f8c497dfff47d12616484ac25677847479631071bba08187029225c0d",
+        "alignment-outside-region-overview": "3d767ccc59ba8c43cf476da344e58820d17d99060710a393ca8f02ab657b63d5",
+        "alignment-region-preview": "1f97e4e745612fe9434eca49fbd3c8a14996a1aa088ebab4f37640ce3862d764",
+        "alignment-two-point-saved": "c00e2ba1edb02689920414229f6f0ac92fa4b85c02a5a0cb2b89b821b103c13a"
+      },
+      "manualRegionPath": {
+        "visibleLabel": "Manually adjusted approximation",
+        "previewPrimaryText": "Unsaved correction preview",
+        "previewSecondaryText": "Manually adjusted approximation",
+        "actualAppliedRegionalEventAsserted": true,
+        "coordinateOracle": "Independent forward/inverse affine from regional API response against real OSD viewport readback; numerical application residual, not anatomical error.",
+        "coordinateTolerancePixels": 0.01,
+        "supportedApplications": 9,
+        "overviewFallbacksOutsideAllRegions": 1,
+        "manualPaneLabelAssertions": 18,
+        "maxObservedCenterResidualPixels": 5.684341886080802e-14,
+        "capturedSourceBoundsAsserted": true,
+        "labelsClearOfPaneControlsAsserted": true,
+        "overviewFallbackRegionalFalseAndManualLabelsAbsentAsserted": true,
+        "observations": [
+          {
+            "phase": "one-point-preview",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-save",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "one-point-reload",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-cancel",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "cancel-restored-saved-region",
+            "maxCenterResidualPixels": 0,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-preview-before-save",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-save",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "two-point-reload",
+            "maxCenterResidualPixels": 2.842170943040401e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          },
+          {
+            "phase": "outside-all-regions-overview",
+            "regional": false,
+            "manualLabelsAbsent": true
+          },
+          {
+            "phase": "returned-to-supported-region",
+            "maxCenterResidualPixels": 5.684341886080802e-14,
+            "bothManualLabelsVisible": true,
+            "labelsClearOfControls": true
+          }
+        ]
+      }
+    }
+  ],
+  "cleanup": {
+    "originalListenersUnchanged": true,
+    "remainingTaggedOwnedServices": 0,
+    "remainingRecordedDisposableEdgeListeners": 0,
+    "productionTouched": false,
+    "privateCleanupReceiptSha256": "0b4f52b17e8fbe8a32d6e70d9bc092db02a15a4cd35a9ef3a46ae4dd2b503ee6"
+  },
+  "privateMeasurementIndexSha256": "a1ce080a95459a6c050b8482007dc3f7af94a0625f9423d22af3440d36eb27e3",
+  "priorAttemptsExcludedFromTerminalCount": [
+    {
+      "browser": "chromium",
+      "passedJourneys": 3,
+      "failedJourneys": 0,
+      "excludedFromFinal12": true,
+      "resultsSha256": "e466577a889f52c97f3a35209a0a3144f3b4f502de35698dbc78caecece754c6",
+      "note": "Earlier scenario revision before unsaved-preview locator correction; retained without merging observations."
+    },
+    {
+      "browser": "firefox",
+      "passedJourneys": 2,
+      "failedJourneys": 1,
+      "assertionRetries": 0,
+      "excludedFromFinal12": true,
+      "category": "fixture text locator defect",
+      "failure": "Exact full-element Unsaved correction preview locator did not match visible primary text plus manual secondary text. Anchored primary phrase assertion and strict manual/coordinate oracle are used by all four final runs.",
+      "resultsSha256": "47e2b6604937e33d57087754f02f8a6f49609fbdeb2587dbc821c80dfe59105a",
+      "launchLogSha256": "ea6a072e205f6e3383ca4c397e290b224f17533df6335ec7340d6a8352441d0d",
+      "failureScreenshotSha256": {
+        "test-failed-1": "3d88f8a381e1f1db220d3425c6a1e5d8abcb3542ae7a1a33130e92a1da1acec0"
+      }
+    }
+  ],
+  "unsupportedFieldCoverage": "Focused UI regression verifies no regional status, no viewport application and Unavailable when neither regional nor overview mapping supports the field; browser journeys verify supported regional and outside-region overview fallback."
+}

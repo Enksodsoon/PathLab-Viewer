@@ -1,0 +1,463 @@
+{
+  "anatomicalQualification": false,
+  "attempts": [
+    {
+      "actualRegionPostStatusesFromApiLog": [],
+      "actualTotalSeconds": 6.046999999991385,
+      "anatomicalQualification": false,
+      "artifactHashes": {
+        "guardian-cleanup.json": "401bb019cf1a4351c444c9dd507c730b6b09c438cba8366f8a8e1276197486fb",
+        "inner-cleanup.json": "5eb49bf8a6a3a9ab3889123409bc2c2683d6ab2407f651f4311a95b8898fea7b",
+        "lifetime-receipt.json": "9a22abf7044284eb1e5841d8f01eaedb2b61b32041e150be831f276baa252652",
+        "native-runtime.json": "53e8cf39250cb104d1414fa9b79e1c447d2108b0d80550cc2f0ec2a5ee214b5b",
+        "source-start.json": "94592385c8dbee0904fa1cf4c9298ba2da8e67d6cc6990ea40851ae3983b8403"
+      },
+      "attempt": "r1",
+      "browserClosed": null,
+      "failureCategory": "seeder-prefix-admission-failure-no-services",
+      "finalCorrectionRefusalBodyKnown": false,
+      "fittingIndices": [
+        0,
+        10
+      ],
+      "frontendAssetsUnchanged": null,
+      "guidedAccuracy": null,
+      "guidedCoverage": null,
+      "humanEffort": null,
+      "nativeBinariesUnchanged": null,
+      "ownedCleanupCompleted": true,
+      "profiles": [
+        {
+          "finalUIReceiptPresent": false,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "unknown-final-receipt-absent",
+          "profile": "desktop",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        },
+        {
+          "finalUIReceiptPresent": false,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "unknown-final-receipt-absent",
+          "profile": "mobile",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        }
+      ],
+      "protocol": "original-frozen-two-point",
+      "scoringDenominator": 67,
+      "sourceHead": "b384d5a72cee01d8928c2845f5018173cbd55e3a",
+      "sourceStartupEqualsTerminal": null,
+      "sourceTerminalPresent": false,
+      "terminalOutcome": "failed"
+    },
+    {
+      "actualRegionPostStatusesFromApiLog": [],
+      "actualTotalSeconds": 70.82800000000861,
+      "anatomicalQualification": false,
+      "artifactHashes": {
+        "built-assets.json": "a3c6945a1bc084c912dc4d64967ba2635114af6606b199f6fce30f609325cd8f",
+        "cookie-proof.json": "05f145ee8dc42a0499a37e3e69ffea6e625c36402bb96aa9d305612d301bc272",
+        "guardian-cleanup.json": "401bb019cf1a4351c444c9dd507c730b6b09c438cba8366f8a8e1276197486fb",
+        "guided-interaction-failure.json": "7a81ef04665892f4312a1772d24f0cfc5bc9537daae306ff202a2a1a6da5c608",
+        "initial-comparison.json": "f74bec23ebb5cf5ed99f5c437f3d3b00cad5886e275cf5446fbffb9368dfef83",
+        "inner-cleanup.json": "d7fcb7dc278f2b8ad482781fccd50d610627ee276a6c3e5f44881ba0aa6d4f9d",
+        "interaction/frozen-selection.json": "59053eebb347a6edc424c5a4f933ac00738a8af92706b564ab0a293e2b096ef4",
+        "interaction/published-landmark-ui-score.json": "3f61b45651b941ec5d1f52594cced7581f71eb55b60ab92798c090eaaac7dffc",
+        "interaction/ui-review.json": "5c47c02068f62dad2a8ba9608ec323241e2ccdd78e1a6845d5ef13d5e1dcf7f9",
+        "lifetime-receipt.json": "d8aa5c322fc90466526b12cbaaec8d518b0dcccc2cc5932acc1fd8f65e9ecfd1",
+        "native-and-assets-terminal.json": "e385592ac32fb2c5df68c380572cdb39983a8a953539d2aa2aa3f813fb5bec9f",
+        "native-runtime.json": "53e8cf39250cb104d1414fa9b79e1c447d2108b0d80550cc2f0ec2a5ee214b5b",
+        "original-input-proof.json": "9f25d763e51cafc5faaf4622b7f8aa65942b2436033ab89f8b7d676b0e91dfb6",
+        "ready.json": "eb7d98a782f633adc9933dfbe6fb3fb945d3085ef6f6012514be09d065dcbcfd",
+        "setup-jobs.json": "bcd73c05e17d021a6527367a27b764cec1fef659f2363a3383623f6a70516a85",
+        "source-start.json": "832a7d609cc9903e3ba79f268df4f6d5d17d622c25de9ece7d0060fa94b0b74d",
+        "source-terminal.json": "832a7d609cc9903e3ba79f268df4f6d5d17d622c25de9ece7d0060fa94b0b74d"
+      },
+      "attempt": "r2",
+      "browserClosed": true,
+      "failureCategory": "duplicate-canvas-observer-and-theme-locator-harness-failure",
+      "finalCorrectionRefusalBodyKnown": false,
+      "fittingIndices": [
+        0,
+        10
+      ],
+      "frontendAssetsUnchanged": true,
+      "guidedAccuracy": null,
+      "guidedCoverage": null,
+      "humanEffort": null,
+      "nativeBinariesUnchanged": true,
+      "ownedCleanupCompleted": true,
+      "profiles": [
+        {
+          "actualPostResponses": [],
+          "automatedControlSeconds": 29.930767699999997,
+          "cancelCenterZoomRotationErrors": [],
+          "controlActionCount": 0,
+          "finalUIReceiptPresent": true,
+          "firstCaptureBoundsSha256": null,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "refused-or-failed",
+          "pointerStrokeCount": 0,
+          "profile": "desktop",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        },
+        {
+          "actualPostResponses": [],
+          "automatedControlSeconds": 21.2154035,
+          "cancelCenterZoomRotationErrors": [],
+          "controlActionCount": 0,
+          "finalUIReceiptPresent": true,
+          "firstCaptureBoundsSha256": null,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "refused-or-failed",
+          "pointerStrokeCount": 0,
+          "profile": "mobile",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        }
+      ],
+      "protocol": "original-frozen-two-point",
+      "scoringDenominator": 67,
+      "sourceHead": "b384d5a72cee01d8928c2845f5018173cbd55e3a",
+      "sourceStartupEqualsTerminal": true,
+      "sourceTerminalPresent": true,
+      "terminalOutcome": "failed"
+    },
+    {
+      "actualRegionPostStatusesFromApiLog": [
+        403,
+        403
+      ],
+      "actualTotalSeconds": 42.20299999999406,
+      "anatomicalQualification": false,
+      "artifactHashes": {
+        "built-assets.json": "a3c6945a1bc084c912dc4d64967ba2635114af6606b199f6fce30f609325cd8f",
+        "cookie-proof.json": "00c006d084e18e862837d594b26ead05215d470dc7d1696744bfb3470b4d75b0",
+        "guardian-cleanup.json": "401bb019cf1a4351c444c9dd507c730b6b09c438cba8366f8a8e1276197486fb",
+        "guided-interaction-failure.json": "7a81ef04665892f4312a1772d24f0cfc5bc9537daae306ff202a2a1a6da5c608",
+        "initial-comparison.json": "06971fd1f21b638ab328283c002eb9f5e7d93584365054e8ff3ef7a312db0f08",
+        "inner-cleanup.json": "e38f89230bf47d1e382927f7483b4fd5030d70fba6ead8e682dac7bb1af4b97c",
+        "interaction/desktop-primary-dark.png": "6590964d2ee8caa357a2e0cf23b478f8be82fa6092d0fd086318ff75897a7f07",
+        "interaction/desktop-primary-light.png": "58aab4425f09ba756af01287680a0605e9d1e9ad2c8e3b9a8852f7e59a0c4154",
+        "interaction/frozen-selection.json": "59053eebb347a6edc424c5a4f933ac00738a8af92706b564ab0a293e2b096ef4",
+        "interaction/mobile-primary-dark.png": "0932fc428b4c478f3a1f2a8222a52087b7cc740addae6401bed85c45bef7ca30",
+        "interaction/mobile-primary-light.png": "9d2f55e5f63a5a8498ef15ed7751d0228fea38048d7e98209fd07867724cf032",
+        "interaction/published-landmark-ui-score.json": "df5ebf1affdede58dcd793728f245204bb5f8a4eec057e26371816be97eb32d9",
+        "interaction/ui-review.json": "af7456c756a39cacc01c554f611a5b180ad48dfb2bf7ee6910f0236ab6ca7cd0",
+        "lifetime-receipt.json": "14af5a2eee75ff828943ac077f82c56982036a7cc5323feee01fd83a332638ef",
+        "native-and-assets-terminal.json": "e385592ac32fb2c5df68c380572cdb39983a8a953539d2aa2aa3f813fb5bec9f",
+        "native-runtime.json": "53e8cf39250cb104d1414fa9b79e1c447d2108b0d80550cc2f0ec2a5ee214b5b",
+        "original-input-proof.json": "9f25d763e51cafc5faaf4622b7f8aa65942b2436033ab89f8b7d676b0e91dfb6",
+        "ready.json": "83d778a78777994dd99d20982b0b359c89b6980ad0518a474d847ab6a8d1b86a",
+        "setup-jobs.json": "d958f252eac68766919eca05ec7e985a32d8223aa4f882b2a29286973feec05b",
+        "source-start.json": "df25bfd9871b4900651674e157edd788565854deb3454e173dff2cd70cb2cc21",
+        "source-terminal.json": "df25bfd9871b4900651674e157edd788565854deb3454e173dff2cd70cb2cc21"
+      },
+      "attempt": "r3",
+      "browserClosed": true,
+      "failureCategory": "first-CSRF-response-observer-failure-not-final-anatomical-refusal",
+      "finalCorrectionRefusalBodyKnown": false,
+      "fittingIndices": [
+        0,
+        10
+      ],
+      "frontendAssetsUnchanged": true,
+      "guidedAccuracy": null,
+      "guidedCoverage": null,
+      "humanEffort": null,
+      "nativeBinariesUnchanged": true,
+      "ownedCleanupCompleted": true,
+      "profiles": [
+        {
+          "actualPostResponses": [
+            {
+              "code": "CSRF_INVALID",
+              "status": 403,
+              "terminalObserved": null
+            }
+          ],
+          "automatedControlSeconds": 11.9002366,
+          "cancelCenterZoomRotationErrors": [],
+          "controlActionCount": 13,
+          "finalUIReceiptPresent": true,
+          "firstCaptureBoundsSha256": null,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "refused-or-failed",
+          "pointerStrokeCount": 3,
+          "profile": "desktop",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        },
+        {
+          "actualPostResponses": [
+            {
+              "code": "CSRF_INVALID",
+              "status": 403,
+              "terminalObserved": null
+            }
+          ],
+          "automatedControlSeconds": 8.556747099999999,
+          "cancelCenterZoomRotationErrors": [],
+          "controlActionCount": 13,
+          "finalUIReceiptPresent": true,
+          "firstCaptureBoundsSha256": null,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "refused-or-failed",
+          "pointerStrokeCount": 3,
+          "profile": "mobile",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        }
+      ],
+      "protocol": "original-frozen-two-point",
+      "scoringDenominator": 67,
+      "sourceHead": "b384d5a72cee01d8928c2845f5018173cbd55e3a",
+      "sourceStartupEqualsTerminal": true,
+      "sourceTerminalPresent": true,
+      "terminalOutcome": "failed"
+    },
+    {
+      "actualRegionPostStatusesFromApiLog": [
+        200,
+        200,
+        200,
+        200
+      ],
+      "actualTotalSeconds": 80.11000000000058,
+      "anatomicalQualification": false,
+      "artifactHashes": {
+        "built-assets.json": "a3c6945a1bc084c912dc4d64967ba2635114af6606b199f6fce30f609325cd8f",
+        "cookie-proof.json": "3a4c2c3047a57aaade34fd52b9a88303c07f95713ffd3e554cfc3b2961616a45",
+        "guardian-cleanup.json": "401bb019cf1a4351c444c9dd507c730b6b09c438cba8366f8a8e1276197486fb",
+        "guided-interaction-failure.json": "7a81ef04665892f4312a1772d24f0cfc5bc9537daae306ff202a2a1a6da5c608",
+        "initial-comparison.json": "7e3f3685b6a53759126f81d1059dc214c48b5e5dccd962bd9daf7d2f7d4101e9",
+        "inner-cleanup.json": "e59c7d209e09c5d44bdf473bf80a9e9ec021af43e68b4cb188f1234126f0aa69",
+        "interaction/desktop-cancel-restored.png": "a612483bfb971d5efe33d12a8519ee5d55a3eaeb90a0d264e48c627858469c49",
+        "interaction/desktop-one-point-unsaved-preview.png": "d26c4d43fa7c2d2eb80bb4c5bbe1f25407c3059e3ce75c2165d4ba158f296421",
+        "interaction/desktop-primary-dark.png": "6590964d2ee8caa357a2e0cf23b478f8be82fa6092d0fd086318ff75897a7f07",
+        "interaction/desktop-primary-light.png": "58aab4425f09ba756af01287680a0605e9d1e9ad2c8e3b9a8852f7e59a0c4154",
+        "interaction/desktop-region.json": "87a07ceaa550bd845f338f9953adbf9aa58e5859f8b2aaa9a1fb7855443a4f77",
+        "interaction/desktop-saved-comparison.json": "6c53f094dabd096335307a5cda75f0465ddaa00d3c620141ffdf7d2f65020977",
+        "interaction/desktop-saved-reloaded-dark.png": "343da3c9dddadccf94fe8ad753ba92276563041f69507e41882ab4905f7ba0e6",
+        "interaction/desktop-saved-reloaded-light.png": "211bd51a8858f32f58e3228796e71fbde2bbcf807d12bc7f09d57785db271474",
+        "interaction/desktop-two-point-unsaved-preview.png": "e5581f2ac4fc857e6574d09ae53bbb479d664994e8ef57e665aa4aa9e8705a64",
+        "interaction/frozen-selection.json": "59053eebb347a6edc424c5a4f933ac00738a8af92706b564ab0a293e2b096ef4",
+        "interaction/mobile-cancel-restored.png": "30034f9dc1fc7a29ef469e63a3c856de054f40daf3bb69f2205ac78b0c4eb3fa",
+        "interaction/mobile-one-point-unsaved-preview.png": "3821355049b3964a2c697d513381553c74080325d3f4ba227e200d0cd1d4db99",
+        "interaction/mobile-primary-dark.png": "5605b46885ae1d627a3d9a17c8396ab36d5960d0ac69799ee3670469eb75b449",
+        "interaction/mobile-primary-light.png": "80bee48e79fe17798bdd97ba28923e136ce8d65fe67a4a95857ed206b4323743",
+        "lifetime-receipt.json": "e9bc47a6056fc034003d6ca6be46a7a24bcbeb9eda3972c7062003209c7676fa",
+        "native-and-assets-terminal.json": "e385592ac32fb2c5df68c380572cdb39983a8a953539d2aa2aa3f813fb5bec9f",
+        "native-runtime.json": "53e8cf39250cb104d1414fa9b79e1c447d2108b0d80550cc2f0ec2a5ee214b5b",
+        "original-input-proof.json": "9f25d763e51cafc5faaf4622b7f8aa65942b2436033ab89f8b7d676b0e91dfb6",
+        "published-landmark-score-failure.json": "5275e023b37cc59e77be25bbc516a91a251d540a68d2362c0cae8459d5283d2c",
+        "ready.json": "9dfb49fd76e69b42f39a4e27f505d31148a8160822e694048deee53068cb6f96",
+        "setup-jobs.json": "61a1c33e41cbf0041c88e927f170e6caddcba5a910f72bc859c4352e14d38c60",
+        "source-start.json": "64dcc84bd6b4251faa5e67271393f9791748c4d18077849f39b026c4b486fbda",
+        "source-terminal.json": "64dcc84bd6b4251faa5e67271393f9791748c4d18077849f39b026c4b486fbda"
+      },
+      "attempt": "r4",
+      "browserClosed": null,
+      "failureCategory": "orphan-response-promise-failure-after-desktop-saved-artifacts",
+      "finalCorrectionRefusalBodyKnown": false,
+      "fittingIndices": [
+        0,
+        10
+      ],
+      "frontendAssetsUnchanged": true,
+      "guidedAccuracy": null,
+      "guidedCoverage": null,
+      "humanEffort": null,
+      "nativeBinariesUnchanged": true,
+      "ownedCleanupCompleted": true,
+      "profiles": [
+        {
+          "canonicalMapsUnchangedAtSave": true,
+          "finalUIReceiptPresent": false,
+          "fullProfileSuccessClaimed": false,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "unknown-final-receipt-absent",
+          "profile": "desktop",
+          "reloadScreenshotArtifactsPresent": true,
+          "savedActualFittingPointErrorsPixels": [
+            {
+              "moving": 5.085429042914975e-05,
+              "reference": 5.115253454732352e-05
+            },
+            {
+              "moving": 5.74007889492242e-05,
+              "reference": 3.291587941525807e-05
+            }
+          ],
+          "savedRegionArtifactPresent": true,
+          "savedSourceBoundsSha256": "d43f179e6013a6106e3554d8c4d96cf58a8f2bf7abfbe2e95fdcd2e70ed8d5ea",
+          "scoringEligibleDenominator": 67
+        },
+        {
+          "finalUIReceiptPresent": false,
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "unknown-final-receipt-absent",
+          "profile": "mobile",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        }
+      ],
+      "protocol": "original-frozen-two-point",
+      "scoringDenominator": 67,
+      "sourceHead": "b384d5a72cee01d8928c2845f5018173cbd55e3a",
+      "sourceStartupEqualsTerminal": true,
+      "sourceTerminalPresent": true,
+      "terminalOutcome": "failed"
+    },
+    {
+      "actualRegionPostStatusesFromApiLog": [
+        200,
+        200
+      ],
+      "actualTotalSeconds": 108.39099999998871,
+      "anatomicalQualification": false,
+      "artifactHashes": {
+        "built-assets.json": "a3c6945a1bc084c912dc4d64967ba2635114af6606b199f6fce30f609325cd8f",
+        "cookie-proof.json": "6d9baebfd68df49cffd650faae40d0358d0f8a55bc34dfdf0a6a52156fa2a2ba",
+        "guardian-cleanup.json": "401bb019cf1a4351c444c9dd507c730b6b09c438cba8366f8a8e1276197486fb",
+        "guided-interaction-failure.json": "7a81ef04665892f4312a1772d24f0cfc5bc9537daae306ff202a2a1a6da5c608",
+        "initial-comparison.json": "ec913f20799b0f229fa880d525bb190b9311bc33aa4b789cb3b7801a331faf2a",
+        "inner-cleanup.json": "360bc9ef1eef3423968d990b3acb4e17d709be5a4750a723c1ae17137ca729cb",
+        "interaction/desktop-cancel-restored.png": "03cb4b4b96c8715a1b48bdc51ee71e41b133c6b6c5a1497d860a497d0fac1096",
+        "interaction/desktop-failure.png": "309dd3564df10f0226467cf43b20c883f210895343f9ffab4bc5c6652c3fb984",
+        "interaction/desktop-initial-comparison.json": "17730421783e6bfe9f826d4af798d78d2cf24057678c419d5418e7618a84b59c",
+        "interaction/desktop-one-point-unsaved-preview.png": "cb0c63682dd6c97b6f3eafe3e3a7141f296deab36b82e2fdf565d71dfe7a3a16",
+        "interaction/desktop-primary-dark.png": "6590964d2ee8caa357a2e0cf23b478f8be82fa6092d0fd086318ff75897a7f07",
+        "interaction/desktop-primary-light.png": "58aab4425f09ba756af01287680a0605e9d1e9ad2c8e3b9a8852f7e59a0c4154",
+        "interaction/frozen-selection.json": "59053eebb347a6edc424c5a4f933ac00738a8af92706b564ab0a293e2b096ef4",
+        "interaction/mobile-cancel-restored.png": "50e7784effcc6097a33555be9bdbe0e26208268c3a0fe8530e0b09a6fb52ef5c",
+        "interaction/mobile-failure.png": "fb90f1370728343c886facb6dcbec4941eb02df7c39fb71b1a483b1c57a91000",
+        "interaction/mobile-initial-comparison.json": "17730421783e6bfe9f826d4af798d78d2cf24057678c419d5418e7618a84b59c",
+        "interaction/mobile-one-point-unsaved-preview.png": "b45d829e460af013f3ee24088b30f1fec60606882ea1186ebfdcc9cdf00cfeed",
+        "interaction/mobile-primary-dark.png": "0932fc428b4c478f3a1f2a8222a52087b7cc740addae6401bed85c45bef7ca30",
+        "interaction/mobile-primary-light.png": "9d2f55e5f63a5a8498ef15ed7751d0228fea38048d7e98209fd07867724cf032",
+        "interaction/published-landmark-ui-score.json": "861b762fb273a321e7b9e68b900b2e086f1d630fcd0aa50cf82f1b55e05a26a9",
+        "interaction/ui-review-progress.json": "65cf5d67015b5c32ab7e579fcaeb30676b64de59d4987a1daab0e27adbf33ecf",
+        "interaction/ui-review.json": "412daa5650f556a2db5a25f1e692b7384868392da7d7a0b5ef51289fb85ba35d",
+        "lifetime-receipt.json": "2c79ccef4b15cd8da6084cd59d5e465cb22ab98fa66f989bc5e7a49ad3421eec",
+        "native-and-assets-terminal.json": "e385592ac32fb2c5df68c380572cdb39983a8a953539d2aa2aa3f813fb5bec9f",
+        "native-runtime.json": "53e8cf39250cb104d1414fa9b79e1c447d2108b0d80550cc2f0ec2a5ee214b5b",
+        "original-input-proof.json": "9f25d763e51cafc5faaf4622b7f8aa65942b2436033ab89f8b7d676b0e91dfb6",
+        "ready.json": "9e6991de10fc5ea1d9b3dd2395f5f046bd13ed40c445845dd406f794b41312b6",
+        "setup-jobs.json": "d419b8ff32aae4538ddccc3a195bbc95a0565e82181633574ae7f25566d48998",
+        "source-start.json": "2f16e2eef20223f7caf199665b96649d3981fbb44f306313f17739f0ca399782",
+        "source-terminal.json": "2f16e2eef20223f7caf199665b96649d3981fbb44f306313f17739f0ca399782"
+      },
+      "attempt": "r5",
+      "browserClosed": true,
+      "failureCategory": "actual-visible-bounds-discrepancy-after-Cancel-client-Record-refused",
+      "finalCorrectionRefusalBodyKnown": false,
+      "fittingIndices": [
+        0,
+        10
+      ],
+      "frontendAssetsUnchanged": true,
+      "guidedAccuracy": null,
+      "guidedCoverage": null,
+      "humanEffort": null,
+      "nativeBinariesUnchanged": true,
+      "ownedCleanupCompleted": true,
+      "profiles": [
+        {
+          "actualPostResponses": [
+            {
+              "code": null,
+              "status": 200,
+              "terminalObserved": true
+            }
+          ],
+          "automatedControlSeconds": 44.623955,
+          "cancelCenterZoomRotationErrors": [
+            {
+              "centerPixels": 0.0,
+              "rotationDegrees": 0.0,
+              "zoom": 0.0
+            },
+            {
+              "centerPixels": 5.684341886080802e-14,
+              "rotationDegrees": 0,
+              "zoom": 0.0
+            }
+          ],
+          "controlActionCount": 21,
+          "finalUIReceiptPresent": true,
+          "firstCaptureBoundsSha256": "79adbb1e3635c726b712d8fc4c3952083ee8dac04841de799e72c81b4602ab2e",
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "refused-or-failed",
+          "pointerStrokeCount": 8,
+          "profile": "desktop",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        },
+        {
+          "actualPostResponses": [
+            {
+              "code": null,
+              "status": 200,
+              "terminalObserved": true
+            }
+          ],
+          "automatedControlSeconds": 37.33954580000001,
+          "cancelCenterZoomRotationErrors": [
+            {
+              "centerPixels": 0.0,
+              "rotationDegrees": 0.0,
+              "zoom": 0.0
+            },
+            {
+              "centerPixels": 0.0,
+              "rotationDegrees": 0,
+              "zoom": 0.0
+            }
+          ],
+          "controlActionCount": 21,
+          "finalUIReceiptPresent": true,
+          "firstCaptureBoundsSha256": "79adbb1e3635c726b712d8fc4c3952083ee8dac04841de799e72c81b4602ab2e",
+          "guidedAccuracy": null,
+          "guidedCoverage": null,
+          "outcome": "refused-or-failed",
+          "pointerStrokeCount": 9,
+          "profile": "mobile",
+          "reloadScreenshotArtifactsPresent": false,
+          "savedRegionArtifactPresent": false,
+          "scoringEligibleDenominator": 67
+        }
+      ],
+      "protocol": "original-frozen-two-point",
+      "scoringDenominator": 67,
+      "sourceHead": "b384d5a72cee01d8928c2845f5018173cbd55e3a",
+      "sourceStartupEqualsTerminal": true,
+      "sourceTerminalPresent": true,
+      "terminalOutcome": "failed"
+    }
+  ],
+  "humanEffort": null,
+  "originalReportsMutated": false,
+  "remainingProtocolsHeld": true,
+  "schema": "pathlab.public-guided-attempts/2",
+  "scope": "All five separately preserved failed original 0/10 attempts. R4 desktop saved artifacts remain partial evidence; R5 proves actual bounds discrepancy after successful first Preview/Cancel. Fixed-ROI diagnostic refusal and live viewport sampling admission are separate observations. No hidden landmark substitution or anatomical/human qualification."
+}

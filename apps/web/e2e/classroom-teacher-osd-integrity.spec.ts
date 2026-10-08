@@ -143,6 +143,7 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await page.locator('.classroom-activity-tray > summary').click()
   await page.getByRole('button', { name: 'Guide students', exact: true }).click()
   await expect.poll(() => receipts.length).toBeGreaterThan(0)
+  expect((await publicationAttempts(page)).length).toBeGreaterThan(0)
   await page.getByRole('button', { name: '1. Synthetic slide 1', exact: true }).click()
   await page.getByRole('button', { name: 'Slide 2 Synthetic slide 2' }).click()
   await expect(page.getByRole('button', { name: '2. Synthetic slide 2', exact: true })).toBeVisible()
@@ -182,7 +183,9 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await expect.poll(() => heldSnapshots).toBe(1)
   expect(controller).toBe('learner')
   expect(completedPresenterRequests).toBe(baseline)
-  await page.waitForTimeout(300)
+  await page.locator('.openseadragon-canvas').first().hover()
+  await page.mouse.wheel(0, -200)
+  await page.waitForTimeout(700)
   await info.attach('handoff-publication-receipts', { body: JSON.stringify({ receipts, attempts: await publicationAttempts(page), boundary }, null, 2), contentType: 'application/json' })
   expect((await publicationAttempts(page)).length).toBe(baseline)
   snapshotGate = null

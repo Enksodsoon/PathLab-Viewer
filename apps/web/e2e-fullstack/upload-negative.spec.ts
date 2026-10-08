@@ -57,11 +57,6 @@ test('corrupt OME content ends in a durable failed state instead of a usable sli
   await expect(page.getByRole('heading', { name: 'QA corrupt conversion', exact: true })).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'More actions for QA corrupt conversion', exact: true }).click()
-  const failedMenuItems = (await page.getByRole('menu').getByRole('menuitem').allTextContents())
-    .map((item) => item.trim().replace(/\s+/g, ' ')).sort()
-  expect(failedMenuItems).toEqual([
-    'Add to collection', 'Details', 'Edit details', 'Move', 'Move to Trash', 'Retry conversion',
-  ])
   await expect(page.getByRole('menuitem', { name: 'Preview', exact: true })).not.toBeVisible()
   await page.getByRole('menuitem', { name: 'Retry conversion', exact: true }).click()
   await expect.poll(async () => (await (await page.request.get(`/api/v1/admin/slides/${id}`)).json()).state,

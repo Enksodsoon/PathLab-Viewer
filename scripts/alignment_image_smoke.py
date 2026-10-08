@@ -1,0 +1,132 @@
+"""ARM64 alignment image smoke test with real engine execution."""
+
+from __future__ import annotations
+
+import json
+import os
+import platform
+import sys
+import tempfile
+import time
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from PIL import Image
+
+
+def resource_limit_fixture(
+    reference_derivative: str,
+    moving_derivative: str,
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+    engine_name: str,
+    engine_settings: dict[str, Any] | None,
+    artifact_dir: str | None,
+    output: Any,
+    seed_registration: dict[str, Any] | None = None,
+    startup_gate: Any = None,
+) -> None:
+    """Stdlib-only child for supervisor limits, separate from engine execution."""
+    if not sys.platform.startswith("win"):
+        os.setsid()
+    if startup_gate is not None and not startup_gate.wait(30):
+        return
+    time.sleep(120)
+
+
+def synthetic_pair() -> tuple[Image.Image, Image.Image]:
+    from PIL import Image, ImageDraw
+
+    reference = Image.new("RGB", (600, 420), "white")
+    drawing = ImageDraw.Draw(reference)
+    drawing.ellipse((70, 50, 530, 370), fill=(220, 155, 185), outline=(60, 40, 90), width=7)
+    for x in range(110, 500, 35):
+        for y in range(90, 340, 35):
+            drawing.ellipse((x, y, x + 7, y + 7), fill=(65, 45, 110))
+    moving = Image.new("RGB", reference.size, "white")
+    moving.paste(reference, (15, 0))
+    return reference, moving
+
+
+def main() -> None:
+    # Spawn reexecutes this file as __mp_main__; keep its bootstrap stdlib-only.
+    import cv2
+    import numpy as np
+    import wsi_viewer
+    from wsi_viewer.alignment import AlignmentRejected, map_registration_point
+    from wsi_viewer.alignment_engines import ENGINE_NATIVE, engine_availability
+    from wsi_viewer.alignment_fast import PreparationCache, register_prepared
+    from wsi_viewer.worker import _run_alignment_bounded
+
+    notices = Path("/usr/share/licenses/pathlab-viewer/THIRD_PARTY_NOTICES.txt").read_bytes()
+    assert (
+        notices
+        == Path("/app/docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt").read_bytes()
+    )
+    assert notices == Path(wsi_viewer.__file__).with_name("THIRD_PARTY_NOTICES.txt").read_bytes()
+    availability = engine_availability()
+    assert availability[ENGINE_NATIVE]["available"], availability
+    reference, moving = synthetic_pair()
+    with tempfile.TemporaryDirectory(prefix="pathlab-alignment-smoke-") as temporary:
+        root = Path(temporary)
+        cache = PreparationCache()
+        fixed, _ = cache.prepare("fixed", reference, (1200, 840))
+        floating, _ = cache.prepare("floating", moving, (1200, 840))
+        result = register_prepared(fixed, floating).as_json()
+        assert result["status"] == "approximate" and not result["triangles"]
+        # Exercise coordinate round trip using the published approximate cells.
+        overview = {**result, "triangles": result["overviewTriangles"]}
+        moving_triangle = overview["triangles"][0]["moving"]
+        point = tuple(np.mean(np.asarray(moving_triangle), axis=0))
+        mapped = map_registration_point(overview, *point)
+        restored = map_registration_point(overview, *mapped, inverse=True)
+        assert np.linalg.norm(np.asarray(restored) - point) < 0.5
+
+        reference_dir = root / "reference"
+        moving_dir = root / "moving"
+        reference_dir.mkdir()
+        moving_dir.mkdir()
+        reference.save(reference_dir / "thumbnail.jpg")
+        moving.save(moving_dir / "thumbnail.jpg")
+        try:
+            _run_alignment_bounded(
+                reference_dir,
+                moving_dir,
+                reference.size,
+                moving.size,
+                engine_name=ENGINE_NATIVE,
+                timeout_seconds=60,
+                memory_bytes=1,
+                _child_target=resource_limit_fixture,
+            )
+        except AlignmentRejected as error:
+            assert "memory ceiling" in str(error)
+            memory_evidence = getattr(error, "resource_metrics", {})
+        else:
+            raise AssertionError("memory ceiling was not enforced")
+    print(
+        json.dumps(
+            {
+                "schema": "pathlab.native-image-smoke/1",
+                "architecture": platform.machine(),
+                "python": platform.python_version(),
+                "numpy": np.__version__,
+                "opencvLoadedVersion": cv2.__version__,
+                "nativeOperation": "register_prepared",
+                "nativeMapStatus": "approximate",
+                "coordinateRoundTripPassed": True,
+                "workerMemoryLimitBytes": 1,
+                "workerMemoryRejectionPassed": True,
+                "resourceFixture": "stdlib-only-separate-from-native-engine",
+                "memoryEvidence": memory_evidence,
+                "defaultChildColdStartupVerified": False,
+                "anatomicalQualification": False,
+            },
+            allow_nan=False,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

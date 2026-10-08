@@ -197,6 +197,22 @@ Firefox, WebKit, and mobile Chromium. Heavy stages stop before destructive
 failure; fail-closed cleanup restores 300 when strict evidence is incomplete.
 Only aggregate evidence is retained.
 
+## Optional VALIS image compatibility
+
+The optional `Dockerfile.alignment-valis` installs its frozen upstream requirements
+subject to the inherited backend constraints and runs `pip check` before its VALIS
+import check. Dependency conflicts reject the optional image instead of replacing
+maintained backend pins. HISAlign remains excluded from the base image pending its
+upstream license resolution.
+
+The [pinned VALIS lock](https://github.com/MathOnco/valis/blob/325828c1dec444e6bb672a78e875537436dd3c20/uv.lock)
+selects NumPy 1.26.4 and TIFF 2025.6.1 for Python 3.12. These conflict with the current
+backend's NumPy 2.5.2 and TIFF 2026.9.20 pins, so this optional VALIS image is
+unavailable with those combined inputs. A local resolver dry-run rejected the
+NumPy conflict before installation; it does not establish a Docker build, Linux
+ARM64 compatibility, or registration qualification. The separate frozen research
+runtime does not establish compatibility with the maintained API image.
+
 ## Optional CDN policy
 
 A CDN is optional and is not required for PathLab Viewer.
