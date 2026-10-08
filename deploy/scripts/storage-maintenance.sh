@@ -6,8 +6,7 @@ umask 077
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 exec 8>/var/lock/pathlab-viewer-deploy.lock
 flock -n -E 75 8 || exit 75
-exec 9>/srv/pathlab/data/backups/.backup.lock
-flock -n -E 75 9 || exit 75
+source "$script_dir/backup-lock.sh"
 key=/etc/pathlab-viewer/postgres/backup-signing-key
 [[ -f "$key" && ! -L "$key" ]] || exit 2
 export PATHLAB_BACKUP_SIGNING_KEY="$(cat "$key")"

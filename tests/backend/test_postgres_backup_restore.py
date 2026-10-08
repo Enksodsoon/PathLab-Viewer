@@ -12,6 +12,41 @@ from types import SimpleNamespace
 import pytest
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Requires POSIX ownership and modes")
+def test_backup_lock_rejects_symlinks_and_shares_exclusion(tmp_path: Path) -> None:
+    helper = Path("deploy/scripts/backup-lock.sh").resolve()
+    env = {**os.environ, "LOCK_HELPER": str(helper)}
+    target = tmp_path / "protected"
+    target.write_text("keep", encoding="utf-8")
+    lock_dir = tmp_path / "locks"
+    lock_dir.mkdir(mode=0o700)
+    lock_file = lock_dir / "backup.lock"
+    lock_file.symlink_to(target)
+
+    def run(directory: Path, command: str = 'source "$LOCK_HELPER"'):
+        return subprocess.run(
+            ["bash", "-c", command],
+            env={**env, "PATHLAB_BACKUP_LOCK_DIR": str(directory)},
+            capture_output=True, text=True,
+        )
+
+    assert run(lock_dir).returncode == 2
+    assert target.read_text(encoding="utf-8") == "keep"
+    lock_file.unlink()
+    link = tmp_path / "linked-locks"
+    link.symlink_to(lock_dir, target_is_directory=True)
+    assert run(link).returncode == 2
+    lock_dir.chmod(0o777)
+    assert run(lock_dir).returncode == 2
+    lock_dir.chmod(0o700)
+    assert run(lock_dir).returncode == 0
+    result = run(
+        lock_dir,
+        'source "$LOCK_HELPER"; bash -c \'source "$LOCK_HELPER"\'; status=$?; exit "$status"',
+    )
+    assert result.returncode == 75
+
+
 def test_postgres_retention_keeps_five_verified_backups(tmp_path: Path) -> None:
     bash = (
         Path("C:/Program Files/Git/bin/bash.exe")

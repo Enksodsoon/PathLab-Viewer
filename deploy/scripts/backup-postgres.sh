@@ -36,11 +36,7 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 destination="${backup_dir}/pathlab-postgres-${timestamp}"
 test -d "$data_dir"
 install -d -m 700 "$backup_dir"
-exec 9>"${backup_dir}/.backup.lock"
-flock -n 9 || {
-  echo "Backup refused: another backup or retention cleanup is already running" >&2
-  exit 1
-}
+source "$(dirname "$0")/backup-lock.sh"
 test ! -e "$destination" || {
   echo "Backup destination already exists" >&2
   exit 1

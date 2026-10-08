@@ -16,7 +16,7 @@ backups are preserved. Live originals, derivatives, database volumes, Docker
 images and qualification/cutover evidence are excluded.
 
 Install as root, outside the release checkout, so deployments cannot replace
-the maintenance code. Copy `storage-maintenance.sh`, `prune-backups.sh` and
+the maintenance code. Copy `storage-maintenance.sh`, `backup-lock.sh`, `prune-backups.sh` and
 `postgres_backup_manifest.py` into `/usr/local/lib/pathlab-storage/` with
 root ownership, scripts mode 755 and Python mode 644. Install the supplied
 service and timer into `/etc/systemd/system/` with root ownership and mode 644.
@@ -31,6 +31,10 @@ systemctl enable --now pathlab-storage-maintenance.timer
 
 The service holds both the deployment lock and backup lock; contention exits
 75 without cleanup. PostgreSQL backup creation uses the same backup lock.
+The shared lock lives in `/run/pathlab-storage`, outside application-writable
+data. The helper requires an operator-owned mode-700 directory, rejects symlink
+directories/files, and opens the lock without truncation. Non-root disposable CI
+runs set `PATHLAB_BACKUP_LOCK_DIR` to a private directory under `runner.temp`.
 The existing signing key stays in `/etc/pathlab-viewer/postgres/backup-signing-key`
 and is never logged. The daily timer runs at 20:00 UTC (03:00 Bangkok the next day), with up
 to 15 minutes of jitter. Check completion and actual recovered space with:
