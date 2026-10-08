@@ -16,6 +16,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = (
     "server/wsi_viewer/alignment.py",
+    "server/wsi_viewer/alignment_artifacts.py",
     "server/wsi_viewer/alignment_fast.py",
     "server/wsi_viewer/alignment_engines.py",
     "server/wsi_viewer/alignment_optional.py",

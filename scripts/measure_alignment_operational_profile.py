@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from wsi_viewer.alignment_artifacts import replace_pending
+
 POLICY = "real-api-nine-serial-operational-jobs/1"
 RECIPES = (
     "native-overview-v6",
@@ -40,7 +42,7 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
-def _write(path: Path, value: dict[str, Any]) -> None:
+def _write(path: Path, value: dict[str, Any], *, deadline: float | None = None) -> None:
     content = json.dumps(value, sort_keys=True, indent=2, allow_nan=False).encode()
     if len(content) > MAX_RECEIPT_BYTES:
         raise ValueError("operational receipt exceeds bound")
@@ -52,7 +54,7 @@ def _write(path: Path, value: dict[str, Any]) -> None:
         file.write(content)
         file.flush()
         os.fsync(file.fileno())
-    pending.replace(path)
+    replace_pending(pending, path, deadline=deadline)
 
 
 def validate_guard(guard: dict[str, Any], base: str, database: Path, set_id: str) -> None:
@@ -252,7 +254,7 @@ def profile(
                         else None
                     ),
                 )
-                _write(path, row)
+                _write(path, row, deadline=started + 660)
                 if job["status"] in TERMINAL:
                     break
                 if time.monotonic() - started >= 660:

@@ -13,6 +13,7 @@ from typing import Any
 
 from . import worker
 from .alignment import AlignmentRejected
+from .alignment_artifacts import replace_pending
 from .alignment_benchmark import _input_digest, _safe_resource_metrics
 
 WARM_PROTOCOL = "same-contained-process-two-invocations/1"
@@ -24,7 +25,7 @@ def _refuse_links(path: Path) -> None:
         raise ValueError("warm artifact symlinks/junctions are unsupported")
 
 
-def _atomic_receipt(path: Path, value: dict[str, Any]) -> None:
+def _atomic_receipt(path: Path, value: dict[str, Any], *, deadline: float | None = None) -> None:
     _refuse_links(path)
     content = json.dumps(value, sort_keys=True, allow_nan=False).encode()
     if len(content) > MAX_INVOCATION_BYTES:
@@ -35,7 +36,7 @@ def _atomic_receipt(path: Path, value: dict[str, Any]) -> None:
         output.write(content)
         output.flush()
         os.fsync(output.fileno())
-    os.replace(temporary, path)
+    replace_pending(temporary, path, deadline=deadline)
 
 
 class _InvocationOutput:
@@ -99,6 +100,7 @@ def _warm_child(
                     "childPid": os.getpid(),
                     "verifiedInputDigests": actual_inputs,
                 },
+                deadline=deadline,
             )
             output.put(
                 {"progress": {"stage": "warm-invocation-start", "invocationOrdinal": ordinal}}
@@ -142,7 +144,7 @@ def _warm_child(
             "requestedSettings": requested,
             "result": result,
         }
-        _atomic_receipt(Path(artifact_dir) / f"invocation-{ordinal}.json", value)
+        _atomic_receipt(Path(artifact_dir) / f"invocation-{ordinal}.json", value, deadline=deadline)
         receipts.append(value)
     output.put({"ok": True, "result": {"warmInvocations": receipts, "protocol": WARM_PROTOCOL}})
 
