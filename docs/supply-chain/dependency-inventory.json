@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T00:38:22.875393Z",
+  "generatedAt": "2026-10-08T00:42:48.897250Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -18006,9 +18006,9 @@
       "sha256": "9d56e8be817e701443642941fd2daf8519828b3c49f9b06148ffe4a4809de960"
     },
     {
-      "gitBlob": "1f2fa7024ff1fa1a9b4b37e8781f0e036e725065",
+      "gitBlob": "d2ca2835c3e2f5711ae1093984c30b40fce01cdd",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "7ffc3c9584d545ea4e2b8a3bee11fa4ddba0677174e8d2d0990fb8a9f0632936"
+      "sha256": "20658bca8680092e0eca77898423bb5950aa98b1a7390199fc8402009acc429a"
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -18419,6 +18419,11 @@
       "gitBlob": "7b190ca6712aa09eede3e6de79f68d7fa29072da",
       "path": "docs/supply-chain/notice-material/sha256/63af09891b6be8ad1a4252ed43af0f4efba7fc948e228367bed7f3c5ae0b09d7",
       "sha256": "63af09891b6be8ad1a4252ed43af0f4efba7fc948e228367bed7f3c5ae0b09d7"
+    },
+    {
+      "gitBlob": "f74bb98937c76ba83ccc4eae3e3a99979d2ce144",
+      "path": "docs/supply-chain/notice-material/sha256/6670ed05df2d5d38d9976fd5ae6377a8da1431f0f8e7031c18b7aab8f3e495cd",
+      "sha256": "6670ed05df2d5d38d9976fd5ae6377a8da1431f0f8e7031c18b7aab8f3e495cd"
     },
     {
       "gitBlob": "aa689285366b5ee68a5054ea28e1128e58077ca5",
@@ -18986,6 +18991,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "e31d32bb",
-  "subjectTree": "723098d89b0f191741a94c5e71668eed8f0b4ef4"
+  "subjectCommit": "f320b980",
+  "subjectTree": "d86d00d9b97770aa3de8e37f522895e07bcc6ace"
 }
