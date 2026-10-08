@@ -2055,6 +2055,23 @@
       ]
     },
     {
+      "artifact": "https://files.pythonhosted.org/packages/3e/6e/0091f175ccd02b02bc8811bbcbcc6ac2e980be116e3b2f7a736ca322bf84/greenlet-3.5.6.tar.gz",
+      "checksum": "sha256:8e67c43bdfc88d5fee6db0d3e40175b362fc95fb85f0412d233b9b203c53a575",
+      "id": "pypi:greenlet@3.5.6",
+      "notices": [
+        {
+          "member": "greenlet-3.5.6/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/769831d6e5dfaf2c20802faccff1fafb4c2025dd8f6253dfa47fcad59d4d0979",
+          "sha256": "769831d6e5dfaf2c20802faccff1fafb4c2025dd8f6253dfa47fcad59d4d0979"
+        },
+        {
+          "member": "greenlet-3.5.6/LICENSE.PSF",
+          "path": "docs/supply-chain/notice-material/sha256/e5ff3c23c110e494cd7d736c10fd96d462457bafeca310840db6527298c7d46b",
+          "sha256": "e5ff3c23c110e494cd7d736c10fd96d462457bafeca310840db6527298c7d46b"
+        }
+      ]
+    },
+    {
       "artifact": "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz",
       "checksum": "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1",
       "id": "pypi:h11@0.16.0",
@@ -2696,6 +2713,28 @@
           "member": "sqlalchemy-2.0.52/doc/copyright.html",
           "path": "docs/supply-chain/notice-material/sha256/0c691797527763df1d52d1dcac62911ba31b7555b1dba27208c935377ac7d5d9",
           "sha256": "0c691797527763df1d52d1dcac62911ba31b7555b1dba27208c935377ac7d5d9"
+        }
+      ]
+    },
+    {
+      "artifact": "https://files.pythonhosted.org/packages/29/9c/271aa905cf2964f841371a97f3e63ab692bf51b4423d0491e67bc7f64037/sqlalchemy-2.0.54.tar.gz",
+      "checksum": "sha256:baa8521e8ee9f24e75dfc7aaabc08020e551ef0d48d7c3e3536f5cddf277586b",
+      "id": "pypi:sqlalchemy@2.0.54",
+      "notices": [
+        {
+          "member": "sqlalchemy-2.0.54/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/e862bb5b904fb5513c3e14288d7a25a12eb0ecc7847a0a965d310e9a955e7cb9",
+          "sha256": "e862bb5b904fb5513c3e14288d7a25a12eb0ecc7847a0a965d310e9a955e7cb9"
+        },
+        {
+          "member": "sqlalchemy-2.0.54/doc/build/copyright.rst",
+          "path": "docs/supply-chain/notice-material/sha256/4a0179c4ef9fb2c7464215c8c48686fe326a3dfcf34752ab41cd91e93a7cac87",
+          "sha256": "4a0179c4ef9fb2c7464215c8c48686fe326a3dfcf34752ab41cd91e93a7cac87"
+        },
+        {
+          "member": "sqlalchemy-2.0.54/doc/copyright.html",
+          "path": "docs/supply-chain/notice-material/sha256/53a375d7f6309fb05e35b37864620777b8dabd45d8d4b39ccd49c030b9cd49ba",
+          "sha256": "53a375d7f6309fb05e35b37864620777b8dabd45d8d4b39ccd49c030b9cd49ba"
         }
       ]
     },
