@@ -24599,6 +24599,16 @@ language: text
 
 END NOTICE click-8.5.0/docs/license.md
 
+ID: pypi:colorama@0.4.6
+Name: colorama
+Version: 0.4.6
+License: BSD License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/colorama/0.4.6/json
+Blockers: NONE
+Notice files:
+  - colorama-0.4.6/LICENSE.txt sha256:cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318
+
 ID: pypi:crc32c@2.8
 Name: crc32c
 Version: 2.8
@@ -25357,15 +25367,15 @@ BSD-3-Clause License
 
 END NOTICE markupsafe-3.0.3/docs/license.rst
 
-ID: pypi:multidict@6.7.1
+ID: pypi:multidict@6.9.1
 Name: multidict
-Version: 6.7.1
+Version: 6.9.1
 License: Apache License 2.0
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/multidict/6.7.1/json
+Source: https://pypi.org/pypi/multidict/6.9.1/json
 Blockers: NONE
 Notice files:
-  - multidict-6.7.1/LICENSE sha256:93d11a968e2f0f36373c40811ff6d20e173f58c3cab5884cd6617bbfd795492a
+  - multidict-6.9.1/LICENSE sha256:2e4be5fc6c4c72a466fcb665d726e049a6891981fe536c4f04b6366749461d23
 
 ID: pypi:numpy@2.5.3
 Name: numpy
