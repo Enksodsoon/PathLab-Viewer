@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T09:46:49.957705Z",
+  "generatedAt": "2026-10-08T11:17:28.530429Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -18209,9 +18209,9 @@
       "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
-      "gitBlob": "eebeb24183c00d3eebafba35927f4b689bc8f874",
+      "gitBlob": "28be703b862ab7c14fb92fe8a0bdcba1206b4f73",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "371511b9232af6c0e9aed9c54945241f403a5c811d345418dc707e32314738df"
+      "sha256": "409e48011d9a63963d757c018c164de8e7dda6bfa86d25b6c9dc63b06e3de4ec"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19239,6 +19239,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "a6095f21a0d0aaab36f7104ad3ad939231e74de6",
-  "subjectTree": "5a1f5882f0b2fd26df0602d5f3d0a8de47e98af1"
+  "subjectCommit": "457fff185857f5ef8a8d7bc36f6aa0742f22eb8e",
+  "subjectTree": "c797ddba3c5148103dde7027f37dd3fc14b21708"
 }
