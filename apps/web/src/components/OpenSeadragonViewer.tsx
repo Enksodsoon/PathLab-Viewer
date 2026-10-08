@@ -355,7 +355,7 @@ export function OpenSeadragonViewer({
         const reportScale = onScaleChangeRef.current
         if (!viewer || !scale || !reportScale) return
         const imageZoom = viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true))
-        const horizontalScale = horizontalMicronsPerPixel([scale, micronsPerPixelYRef.current ?? scale], viewer.viewport.getRotation())
+        const horizontalScale = horizontalMicronsPerPixel([scale, micronsPerPixelYRef.current ?? scale], viewer.viewport.getRotation(true))
         const micronsPerScreenPixel = horizontalScale / imageZoom
         const microns = niceScale(micronsPerScreenPixel * 90)
         reportScale(microns, microns / micronsPerScreenPixel)
@@ -400,7 +400,7 @@ export function OpenSeadragonViewer({
             imageZoom: readyViewer.viewport.viewportToImageZoom(readyViewer.viewport.getZoom(true)),
           visibleRadiusPixels: Math.min(readyViewer.container.clientWidth, readyViewer.container.clientHeight)
             / (2 * readyViewer.viewport.viewportToImageZoom(readyViewer.viewport.getZoom(true))),
-            rotation: readyViewer.viewport.getRotation(),
+            rotation: readyViewer.viewport.getRotation(true),
           }
         },
         setImageViewport: (snapshot, transactionId) => {
@@ -413,7 +413,7 @@ export function OpenSeadragonViewer({
           const displayRotation = normalizedRotation
           readyViewer.viewport.panTo(center, true)
           readyViewer.viewport.zoomTo(readyViewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
-          readyViewer.viewport.setRotation(displayRotation)
+          readyViewer.viewport.setRotation(displayRotation, true)
           setRotation(Number(displayRotation.toFixed(1)) % 360)
           // Clamping to this slide's bounds moves the mapped center and breaks linked scale.
           updateScale()
@@ -450,7 +450,7 @@ export function OpenSeadragonViewer({
           imageZoom: viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)),
           visibleRadiusPixels: Math.min(viewer.container.clientWidth, viewer.container.clientHeight)
             / (2 * viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true))),
-          rotation: viewer.viewport.getRotation(),
+          rotation: viewer.viewport.getRotation(true),
         }, navigationTransaction.current)
       }
       const scheduleViewportReport = () => {

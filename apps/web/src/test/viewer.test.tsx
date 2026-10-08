@@ -20,7 +20,7 @@ const osdMock = vi.hoisted(() => {
       goHome: vi.fn(),
       viewportToImageZoom: vi.fn(() => 2),
       getZoom: vi.fn(() => 1),
-      getRotation: vi.fn(() => 0),
+      getRotation: vi.fn((current?: boolean) => { void current; return 0 }),
       setRotation: vi.fn(),
       getCenter: vi.fn(() => ({ x: 0, y: 0 })),
       getBounds: vi.fn(() => ({ x: -200, y: -150, width: 400, height: 300, getBoundingBox: () => ({ x: -200, y: -150, width: 400, height: 300 }) })),
@@ -738,7 +738,7 @@ it('does not swallow the first user drag after a synchronized viewport update', 
   const onViewportChange = vi.fn()
   const { container } = render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={(value) => { handle = value }} onViewportChange={onViewportChange} />)
   act(() => handle!.setImageViewport({ centerX: 25, centerY: 30, imageZoom: 1, rotation: 12.345 }, 'sync-1'))
-  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(expect.closeTo(12.345, 6))
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(expect.closeTo(12.345, 6), true)
   fireEvent.pointerDown(container.querySelector('.osd-surface')!)
   emitViewerEvent('animation-finish')
   expect(onViewportChange).toHaveBeenLastCalledWith(expect.any(Object), undefined)
@@ -809,6 +809,51 @@ it('refreshes the anisotropic physical scale immediately on rotation', () => {
   } finally { osdMock.viewer.viewport.getRotation.mockReturnValue(0) }
 })
 
+it('reads the current animated angle with the current image bounds', async () => {
+  const { default: OpenSeadragon } = await vi.importActual<{ default: typeof import('openseadragon') }>('openseadragon')
+  const currentAngle = 0.3885965737411893, targetAngle = 1
+  const rectangle = new OpenSeadragon.Rect(-200, -150, 400, 300).rotate(-currentAngle)
+  const boundsImplementation = osdMock.viewer.viewport.getBounds.getMockImplementation()!
+  const rotationImplementation = osdMock.viewer.viewport.getRotation.getMockImplementation()!
+  osdMock.viewer.viewport.getBounds.mockReturnValue(rectangle)
+  osdMock.viewer.viewport.getRotation.mockImplementation(current => current ? currentAngle : targetAngle)
+  let handle: ViewerHandle | undefined
+  const onViewportChange = vi.fn()
+  try {
+    const { container } = render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={value => { handle = value }} onViewportChange={onViewportChange} />)
+    emitViewerEvent('open')
+    fireEvent.pointerDown(container.querySelector('.osd-surface')!)
+    emitViewerEvent('animation-finish')
+    const radians = currentAngle * Math.PI / 180
+    const width = 400 * Math.cos(radians) + 300 * Math.sin(radians)
+    const height = 300 * Math.cos(radians) + 400 * Math.sin(radians)
+    for (const snapshot of [handle!.getImageViewport(), onViewportChange.mock.calls.at(-1)![0]]) {
+      expect.soft(snapshot.rotation).toBe(currentAngle)
+      expect(snapshot.visibleBounds[0]).toBeCloseTo(-width / 2, 8)
+      expect(snapshot.visibleBounds[1]).toBeCloseTo(-height / 2, 8)
+      expect(snapshot.visibleBounds[2]).toBeCloseTo(width, 8)
+      expect(snapshot.visibleBounds[3]).toBeCloseTo(height, 8)
+    }
+  } finally {
+    osdMock.viewer.viewport.getBounds.mockImplementation(boundsImplementation)
+    osdMock.viewer.viewport.getRotation.mockImplementation(rotationImplementation)
+  }
+})
+
+it('uses the current animated angle for the anisotropic horizontal scale', () => {
+  const rotationImplementation = osdMock.viewer.viewport.getRotation.getMockImplementation()!
+  osdMock.viewer.viewport.getRotation.mockImplementation(current => current ? 30 : 90)
+  const onScaleChange = vi.fn()
+  try {
+    render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={() => {}} micronsPerPixel={0.25} micronsPerPixelY={0.5} onScaleChange={onScaleChange} />)
+    emitViewerEvent('open')
+    const [microns, width] = onScaleChange.mock.calls.at(-1)!
+    const radians = 30 * Math.PI / 180
+    const currentHorizontalMpp = Math.hypot(Math.cos(radians) * 0.25, Math.sin(radians) * 0.5)
+    expect(microns / width).toBeCloseTo(currentHorizontalMpp / 2, 8)
+  } finally { osdMock.viewer.viewport.getRotation.mockImplementation(rotationImplementation) }
+})
+
 it.each([
   { angle: 0, restored: false }, { angle: 37, restored: false }, { angle: 90, restored: false },
   { angle: 5.68e-14, restored: false }, { angle: -5.68e-14, restored: false },
@@ -832,7 +877,7 @@ it.each([
     if (restored) {
       act(() => handle!.setImageViewport({ centerX: center.x, centerY: center.y, imageZoom: 2, rotation: 0 }, 'restore-field'))
       expect(osdMock.viewer.viewport.panTo).toHaveBeenLastCalledWith(center, true)
-      expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
+      expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0, true)
     } else fireEvent.pointerDown(document.querySelector('.osd-surface')!)
     emitViewerEvent('animation-finish')
     // Independent envelope of a centered, rotated viewport, in original pixels.
