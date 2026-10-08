@@ -10,7 +10,7 @@ import type { ComparisonSet, RegistrationCandidateManifest } from '../types'
 const currentPairProof = { currentPair: true, currentSettings: true, anchorSlideId: 'slide-1', sourceSnapshotVersion: 'snapshot-moving', anchorSnapshotVersion: 'snapshot-reference' }
 const candidateInspectionMap = { coordinateReferenceId: 'slide-1', anchorSlideId: 'slide-1', status: 'ready', provenance: 'automatic-candidate', movingToReference: [[1, 0, 0], [0, 1, 0]], triangles: [{ moving: [[0, 0], [100, 0], [0, 100]], reference: [[0, 0], [100, 0], [0, 100]] }] }
 
-const viewportHarness = vi.hoisted(() => ({ enabled: false, deferOpen: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), homed: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
+const viewportHarness = vi.hoisted(() => ({ enabled: false, deferOpen: false, bounds: null as [number, number, number, number] | null, viewports: new Map<string, { centerX: number, centerY: number, imageZoom: number, rotation: number }>(), applied: vi.fn(), fitted: vi.fn(), homed: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
   OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onClose, onDispose, onViewportChange, loadingMode, showLoadingMode, micronsPerPixel }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onClose?: () => void, onDispose?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean, micronsPerPixel?: number | null }) => <button
@@ -23,9 +23,9 @@ vi.mock('../components/OpenSeadragonViewer', () => ({
     onDoubleClick={() => onOpen?.()}
     onKeyDown={event => { if (event.key === 'Escape') onClose?.() }}
     onClick={() => {
-      if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current, ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: () => viewportHarness.homed(tileSource) })
+      if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...(viewportHarness.viewports.get(tileSource) ?? viewportHarness.current), ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: typeof viewportHarness.current) => { if (viewportHarness.viewports.has(tileSource)) viewportHarness.viewports.set(tileSource, { ...snapshot }); viewportHarness.applied(tileSource, snapshot) }, fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: () => viewportHarness.homed(tileSource) })
       if (!viewportHarness.deferOpen) onOpen?.()
-      onViewportChange?.(viewportHarness.enabled ? { ...viewportHarness.current } : { centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
+      if (!viewportHarness.deferOpen) onViewportChange?.(viewportHarness.enabled ? { ...viewportHarness.current } : { centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
     }}
   />,
 }))
@@ -34,6 +34,7 @@ beforeEach(() => {
   viewportHarness.enabled = false
   viewportHarness.deferOpen = false
   viewportHarness.bounds = null
+  viewportHarness.viewports.clear()
   viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 }
   viewportHarness.applied.mockClear()
   viewportHarness.fitted.mockClear()
@@ -115,6 +116,212 @@ function candidatePreviewFixture() {
     manifest: { comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {}, candidates: [{ id: 'candidate-partial', slideId: 'slide-2', anchorSlideId: 'slide-1', setVersion: 1, engine: 'wsireg-0.3.8', status: 'ready', validationState: 'engineering_passed', currentSettings: true, currentPair: true, sourceSnapshotVersion: 'snapshot-moving', anchorSnapshotVersion: 'snapshot-reference', registration: { status: 'ready', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', coordinateReferenceId: 'slide-1', movingToReference: [[1, 0, 10], [0, 1, 0]], triangles: [cell(100, 10)] } }] },
   }
 }
+
+it.each(['ready', 'approximate', 'ready-overview'] as const)('focuses explicit %s candidate Preview on its own tissue and restores the original field', async status => {
+  const fixture = candidatePreviewFixture()
+  if (status !== 'ready') Object.assign(fixture.manifest.candidates[0].registration, { status: status === 'approximate' ? status : 'ready', overviewTriangles: fixture.manifest.candidates[0].registration.triangles, triangles: [] })
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
+  const original = { ...viewportHarness.current }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  viewportHarness.fitted.mockClear()
+  viewportHarness.fitted.mockImplementation((_tile, bounds: number[]) => { viewportHarness.current = { ...viewportHarness.current, centerX: (bounds[0] + bounds[2]) / 2, centerY: (bounds[1] + bounds[3]) / 2 } })
+  try {
+    await user.click(screen.getByText('Advanced'))
+    await user.click(screen.getByText('Registration engine candidates'))
+    await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+    await waitFor(() => expect(viewportHarness.fitted).toHaveBeenCalledExactlyOnceWith('/tiles/2.dzi', expect.any(Array)))
+    expect(viewportHarness.current.centerX).toBeCloseTo(100 / 3)
+    expect(viewportHarness.current.centerY).toBeCloseTo(100 / 3)
+    const mapped = viewportHarness.applied.mock.calls.filter(call => call[0] === '/tiles/1.dzi').at(-1)?.[1]
+    expect(mapped.centerX).toBeCloseTo(100 / 3 + 10, 10)
+    expect(mapped.centerY).toBeCloseTo(100 / 3, 10)
+    await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
+    await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', original))
+  } finally { viewportHarness.fitted.mockReset() }
+})
+
+it('preserves a supported candidate field and drives that pane when the anchor field is outside its own support', async () => {
+  const fixture = candidatePreviewFixture()
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 5, centerY: 5, imageZoom: 2, rotation: 0 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  viewportHarness.fitted.mockClear()
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 15 })))
+  expect(viewportHarness.applied.mock.calls.at(-1)?.[1].centerY).toBeCloseTo(5, 10)
+  expect(viewportHarness.fitted).not.toHaveBeenCalled()
+})
+
+it('preserves a ready candidate field supported by its own overview without using retained Native support', async () => {
+  const fixture = candidatePreviewFixture()
+  Object.assign(fixture.manifest.candidates[0].registration, { overviewTriangles: [{ moving: [[0, 0], [700, 0], [0, 700]], reference: [[10, 0], [710, 0], [10, 700]] }] })
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  viewportHarness.fitted.mockClear()
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  await waitFor(() => {
+    const mapped = viewportHarness.applied.mock.calls.filter(([tile]) => tile === '/tiles/1.dzi').at(-1)?.[1]
+    expect(mapped?.centerX).toBeCloseTo(310, 10)
+    expect(mapped?.centerY).toBeCloseTo(200, 10)
+  })
+  expect(viewportHarness.fitted).not.toHaveBeenCalled()
+  expect(screen.queryByText('Approximate overview', { selector: 'span' })).not.toBeInTheDocument()
+})
+
+it('defers candidate own-tissue focus until both displayed images actually open', async () => {
+  const fixture = candidatePreviewFixture()
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  viewportHarness.deferOpen = true
+  viewportHarness.current = { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  expect(viewportHarness.fitted).not.toHaveBeenCalled()
+  const loadedOriginal = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
+  viewportHarness.current = loadedOriginal
+  fireEvent.doubleClick(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(viewportHarness.fitted).not.toHaveBeenCalled()
+  viewportHarness.fitted.mockImplementation((_tile, bounds: number[]) => { viewportHarness.current = { ...viewportHarness.current, centerX: (bounds[0] + bounds[2]) / 2, centerY: (bounds[1] + bounds[3]) / 2 } })
+  try {
+    fireEvent.doubleClick(screen.getByLabelText('Viewer /tiles/1.dzi'))
+    await waitFor(() => expect(viewportHarness.fitted).toHaveBeenCalledExactlyOnceWith('/tiles/2.dzi', expect.any(Array)))
+    await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
+    await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', loadedOriginal))
+    expect(viewportHarness.applied).not.toHaveBeenCalledWith('/tiles/2.dzi', { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 })
+  } finally { viewportHarness.fitted.mockReset() }
+})
+
+it('restores an anchor that opens after Preview preserves an already supported source field', async () => {
+  const fixture = candidatePreviewFixture()
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  const source = { centerX: 5, centerY: 5, imageZoom: 2, rotation: 0 }
+  viewportHarness.current = source
+  viewportHarness.viewports.set('/tiles/2.dzi', source)
+  viewportHarness.viewports.set('/tiles/1.dzi', { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 })
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  viewportHarness.deferOpen = true
+  await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  const loadedAnchor = { centerX: 300, centerY: 200, imageZoom: 1.5, rotation: 0 }
+  viewportHarness.viewports.set('/tiles/1.dzi', loadedAnchor)
+  fireEvent.doubleClick(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  await waitFor(() => expect(viewportHarness.viewports.get('/tiles/1.dzi')?.centerX).toBeCloseTo(15, 10))
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
+  await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', loadedAnchor))
+  expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', source)
+  expect(viewportHarness.fitted).not.toHaveBeenCalled()
+})
+
+it.each(['chosen-anchor', 'unrelated-pane'] as const)('gates deferred candidate focus on the selected pair rather than an unopened fourth pane: %s', async firstOther => {
+  const fixture = candidatePreviewFixture()
+  for (const index of [3, 4]) fixture.comparison.members.push({ ...fixture.comparison.members[1], slideId: `slide-${index}`, displayName: `Slide ${index}`, tileSource: `/tiles/${index}.dzi` })
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1', JSON.stringify(['slide-1', 'slide-2', 'slide-3', 'slide-4']))
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  viewportHarness.deferOpen = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  fireEvent.doubleClick(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  fireEvent.doubleClick(screen.getByLabelText(`Viewer /tiles/${firstOther === 'chosen-anchor' ? 1 : 3}.dzi`))
+  if (firstOther === 'unrelated-pane') {
+    expect(viewportHarness.fitted).not.toHaveBeenCalled()
+    fireEvent.doubleClick(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  }
+  await waitFor(() => expect(viewportHarness.fitted).toHaveBeenCalledExactlyOnceWith('/tiles/2.dzi', expect.any(Array)))
+})
+
+it('requires a hidden candidate slide to be displayed before Preview', async () => {
+  const fixture = candidatePreviewFixture()
+  const third = { ...fixture.comparison.members[1], slideId: 'slide-3', displayName: 'Slide 3', tileSource: '/tiles/3.dzi' }
+  fixture.comparison.members.push(third)
+  fixture.manifest.candidates[0].slideId = third.slideId
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  expect(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 3' })).toBeDisabled()
+  expect(screen.getByText('Show Slide 3 in a pane to preview its alignment.')).toBeVisible()
+})
+
+it('focuses a displayed candidate without exposing its hidden reference anchor', async () => {
+  const fixture = candidatePreviewFixture()
+  fixture.comparison.members.push({ ...fixture.comparison.members[1], slideId: 'slide-3', displayName: 'Slide 3', tileSource: '/tiles/3.dzi' })
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1', JSON.stringify(['slide-2', 'slide-3']))
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : fixture.comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  viewportHarness.fitted.mockClear()
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  await waitFor(() => expect(viewportHarness.fitted).toHaveBeenCalledExactlyOnceWith('/tiles/2.dzi', expect.any(Array)))
+  expect(screen.queryByLabelText('Viewer /tiles/1.dzi')).not.toBeInTheDocument()
+})
+
+it('protects the currently supported saved regional field during candidate Preview', async () => {
+  const fixture = candidatePreviewFixture()
+  const comparison = fixture.comparison as unknown as ComparisonSet
+  const cell = { moving: [[200, 100], [400, 100], [200, 300]], reference: [[230, 100], [430, 100], [230, 300]] }
+  comparison.regionalCorrections = [{ id: 'saved-region', regionId: 'saved-region', sourceSlideId: 'slide-2', targetSlideId: 'slide-1', sourceVersion: 'snapshot-moving', targetVersion: 'snapshot-reference', sourceBounds: [200, 100, 200, 200], registration: { status: 'approximate', provenance: 'manual-region', movingToReference: [[1, 0, 30], [0, 1, 0]], triangles: [cell], overviewTriangles: [cell] } }] as ComparisonSet['regionalCorrections']
+  vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(String(input).endsWith('/candidates') ? fixture.manifest : String(input).endsWith('/jobs') ? [] : comparison), { status: 200 }))
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 300, centerY: 200, imageZoom: 2, rotation: 0 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Bound candidate set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  viewportHarness.fitted.mockClear()
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview wsireg-0.3.8 for Slide 2' }))
+  await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', expect.objectContaining({ centerX: 330, centerY: 200 })))
+  expect(viewportHarness.fitted).not.toHaveBeenCalled()
+  expect(screen.getAllByText('Manually adjusted approximation', { selector: 'span' })).toHaveLength(2)
+})
 
 it.each(['candidate-divergent', 'candidate-missing', 'correction-divergent'])(
   'reports actual restoration readback separately from requested fields: %s', async mode => {
@@ -729,6 +936,7 @@ it.each([{ status: 'partial', currentSettings: true }, { status: 'running', curr
     return
   }
   viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 100, centerY: 100, imageZoom: 2, rotation: 12 }
   for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
   const originalViewport = { ...viewportHarness.current }
   viewportHarness.fitted.mockClear()
@@ -972,7 +1180,8 @@ it('opens a correction with independent panes and requires preview before save',
 
 it.each([
   { code: 'AUTH_REQUIRED', status: 401, message: /Your session expired/ },
-  { code: 'LANDMARK_ON_GLASS', status: 422, message: /A point is on blank glass/ },
+  { code: 'LANDMARK_ON_GLASS', status: 422, message: /A point is outside supported tissue/ },
+  { code: 'REGION_SUPPORT_UNAVAILABLE', status: 422, message: /No shared tissue is supported in this region/ },
 ])('explains a rejected correction without discarding recorded points: $code', async ({ code, status, message }) => {
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
@@ -991,6 +1200,7 @@ it.each([
   await user.click(screen.getByRole('button', { name: 'Preview correction' }))
   expect(await screen.findByText(message)).toBeVisible()
   expect(screen.getByText('3 point pairs')).toBeVisible()
+  expect(vi.mocked(fetch).mock.calls.filter(([input, init]) => String(input).includes('/corrections/') && init?.method === 'PUT')).toHaveLength(1)
 })
 
 it('labels a successful correction preview as unsaved', async () => {

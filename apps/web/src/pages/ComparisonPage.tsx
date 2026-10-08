@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, benchmarkComparisonSet, cancelComparisonRegistration, correctComparisonSet, correctComparisonRegion, getComparisonCandidates, getComparisonJobs, getComparisonSet, getSharedComparisonSet, promoteComparisonCandidate, registerComparisonSet, reregisterComparisonSet, updateComparisonSet } from '../api'
-import { mapStackPoint, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, type Support } from '../alignment'
+import { mapStackPoint, mapRegistrationPoint, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, type Support } from '../alignment'
 import { horizontalMicronsPerPixel, normalizedMicronsPerPixel } from '../calibration'
 import { candidatePairIsCurrent, candidatePreviewRegistration } from '../candidatePreview'
 import { adminSignInPath } from '../authReturnPath'
@@ -238,11 +238,12 @@ export function ComparisonPage() {
   const initializedPanes = useRef('')
   const drivingPane = useRef<string | null>(null)
   const hasInitialField = useRef(false)
+  const pendingCandidateFocus = useRef<string | null>(null)
   const activeTransaction = useRef<string | null>(null)
   const restoreNavigationAfterCorrection = useRef(false)
   const alignmentPreferenceExplicit = useRef(false)
   const captureViewports = () => new Map(panes.flatMap((slideId) => {
-    const viewport = handles.current.get(slideId)?.getImageViewport() ?? savedViewports.current.get(slideId)
+    const viewport = (openedSlides.current.has(slideId) ? handles.current.get(slideId)?.getImageViewport() : undefined) ?? savedViewports.current.get(slideId)
     return viewport ? [[slideId, { ...viewport }] as const] : []
   }))
   const restoreViewports = useCallback((viewports: Map<string, ImageViewport>) => {
@@ -265,7 +266,7 @@ export function ComparisonPage() {
   const benchmarkActivity = jobs.some((job) => job.kind === 'align_benchmark'
     && ['queued', 'leased', 'running', 'retry_wait'].includes(job.status))
   const previewCandidate = (candidate: RegistrationCandidate, slideName: string) => {
-    if (correction || !comparison) return
+    if (correction || !comparison || !panes.includes(candidate.slideId)) return
     const registration = candidatePreviewRegistration(candidate, comparison, candidateManifest)
     if (!registration) return
     const originalRegistration = candidatePreview?.slideId === candidate.slideId
@@ -274,6 +275,15 @@ export function ComparisonPage() {
     const originalAlignmentMode = candidatePreview?.originalAlignmentMode ?? alignmentMode
     const originalLinked = candidatePreview?.originalLinked ?? linked
     const originalViewports = candidatePreview?.originalViewports ?? captureViewports()
+    const viewport = openedSlides.current.has(candidate.slideId) ? handles.current.get(candidate.slideId)?.getImageViewport() : null
+    const point: [number, number] | null = viewport ? [viewport.centerX, viewport.centerY] : null
+    const ownRegistration = candidate.registration!
+    const ownSupported = point && ((ownRegistration.status === 'ready' && mapRegistrationPoint(point, ownRegistration))
+      || mapRegistrationPoint(point, { ...ownRegistration, triangles: ownRegistration.overviewTriangles }))
+    const regionalSupported = point && panes.some(id => id !== candidate.slideId && mapStackPoint(point, candidate.slideId, id, comparison.referenceSlideId, comparison.members, 'best', undefined, comparison.regionalCorrections)?.regional)
+    pendingCandidateFocus.current = ownSupported || regionalSupported ? null : candidate.id
+    hasInitialField.current = !!(ownSupported || regionalSupported)
+    drivingPane.current = candidate.slideId
     setComparison((current) => {
       if (!current) return current
       const restoredMembers = candidatePreview
@@ -300,6 +310,7 @@ export function ComparisonPage() {
   }
   const stopCandidatePreview = () => {
     if (correction || !candidatePreview) return
+    pendingCandidateFocus.current = null
     setComparison((current) => current ? {
       ...current,
       members: current.members.map((member) => member.slideId === candidatePreview.slideId
@@ -412,6 +423,7 @@ export function ComparisonPage() {
           } else {
             setComparison(updated)
             if (candidatePreview) {
+              pendingCandidateFocus.current = null
               setCandidatePreview(null)
               setRetainedOverviewPanes(new Set())
               setAlignmentMode(candidatePreview.originalAlignmentMode)
@@ -559,6 +571,31 @@ export function ComparisonPage() {
   const initializeOpenedPanes = useCallback(() => {
     if (!comparison || !linked) return
     const opened = panes.filter((id) => openedSlides.current.has(id))
+    if (candidatePreview && pendingCandidateFocus.current === candidatePreview.candidateId && !correction) {
+      const member = comparison.members.find(member => member.slideId === candidatePreview.slideId)
+      const registration = candidatePreview.registration
+      const anchor = comparison.members.find(member => member.slideId === registration?.anchorSlideId)
+      const handle = member && handles.current.get(member.slideId)
+      if (!member || !registration || !anchor || !handle) return
+      if (!opened.includes(member.slideId) || (panes.includes(anchor.slideId)
+        ? !opened.includes(anchor.slideId) : !opened.some(id => id !== member.slideId))) return
+      for (const id of opened) {
+        if (candidatePreview.originalViewports.has(id)) continue
+        const viewport = handles.current.get(id)?.getImageViewport()
+        if (viewport) candidatePreview.originalViewports.set(id, { ...viewport })
+      }
+      const source = { ...member, registration }
+      const bounds = (registration.status === 'ready' ? matchedFocusBounds(source, [anchor], comparison.referenceSlideId) : null)
+        ?? overviewFocusBounds(source, anchor, comparison.referenceSlideId)
+      pendingCandidateFocus.current = null
+      if (bounds) {
+        handle.fitImageBounds(bounds)
+        hasInitialField.current = true
+        drivingPane.current = member.slideId
+        synchronize(member, handle.getImageViewport())
+        return
+      }
+    }
     const key = JSON.stringify([opened, comparison.referenceSlideId, alignmentMode, comparison.members.map(member => member.registration)])
     if (key === initializedPanes.current) return
     initializedPanes.current = key
@@ -589,7 +626,7 @@ export function ComparisonPage() {
       }
     }
     window.requestAnimationFrame(alignOpenedPanes)
-  }, [alignOpenedPanes, alignmentMode, comparison, linked, panes, synchronize])
+  }, [alignOpenedPanes, alignmentMode, candidatePreview, comparison, correction, linked, panes, synchronize])
   useEffect(() => {
     if (!linked) return
     const frame = window.requestAnimationFrame(initializeOpenedPanes)
@@ -696,7 +733,9 @@ export function ComparisonPage() {
           : code === 'LANDMARK_OUTSIDE_SLIDE'
             ? 'A recorded point is outside its slide. Undo that pair and record it inside the image.'
           : code === 'LANDMARK_ON_GLASS'
-            ? 'A point is on blank glass. Undo that pair and mark the same identifiable tissue structure in both slides.'
+            ? 'A point is outside supported tissue. Undo that pair and mark the same identifiable tissue structure in both slides.'
+            : code === 'REGION_SUPPORT_UNAVAILABLE'
+              ? 'No shared tissue is supported in this region. Move to corresponding tissue in both slides and try again.'
           : code === 'LANDMARK_IMAGE_UNAVAILABLE'
             ? 'The slide image could not be checked. Retry when its tiles are available.'
           : code === 'LANDMARKS_DEGENERATE' || code === 'LANDMARKS_NOT_DISTRIBUTED'
@@ -768,6 +807,7 @@ export function ComparisonPage() {
     const y = Math.max(0, bounds?.[1] ?? (viewport?.centerY ?? 0) - radius)
     const right = Math.min(moving?.metadata?.width ?? 0, bounds ? bounds[0] + bounds[2] : (viewport?.centerX ?? 0) + radius)
     const bottom = Math.min(moving?.metadata?.height ?? 0, bounds ? bounds[1] + bounds[3] : (viewport?.centerY ?? 0) + radius)
+    pendingCandidateFocus.current = null
     setCorrection({
       original: comparison,
       originalPanes: [...panes],
@@ -794,6 +834,7 @@ export function ComparisonPage() {
   }
   const cancelCorrection = () => {
     if (!correction) return
+    pendingCandidateFocus.current = null
     const deferred = deferredComparison.current
     setComparison(deferred && deferred.version >= correction.original.version ? deferred : correction.original)
     if (deferred) newestVersion.current = Math.max(newestVersion.current, deferred.version)
@@ -862,7 +903,7 @@ export function ComparisonPage() {
         <button type="button" aria-label="Groups" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => setGrouping({ referenceId: comparison.referenceSlideId, anchors: Object.fromEntries(comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId).map((member) => [member.slideId, comparison.alignmentConfig?.anchors?.[member.slideId] ?? member.registration?.anchorSlideId ?? comparison.referenceSlideId])) })}>Reference groups</button>
         <button type="button" disabled={benchmarking || registrationPending || !!correction} onClick={() => { const engines = Object.entries(candidateManifest?.engineAvailability ?? {}).filter(([, value]) => value.available).map(([engine]) => engine); setBenchmarking(true); void benchmarkComparisonSet(comparison.id, comparison.version, engines.length ? engines : ['native-v12']).then(async () => { setNotice('Engine benchmark queued. Existing alignment remains active until you promote a candidate.'); const queuedJobs = await getComparisonJobs(comparison.id); if (Array.isArray(queuedJobs)) setJobs(queuedJobs) }).catch(() => setNotice('Engine benchmark could not be queued.')).finally(() => setBenchmarking(false)) }}>{benchmarking ? 'Queuing benchmark…' : 'Benchmark engines'}</button>
         <button type="button" disabled={registrationPending || !!correction || !!grouping || !panes.some((slideId) => slideId !== comparison.referenceSlideId)} onClick={() => startCorrection()}>Correct alignment</button></> : null}
-{!publicId && visibleCandidates.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy. Preview a candidate and inspect corresponding tissue before saving it.</p>{candidatePreview && comparison.members.some(member => member.registration?.retainedOverviewFallback) ? <p>Outside candidate support, a source-bound Native overview provides approximate navigation within its supported tissue.</p> : null}<div>{visibleCandidates.map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; const canPreview = candidatePairIsCurrent(candidate, comparison, candidateManifest); const localEvidenceReady = candidate.engine.startsWith('hisalign') ? candidate.registration?.evidence?.hisalignLocalEvidenceQualified === true : candidate.engine.startsWith('valis') ? candidate.registration?.evidence?.valisLocalEvidenceQualified === true : true; const canPromote = canPreview && candidate.benchmarkMeasurements?.qualified !== false && candidate.currentSettings !== false && candidate.status === 'ready' && candidateValidationPassed(candidate) && !!candidate.registration && localEvidenceReady; const isPreviewing = candidatePreview?.candidateId === candidate.id; const candidateReason = candidate.failureReason || candidate.registration?.reason; return <article key={candidate.id} data-previewing={isPreviewing}><strong>{candidateSlideName}</strong><span>{registrationEngineLabel(candidate.engine)} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}{candidate.currentSettings === false ? ' · outdated adapter' : !localEvidenceReady ? ' · local map unqualified' : ''}</span>{candidateReason ? <small>{candidateReason}</small> : null}<ComparisonCandidateReceipt recipeIdentity={candidate.recipeIdentity} stages={candidate.stageProvenance} measurements={candidate.benchmarkMeasurements} /><div className="comparison-candidate-actions">{isPreviewing ? <button type="button" aria-label={`Stop previewing ${candidate.engine} for ${candidateSlideName}`} disabled={!!correction} onClick={stopCandidatePreview}>Stop preview</button> : <button type="button" aria-label={`Preview ${candidate.engine} for ${candidateSlideName}`} disabled={!canPreview || !!correction} onClick={() => previewCandidate(candidate, candidateSlideName)}>Preview candidate</button>}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={!canPromote || registering || !!correction} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setCandidatePreview(null); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></div></article> })}</div></details> : null}
+{!publicId && visibleCandidates.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy. Preview a candidate and inspect corresponding tissue before saving it.</p>{candidatePreview && comparison.members.some(member => member.registration?.retainedOverviewFallback) ? <p>Outside candidate support, a source-bound Native overview provides approximate navigation within its supported tissue.</p> : null}<div>{visibleCandidates.map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; const currentCandidate = candidatePairIsCurrent(candidate, comparison, candidateManifest); const canPreview = currentCandidate && panes.includes(candidate.slideId); const localEvidenceReady = candidate.engine.startsWith('hisalign') ? candidate.registration?.evidence?.hisalignLocalEvidenceQualified === true : candidate.engine.startsWith('valis') ? candidate.registration?.evidence?.valisLocalEvidenceQualified === true : true; const canPromote = canPreview && candidate.benchmarkMeasurements?.qualified !== false && candidate.currentSettings !== false && candidate.status === 'ready' && candidateValidationPassed(candidate) && !!candidate.registration && localEvidenceReady; const isPreviewing = candidatePreview?.candidateId === candidate.id; const candidateReason = candidate.failureReason || candidate.registration?.reason; return <article key={candidate.id} data-previewing={isPreviewing}><strong>{candidateSlideName}</strong><span>{registrationEngineLabel(candidate.engine)} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}{candidate.currentSettings === false ? ' · outdated adapter' : !localEvidenceReady ? ' · local map unqualified' : ''}</span>{candidateReason ? <small>{candidateReason}</small> : null}{currentCandidate && !panes.includes(candidate.slideId) ? <small>Show {candidateSlideName} in a pane to preview its alignment.</small> : null}<ComparisonCandidateReceipt recipeIdentity={candidate.recipeIdentity} stages={candidate.stageProvenance} measurements={candidate.benchmarkMeasurements} /><div className="comparison-candidate-actions">{isPreviewing ? <button type="button" aria-label={`Stop previewing ${candidate.engine} for ${candidateSlideName}`} disabled={!!correction} onClick={stopCandidatePreview}>Stop preview</button> : <button type="button" aria-label={`Preview ${candidate.engine} for ${candidateSlideName}`} disabled={!canPreview || !!correction} onClick={() => previewCandidate(candidate, candidateSlideName)}>Preview candidate</button>}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={!canPromote || registering || !!correction} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setCandidatePreview(null); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></div></article> })}</div></details> : null}
 {inspectedMember ? <section className="comparison-inspector" aria-label="Active pane inspector"><strong>{inspectedMember.displayName}</strong><details className="comparison-display"><summary>Display</summary><label>Tile detail<select aria-label="Tile detail" value={loadingModes[inspectedId] ?? 'auto'} onChange={event => setTileDetail(inspectedId, event.target.value as ViewerLoadingMode)}><option value="auto">Auto</option><option value="data-saver">Data saver</option><option value="full">Full detail</option></select></label><label>Brightness<input type="range" min="0.5" max="1.5" step="0.05" value={inspectedAdjustments.brightness} onChange={(event) => setDisplay((current) => ({ ...current, [inspectedId]: { ...inspectedAdjustments, brightness: Number(event.target.value) } }))} /></label><label>Contrast<input type="range" min="0.5" max="1.5" step="0.05" value={inspectedAdjustments.contrast} onChange={(event) => setDisplay((current) => ({ ...current, [inspectedId]: { ...inspectedAdjustments, contrast: Number(event.target.value) } }))} /></label><label>Gamma<input type="range" min="0.5" max="2" step="0.05" value={inspectedAdjustments.gamma} onChange={(event) => setDisplay((current) => ({ ...current, [inspectedId]: { ...inspectedAdjustments, gamma: Number(event.target.value) } }))} /></label><button type="button" onClick={() => setDisplay((current) => ({ ...current, [inspectedId]: { brightness: 1, contrast: 1, gamma: 1 } }))}>Reset display</button></details>
           <details className="comparison-quality"><summary>Alignment quality</summary>{inspectedMember.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{inspectedMember.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{inspectedEvidence?.featureMatchCount ?? inspectedEvidence?.anatomicalMatchCount ?? 0} {inspectedMember.registration?.provenance === 'manual' ? 'manual landmarks' : 'feature candidates'}</dd></div><div><dt>Map</dt><dd>{inspectedEvidence?.triangleCount ?? inspectedMember.registration?.triangles?.length ?? 0} accepted cells</dd></div>{inspectedMember.registration?.overviewTriangles?.length ? <div><dt>Overview map</dt><dd>{inspectedMember.registration.overviewTriangles.length} approximate cells</dd></div> : null}{inspectedEvidence?.flowControlCount ? <div><dt>Local refinement</dt><dd>{inspectedEvidence.flowControlCount} cycle-consistent controls</dd></div> : null}{inspectedEvidence?.flowCycleP95 !== undefined ? <div><dt>Flow cycle p95</dt><dd>{inspectedEvidence.flowCycleP95.toFixed(2)} px</dd></div> : null}{inspectedEvidence?.verifiedPatchCount !== undefined ? <div><dt>Withheld patch check</dt><dd>{inspectedEvidence.verifiedPatchCount} locally discriminative cells</dd></div> : null}{inspectedEvidence?.supportExpansionCount ? <div><dt>Continuous support</dt><dd>{inspectedEvidence.supportExpansionCount} edge-adjacent cells</dd></div> : null}{inspectedEvidence?.patchNccMedian !== undefined && inspectedEvidence.patchNccMedian >= 0 ? <div><dt>Patch NCC median</dt><dd>{inspectedEvidence.patchNccMedian.toFixed(2)}</dd></div> : null}{inspectedEvidence?.patchDiscriminationMedian !== undefined && inspectedEvidence.patchDiscriminationMedian >= 0 ? <div><dt>Patch discrimination</dt><dd>{inspectedEvidence.patchDiscriminationMedian.toFixed(2)}</dd></div> : null}{inspectedEvidence?.structuralComponentPairsChecked !== undefined ? <div><dt>Fragment alternatives</dt><dd>{inspectedEvidence.structuralComponentPairsChecked} checked · {inspectedEvidence.acceptedStructuralComponents ?? 0} accepted · {inspectedEvidence.ambiguousStructuralComponents ?? 0} ambiguous</dd></div> : null}{inspectedEvidence?.layoutConsistencyMedian !== undefined ? <div><dt>Fragment layout</dt><dd>{inspectedEvidence.layoutConsistencyMedian.toFixed(2)} consistency</dd></div> : null}{inspectedEvidence?.opticalDensityKazeInliers !== undefined ? <div><dt>Stain-independent features</dt><dd>{inspectedEvidence.opticalDensityKazeInliers} KAZE inliers · {(inspectedEvidence.opticalDensityKazeSpreadMedian ?? 0).toFixed(2)} spread</dd></div> : null}<div><dt>Fit residual (not accuracy)</dt><dd>{inspectedResidual === null ? 'Not measured' : `${inspectedResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{inspectedMember.registration?.provenance ?? 'none'}</dd></div></dl>}{inspectedMember.registration?.reason ? <p>{inspectedMember.registration.reason}</p> : null}</details></section> : null}
       </div></details>
@@ -969,6 +1010,10 @@ export function ComparisonPage() {
           <OpenSeadragonViewer tileSource={member.tileSource!} showLoadingMode={false} loadingMode={loadingModes[slideId]} displayAdjustments={adjustments} onReady={(handle) => handles.current.set(slideId, handle)} onClose={() => { openedSlides.current.delete(slideId); refreshOpenedSlides(revision => revision + 1) }} onDispose={() => { handles.current.delete(slideId); openedSlides.current.delete(slideId); refreshOpenedSlides(revision => revision + 1) }} onOpen={() => {
             openedSlides.current.add(slideId)
             refreshOpenedSlides(revision => revision + 1)
+            if (candidatePreview && !candidatePreview.originalViewports.has(slideId)) {
+              const viewport = handles.current.get(slideId)?.getImageViewport()
+              if (viewport) candidatePreview.originalViewports.set(slideId, { ...viewport })
+            }
             const saved = savedViewports.current.get(slideId)
             if (saved) handles.current.get(slideId)?.setImageViewport(saved, 'restore-field')
             initializeOpenedPanes()
