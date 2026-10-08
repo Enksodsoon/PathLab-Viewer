@@ -176,9 +176,25 @@ class Checks(unittest.TestCase):
             self.build()
 
     def test_privacy_and_finite(self):
-        for value in ({"childPid": 9}, {"message": "C:/private/image"}, {"value": float("nan")}):
+        for value in (
+            {"childPid": 9},
+            {"message": "C:/private/image"},
+            {"message": "Bearer fixture"},
+            {"message": "token=fixture"},
+            {"value": float("nan")},
+        ):
             with self.assertRaises(ValueError):
                 module.privacy(value)
+
+    def test_privacy_rejects_macos_fixture_path(self):
+        value = "/".join(("", "Users", "synthetic-fixture", "image"))
+        with self.assertRaisesRegex(ValueError, "private string"):
+            module.privacy({"message": value})
+
+    def test_privacy_rejects_linux_fixture_path(self):
+        value = "/".join(("", "home", "synthetic-fixture", "image"))
+        with self.assertRaisesRegex(ValueError, "private string"):
+            module.privacy({"message": value})
 
     def test_percentile_includes_rejected_measured_calls(self):
         self.assertEqual(module.percentile([1, 3, 10], 95), 9.299999999999999)

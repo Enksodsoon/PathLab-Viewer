@@ -104,7 +104,7 @@ def privacy(value):
         for child in value:
             privacy(child)
     elif isinstance(value, str) and re.search(
-        r"[A-Za-z]:[\\/]|/Users/|/home/|Bearer\s|token=", value
+        r"[A-Za-z]:[\\/]|/(?:Users|home)/|Bearer\s|token=", value
     ):
         raise ValueError("private string")
     elif isinstance(value, float) and not math.isfinite(value):

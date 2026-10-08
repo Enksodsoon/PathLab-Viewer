@@ -342,6 +342,7 @@ export function AdminPage() {
     : undefined
   useEffect(() => {
     if (!savedView) return
+    if (latestUrl.current.get('location') !== `saved:${savedView.id}`) return
     const values = savedView.definition.filters
     const first = (key: string) => {
       const value = values[key]
