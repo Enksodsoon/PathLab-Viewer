@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "3dba1206a549d089a1f93765c3fb8974f2bb15a2",
-  "subjectTree": "2398ca096f5d896eb2c155f1bc06a5413c7d91fd",
+  "subjectCommit": "e361bb8b33fadc07dd2adaed9dbcdbc205ce0a51",
+  "subjectTree": "d894c14da2a810b5f00ef8220627d4142d427260",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -25,7 +25,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "gitBlob": "7b3cadd048b3e40527026e28d772ab815671d271"
+      "gitBlob": "ba563608872ad86c724707101058f415b8ce1584"
     },
     {
       "path": ".pnpmfile.cjs",
@@ -1425,14 +1425,14 @@
     },
     {
       "path": "scripts/browser_distribution.py",
-      "gitBlob": "6c7192807d6a2acc031d812cf3807ed758eb49d7"
+      "gitBlob": "9197239ad00999de04deab1f50da3b5c37f8428f"
     },
     {
       "path": "scripts/qualify_browser_distribution.mjs",
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "88df0f77c32f9dfba5c5f163acb8ec2cac080f52df8deaa82a9d4dce0069249b",
+  "sourceInputSetSha256": "f33344ea918dd44b7ff4e83c1daa3ae6f00f2eef31c96f6f76f8652b42090f73",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
