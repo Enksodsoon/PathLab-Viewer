@@ -10,7 +10,7 @@
   "files": {
     "observations.json": "673a5c3fd169b5a866199823a291a96e84b3db0ccdfbc1c1388324463963bd06",
     "pair-observations.json": "1dea0905b4e1f440594201a91c6953c96272a1861d3f780995e3e1928b52eaf5",
-    "README.md": "d9dc9271a14da614821f66a48a9f77cff2c888eee208fd2aa8a80ca5c2c19ab9"
+    "README.md": "35eadea8814765c0bb941b0828148b3322b33a6b51d1c790350bc671157a0a81"
   },
   "registrationExecutions": 0,
   "mapFitting": false,
@@ -22,6 +22,6 @@
     "README.md": "cc5821bb25f1a5dde8300b2fea59d80168c1deb1cf2f5a29f934456fbbc6263c"
   },
   "publicationChanges": {
-    "README.md": "Added qualification, negative-challenge and unmeasured-stage scope; removed final blank line. Numeric tables unchanged."
+    "README.md": "Added qualification, negative-challenge and original unmeasured-stage scope, linked separate producer-bound stage supplement; removed final blank line. Numeric tables unchanged."
   }
 }

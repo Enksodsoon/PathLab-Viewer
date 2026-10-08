@@ -1,0 +1,4554 @@
+{
+  "accurateWinner": null,
+  "analysisRuntime": {
+    "numpy": "2.5.3",
+    "python": "3.12.10",
+    "scope": "saved-map numerical evaluation only; no registration"
+  },
+  "analysisStartupHead": "1e613d3b771f5bd99f78ebab19bda75518ff6eaa",
+  "anatomicalReview": null,
+  "calibratedMicrometerAccuracy": null,
+  "evaluatorRawBytesSha256": "906225909a798a0c03dcb84e49f8e7ce929cd56e7968d69481830fcd1e99289b",
+  "fastWinner": null,
+  "fitPerformed": false,
+  "humanCorrectionEffort": null,
+  "initializerFlagsInferred": false,
+  "manifestSha256": "9b24a734b03ef6ecc2a9124bce5ae89bdba8364dd74fd4a55478776bff8ca512",
+  "measuredStages": 24,
+  "measuredStagesByRecipe": {
+    "native-valis": 12,
+    "native-wsireg": 8,
+    "valis-rigid-wsireg": 4
+  },
+  "metadataSha256": "98c4305c756e6f2c4b70b80f45c14596bfab8440ed331c108444dc7e623fd4a8",
+  "originalWarmObservationsSha256": "673a5c3fd169b5a866199823a291a96e84b3db0ccdfbc1c1388324463963bd06",
+  "originalWarmReportsUnchanged": true,
+  "plannedHybridPairInvocations": 96,
+  "qualified": false,
+  "readinessPromotion": false,
+  "registrationReruns": 0,
+  "registrationSourceFreezeHead": "9eab3edeeedded8b2fca9c0521c88cdec388e0cc",
+  "rows": [
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 1,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 1,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 1,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 1,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 1,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 1,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 2,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 2,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 2,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 2,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 2,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 2,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 3,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 3,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 3,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 3,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 3,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 3,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 4,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 4,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 4,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 4,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "atomicInvocationReceiptSha256": "a5128d172ec04f4b3c68eccb737c717cd33e1dedc68a6bcd6df6ab55e772d4a4",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "1c15610e54877f6228b81551a148425b9a7c26d8fa8b032e4d8dbfc7b6cd205e",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "645b5f1d23baad3a524676ad2535bdf9b9a1f7e83340d7d6b0475cad2ceb5827",
+      "initializerArtifactSha256": "ba55eb6a8865ab763d87c0ff8bb8ed4ea69343394dddc95232a62c6be60607e0",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 4,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "fab80bafdf7e99004645265974c97d7f7af12ac8a08cc87e45cdf0e1a1132060",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 9,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0016201855100520556,
+          "observedCoverage": 0.1125,
+          "observedLandmarks": 9,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.0033125541705837647,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 9,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 9
+          },
+          "unsupportedLandmarks": 71,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 7,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 7,
+              "leftMedianErrorOnCommonSet": 0.0011040919865596061,
+              "leftP95ErrorOnCommonSet": 0.0028948434163228627,
+              "medianPairedErrorDelta": 0.0001781001089632521,
+              "neitherSupportedLandmarks": 55,
+              "onlyLeftSupportedLandmarks": 16,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0005154726816977238,
+              "rightMedianErrorOnCommonSet": 0.0021126997500524316,
+              "rightP95ErrorOnCommonSet": 0.0034103160980205865
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 16,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 1,
+              "ready-local": 22
+            },
+            "right": {
+              "own-overview": 9
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 7,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 7,
+              "leftMedianErrorOnCommonSet": 0.0011040919865596061,
+              "leftP95ErrorOnCommonSet": 0.0028948434163228627,
+              "medianPairedErrorDelta": 0.0001781020101259491,
+              "neitherSupportedLandmarks": 55,
+              "onlyLeftSupportedLandmarks": 16,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0005154826142294024,
+              "rightMedianErrorOnCommonSet": 0.002112695650035155,
+              "rightP95ErrorOnCommonSet": 0.003410326030552265
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 16,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 1,
+              "ready-local": 22
+            },
+            "right": {
+              "own-overview": 9
+            }
+          }
+        },
+        "initializerArtifactSha256": "ba55eb6a8865ab763d87c0ff8bb8ed4ea69343394dddc95232a62c6be60607e0",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 9,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0016202019364151303,
+          "observedCoverage": 0.1125,
+          "observedLandmarks": 9,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.0033125651144192006,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 9,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 9
+          },
+          "unsupportedLandmarks": 71,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "7fb1534618337ab3288ff7fce92fda1be9db92391a404ba8672948be27376939",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "88c74ca5b4f057303772560c40a43bc5d2e19442029c753cfc963654c4dc3c08",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "645b5f1d23baad3a524676ad2535bdf9b9a1f7e83340d7d6b0475cad2ceb5827",
+      "initializerArtifactSha256": "db5baa91d65231bf6d1e89ac0840846a00ade2205f2a828a7280f407a565345a",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 4,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "fab80bafdf7e99004645265974c97d7f7af12ac8a08cc87e45cdf0e1a1132060",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 9,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0016201855100520556,
+          "observedCoverage": 0.1125,
+          "observedLandmarks": 9,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.0033125541705837647,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 9,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 9
+          },
+          "unsupportedLandmarks": 71,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 7,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 7,
+              "leftMedianErrorOnCommonSet": 0.0011040919865596061,
+              "leftP95ErrorOnCommonSet": 0.0028948434163228627,
+              "medianPairedErrorDelta": 0.0001781001089632521,
+              "neitherSupportedLandmarks": 55,
+              "onlyLeftSupportedLandmarks": 16,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0005154726816977238,
+              "rightMedianErrorOnCommonSet": 0.0021126997500524316,
+              "rightP95ErrorOnCommonSet": 0.0034103160980205865
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 16,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 1,
+              "ready-local": 22
+            },
+            "right": {
+              "own-overview": 9
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 7,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 7,
+              "leftMedianErrorOnCommonSet": 0.0011040919865596061,
+              "leftP95ErrorOnCommonSet": 0.0028948434163228627,
+              "medianPairedErrorDelta": 0.0001781020101259491,
+              "neitherSupportedLandmarks": 55,
+              "onlyLeftSupportedLandmarks": 16,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0005154826142294024,
+              "rightMedianErrorOnCommonSet": 0.002112695650035155,
+              "rightP95ErrorOnCommonSet": 0.003410326030552265
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 16,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 1,
+              "ready-local": 22
+            },
+            "right": {
+              "own-overview": 9
+            }
+          }
+        },
+        "initializerArtifactSha256": "db5baa91d65231bf6d1e89ac0840846a00ade2205f2a828a7280f407a565345a",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 9,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0016202019364151303,
+          "observedCoverage": 0.1125,
+          "observedLandmarks": 9,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.0033125651144192006,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 9,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 9
+          },
+          "unsupportedLandmarks": 71,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "5ba8bec9fe657c46236f7a0c92bb9ad4ac54a8e3b873e444a1d84870e0ee5bdb",
+      "effectiveSettingsDigest": "35358d4abca04161cb81b937372083724ab8a0a18ab814ffc25b7b64f4fbf8e9",
+      "finalMapCanonicalSha256": "bb56d571b48768f3f3f3b2ce43863d5b76dfaa126a8893143de3bda03f74e741",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "15d49eb816582ff51e9a89d2cd89fea4906a5d7795a9d677c89803532aafa2b1",
+      "initializerArtifactSha256": "7462529d93593ad890868173905e368a0c2e86729c719432d429155af850555f",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 5,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30"
+      ],
+      "requestedSettingsDigest": "db3282634eaa451b8846890feb7660dfca8c4a30ae548bf6e28978f4e79e7c14",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082621168382821,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01565943961771131,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 28,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 28,
+              "leftMedianErrorOnCommonSet": 0.04962634979135422,
+              "leftP95ErrorOnCommonSet": 0.09241765081987154,
+              "medianPairedErrorDelta": 0.04395545006998689,
+              "neitherSupportedLandmarks": 18,
+              "onlyLeftSupportedLandmarks": 33,
+              "onlyRightSupportedLandmarks": 1,
+              "p95ErrorDeltaOnCommonSet": 0.07736271527335169,
+              "rightMedianErrorOnCommonSet": 0.008070636647526368,
+              "rightP95ErrorOnCommonSet": 0.015054935546519852
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 33,
+          "onlyRightSupportedLandmarks": 1,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 61
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 28,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 28,
+              "leftMedianErrorOnCommonSet": 0.04962634979135422,
+              "leftP95ErrorOnCommonSet": 0.09241765081987154,
+              "medianPairedErrorDelta": 0.04395546771685274,
+              "neitherSupportedLandmarks": 18,
+              "onlyLeftSupportedLandmarks": 33,
+              "onlyRightSupportedLandmarks": 1,
+              "p95ErrorDeltaOnCommonSet": 0.07736271378730421,
+              "rightMedianErrorOnCommonSet": 0.00807062614735804,
+              "rightP95ErrorOnCommonSet": 0.015054937032567323
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 33,
+          "onlyRightSupportedLandmarks": 1,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 61
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "initializerArtifactSha256": "7462529d93593ad890868173905e368a0c2e86729c719432d429155af850555f",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082634214931841,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.015659432289334394,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "596ac0ced8e42263c509971c3babffbdce0fbc7e905e9ca5cddc0604ad6da1d3",
+      "effectiveSettingsDigest": "35358d4abca04161cb81b937372083724ab8a0a18ab814ffc25b7b64f4fbf8e9",
+      "finalMapCanonicalSha256": "3629358b6168f71f72b66cae7b0347602b062bdb1a306b765e209c93886b7246",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "15d49eb816582ff51e9a89d2cd89fea4906a5d7795a9d677c89803532aafa2b1",
+      "initializerArtifactSha256": "f0c1041ed46772125287a53792d69b92b5cfd01be8fa93f4d6fcce7e519e96d2",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 5,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30"
+      ],
+      "requestedSettingsDigest": "db3282634eaa451b8846890feb7660dfca8c4a30ae548bf6e28978f4e79e7c14",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082621168382821,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01565943961771131,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 28,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 28,
+              "leftMedianErrorOnCommonSet": 0.04962634979135422,
+              "leftP95ErrorOnCommonSet": 0.09241765081987154,
+              "medianPairedErrorDelta": 0.04395545006998689,
+              "neitherSupportedLandmarks": 18,
+              "onlyLeftSupportedLandmarks": 33,
+              "onlyRightSupportedLandmarks": 1,
+              "p95ErrorDeltaOnCommonSet": 0.07736271527335169,
+              "rightMedianErrorOnCommonSet": 0.008070636647526368,
+              "rightP95ErrorOnCommonSet": 0.015054935546519852
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 33,
+          "onlyRightSupportedLandmarks": 1,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 61
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 28,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 28,
+              "leftMedianErrorOnCommonSet": 0.04962634979135422,
+              "leftP95ErrorOnCommonSet": 0.09241765081987154,
+              "medianPairedErrorDelta": 0.04395546771685274,
+              "neitherSupportedLandmarks": 18,
+              "onlyLeftSupportedLandmarks": 33,
+              "onlyRightSupportedLandmarks": 1,
+              "p95ErrorDeltaOnCommonSet": 0.07736271378730421,
+              "rightMedianErrorOnCommonSet": 0.00807062614735804,
+              "rightP95ErrorOnCommonSet": 0.015054937032567323
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 33,
+          "onlyRightSupportedLandmarks": 1,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 61
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "initializerArtifactSha256": "f0c1041ed46772125287a53792d69b92b5cfd01be8fa93f4d6fcce7e519e96d2",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082634214931841,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.015659432289334394,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "ea6f97486adf83b8eabd0b5652173a73c9848453558ba5c96b167239bed3e648",
+      "effectiveSettingsDigest": "fd227931827ae50d8ffc05025097e1dae946503310a2bcbf8c1545acd22f02cf",
+      "finalMapCanonicalSha256": "b6a601e6fe744223220c5aec4bffd1565e8b10bcdf65b5b0fe508cff90f7989d",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "15d49eb816582ff51e9a89d2cd89fea4906a5d7795a9d677c89803532aafa2b1",
+      "initializerArtifactSha256": "5229409c784cec8ebc2f61bccea08aadc5643a442fa8371b439efa3b4e2861d9",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 5,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30"
+      ],
+      "requestedSettingsDigest": "f876c50dad3b1ae7af93b05eaf954acb9dadf78dd5247dd12d8721fd028347fb",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 43,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0069900277486443455,
+          "observedCoverage": 0.7375,
+          "observedLandmarks": 59,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01997730326271878,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 59,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 43,
+            "ready-local": 16
+          },
+          "unsupportedLandmarks": 21,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 57,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 57,
+              "leftMedianErrorOnCommonSet": 0.006063140743303269,
+              "leftP95ErrorOnCommonSet": 0.015935211348501725,
+              "medianPairedErrorDelta": -0.000864076875914234,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 11,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.00440965058711288,
+              "rightMedianErrorOnCommonSet": 0.006952560177522762,
+              "rightP95ErrorOnCommonSet": 0.020344861935614605
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 11,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 43,
+              "ready-local": 16
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 57,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 57,
+              "leftMedianErrorOnCommonSet": 0.006063140743303269,
+              "leftP95ErrorOnCommonSet": 0.015935211348501725,
+              "medianPairedErrorDelta": -0.0008813411594902915,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 11,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.004401393461608411,
+              "rightMedianErrorOnCommonSet": 0.00693118393193727,
+              "rightP95ErrorOnCommonSet": 0.020336604810110136
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 11,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 43,
+              "ready-local": 16
+            }
+          }
+        },
+        "initializerArtifactSha256": "5229409c784cec8ebc2f61bccea08aadc5643a442fa8371b439efa3b4e2861d9",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 43,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0069802732964567805,
+          "observedCoverage": 0.7375,
+          "observedLandmarks": 59,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01996979420008042,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 59,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 43,
+            "ready-local": 16
+          },
+          "unsupportedLandmarks": 21,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "41cfef8df566acd1cab4e7db96becbcfd83fcdf0ec2168b98a474843193dafa1",
+      "effectiveSettingsDigest": "fd227931827ae50d8ffc05025097e1dae946503310a2bcbf8c1545acd22f02cf",
+      "finalMapCanonicalSha256": "46d92411386ff85587e940627eaefcb1fd7699bb942ea953adb7559b39b07e3f",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "15d49eb816582ff51e9a89d2cd89fea4906a5d7795a9d677c89803532aafa2b1",
+      "initializerArtifactSha256": "5229409c784cec8ebc2f61bccea08aadc5643a442fa8371b439efa3b4e2861d9",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 5,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30"
+      ],
+      "requestedSettingsDigest": "f876c50dad3b1ae7af93b05eaf954acb9dadf78dd5247dd12d8721fd028347fb",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 43,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0069900277486443455,
+          "observedCoverage": 0.7375,
+          "observedLandmarks": 59,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01997730326271878,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 59,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 43,
+            "ready-local": 16
+          },
+          "unsupportedLandmarks": 21,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 57,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 57,
+              "leftMedianErrorOnCommonSet": 0.006063140743303269,
+              "leftP95ErrorOnCommonSet": 0.015935211348501725,
+              "medianPairedErrorDelta": -0.000864076875914234,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 11,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.00440965058711288,
+              "rightMedianErrorOnCommonSet": 0.006952560177522762,
+              "rightP95ErrorOnCommonSet": 0.020344861935614605
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 11,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 43,
+              "ready-local": 16
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 57,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 57,
+              "leftMedianErrorOnCommonSet": 0.006063140743303269,
+              "leftP95ErrorOnCommonSet": 0.015935211348501725,
+              "medianPairedErrorDelta": -0.0008813411594902915,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 11,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.004401393461608411,
+              "rightMedianErrorOnCommonSet": 0.00693118393193727,
+              "rightP95ErrorOnCommonSet": 0.020336604810110136
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 11,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 43,
+              "ready-local": 16
+            }
+          }
+        },
+        "initializerArtifactSha256": "5229409c784cec8ebc2f61bccea08aadc5643a442fa8371b439efa3b4e2861d9",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 43,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0069802732964567805,
+          "observedCoverage": 0.7375,
+          "observedLandmarks": 59,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01996979420008042,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 59,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 43,
+            "ready-local": 16
+          },
+          "unsupportedLandmarks": 21,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "a12a5aecc0028edb3868dee1f5f5ca31553f72bd9c60ce3151735e6a630066f5",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "7267fd0d6c8885eed5968e863a7215899a058d3a6532e6e958d03cd355b9a192",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "15d49eb816582ff51e9a89d2cd89fea4906a5d7795a9d677c89803532aafa2b1",
+      "initializerArtifactSha256": "c9e9440e59bc41305a6293eaa21d1dcec8372681752ca070c3668655c6c9278b",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 5,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082621168382821,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01565943961771131,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 29,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 29,
+              "leftMedianErrorOnCommonSet": 0.005348598634508402,
+              "leftP95ErrorOnCommonSet": 0.013978389488006253,
+              "medianPairedErrorDelta": -0.0038833909182614795,
+              "neitherSupportedLandmarks": 12,
+              "onlyLeftSupportedLandmarks": 39,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -0.0016810501297050574,
+              "rightMedianErrorOnCommonSet": 0.008082621168382821,
+              "rightP95ErrorOnCommonSet": 0.01565943961771131
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 39,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 45,
+              "ready-local": 23
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 29,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 29,
+              "leftMedianErrorOnCommonSet": 0.005348598634508402,
+              "leftP95ErrorOnCommonSet": 0.013978389488006253,
+              "medianPairedErrorDelta": -0.003883397657949598,
+              "neitherSupportedLandmarks": 12,
+              "onlyLeftSupportedLandmarks": 39,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -0.0016810428013281451,
+              "rightMedianErrorOnCommonSet": 0.008082634214931841,
+              "rightP95ErrorOnCommonSet": 0.015659432289334398
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 39,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 45,
+              "ready-local": 23
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "initializerArtifactSha256": "c9e9440e59bc41305a6293eaa21d1dcec8372681752ca070c3668655c6c9278b",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082634214931841,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.015659432289334394,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "d12b867f694f20844d631873cd57fc4bc10da99cc53bb759fd8cec323b23fbe8",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "4ab455a6295486bf23cdb7fb6552b3a51c5c8a6d1867565f2d630a4f453905ad",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "15d49eb816582ff51e9a89d2cd89fea4906a5d7795a9d677c89803532aafa2b1",
+      "initializerArtifactSha256": "9e0ae05b2d00d7dd589f1db56165769f14899da522967e518317df53a0105dd1",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 5,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082621168382821,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.01565943961771131,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 29,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 29,
+              "leftMedianErrorOnCommonSet": 0.005348598634508402,
+              "leftP95ErrorOnCommonSet": 0.013978389488006253,
+              "medianPairedErrorDelta": -0.0038833909182614795,
+              "neitherSupportedLandmarks": 12,
+              "onlyLeftSupportedLandmarks": 39,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -0.0016810501297050574,
+              "rightMedianErrorOnCommonSet": 0.008082621168382821,
+              "rightP95ErrorOnCommonSet": 0.01565943961771131
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 39,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 45,
+              "ready-local": 23
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 29,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 29,
+              "leftMedianErrorOnCommonSet": 0.005348598634508402,
+              "leftP95ErrorOnCommonSet": 0.013978389488006253,
+              "medianPairedErrorDelta": -0.003883397657949598,
+              "neitherSupportedLandmarks": 12,
+              "onlyLeftSupportedLandmarks": 39,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -0.0016810428013281451,
+              "rightMedianErrorOnCommonSet": 0.008082634214931841,
+              "rightP95ErrorOnCommonSet": 0.015659432289334398
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 39,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 45,
+              "ready-local": 23
+            },
+            "right": {
+              "own-overview": 29
+            }
+          }
+        },
+        "initializerArtifactSha256": "9e0ae05b2d00d7dd589f1db56165769f14899da522967e518317df53a0105dd1",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 29,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.008082634214931841,
+          "observedCoverage": 0.3625,
+          "observedLandmarks": 29,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.015659432289334394,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 29,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 29
+          },
+          "unsupportedLandmarks": 51,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 6,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 6,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 6,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 6,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 6,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 6,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "atomicInvocationReceiptSha256": "8645c8b41cbef8f1c799724ba0f820ac784e0dbe5139639d6a25e6a3d38df8e4",
+      "effectiveSettingsDigest": "35358d4abca04161cb81b937372083724ab8a0a18ab814ffc25b7b64f4fbf8e9",
+      "finalMapCanonicalSha256": "cb756b1f48e29e354fb62b57b5ecfbceafd776116d689586cd2827e266d2a1d4",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "44cc26694aa8439cbbe4213850868ff7241f741ce6db8755a2d02728037fb174",
+      "initializerArtifactSha256": "f518ad1de238d8f4955711de94b6656e6b3e2bd2611e2bd65f1ae4eb192c72ec",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 7,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "db3282634eaa451b8846890feb7660dfca8c4a30ae548bf6e28978f4e79e7c14",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.023994910451394867,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923367986723326,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.0065542803403971775,
+              "leftP95ErrorOnCommonSet": 0.014507249573179835,
+              "medianPairedErrorDelta": -0.017850581540325566,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.038534490814693706,
+              "rightMedianErrorOnCommonSet": 0.0244506046636229,
+              "rightP95ErrorOnCommonSet": 0.05304174038787354
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 47
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.0065542803403971775,
+              "leftP95ErrorOnCommonSet": 0.014507249573179835,
+              "medianPairedErrorDelta": -0.0178506255985992,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.038534469949411634,
+              "rightMedianErrorOnCommonSet": 0.024450566634076222,
+              "rightP95ErrorOnCommonSet": 0.05304171952259147
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 47
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "initializerArtifactSha256": "f518ad1de238d8f4955711de94b6656e6b3e2bd2611e2bd65f1ae4eb192c72ec",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.02399488492463003,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923348727392495,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "9bb8218df44fb26ee9a68c2c8d1154ef65526ea96e0a6ecd8d9235b2308099d2",
+      "effectiveSettingsDigest": "35358d4abca04161cb81b937372083724ab8a0a18ab814ffc25b7b64f4fbf8e9",
+      "finalMapCanonicalSha256": "2226eacf4679573e980be32a223133becca1f0690441e3762a19b49bdb2df6fe",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "44cc26694aa8439cbbe4213850868ff7241f741ce6db8755a2d02728037fb174",
+      "initializerArtifactSha256": "4d8708992d802d926914b0383dfdc8e27ac49a394c82e37ebf020f828b8a36da",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 7,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "db3282634eaa451b8846890feb7660dfca8c4a30ae548bf6e28978f4e79e7c14",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.023994910451394867,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923367986723326,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.0065542803403971775,
+              "leftP95ErrorOnCommonSet": 0.014507249573179835,
+              "medianPairedErrorDelta": -0.017850581540325566,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.038534490814693706,
+              "rightMedianErrorOnCommonSet": 0.0244506046636229,
+              "rightP95ErrorOnCommonSet": 0.05304174038787354
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 47
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.0065542803403971775,
+              "leftP95ErrorOnCommonSet": 0.014507249573179835,
+              "medianPairedErrorDelta": -0.0178506255985992,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.038534469949411634,
+              "rightMedianErrorOnCommonSet": 0.024450566634076222,
+              "rightP95ErrorOnCommonSet": 0.05304171952259147
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 47
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "initializerArtifactSha256": "4d8708992d802d926914b0383dfdc8e27ac49a394c82e37ebf020f828b8a36da",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.02399488492463003,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923348727392495,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 7,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 7,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "atomicInvocationReceiptSha256": "dd6e6e8dc1f30f7864ebd00331421d0bab0b1b11054d2804cf28212cb194cef9",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "03055c70066fbb5738f0140d3d6e3ff296930511f2f861a0a27df56bd2faa953",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "44cc26694aa8439cbbe4213850868ff7241f741ce6db8755a2d02728037fb174",
+      "initializerArtifactSha256": "2bd9c91c62ab30e9d062440f15c8c2831484bc997b999d376f5c7ef2533a4f84",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 7,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.023994910451394867,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923367986723326,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.005790842393812774,
+              "leftP95ErrorOnCommonSet": 0.014856549378683255,
+              "medianPairedErrorDelta": -0.01974874506933252,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.03818519100919029,
+              "rightMedianErrorOnCommonSet": 0.0244506046636229,
+              "rightP95ErrorOnCommonSet": 0.05304174038787354
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 27,
+              "ready-local": 20
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.005790842393812774,
+              "leftP95ErrorOnCommonSet": 0.014856549378683255,
+              "medianPairedErrorDelta": -0.01974871704117304,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.038185170143908216,
+              "rightMedianErrorOnCommonSet": 0.024450566634076222,
+              "rightP95ErrorOnCommonSet": 0.05304171952259147
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 27,
+              "ready-local": 20
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "initializerArtifactSha256": "2bd9c91c62ab30e9d062440f15c8c2831484bc997b999d376f5c7ef2533a4f84",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.02399488492463003,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923348727392495,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "3cd6a1f30e8630c204956283d3ae2f8697e7d7b34215059453c562f52b954de1",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "4931bd3cfea047147455e04612905ef436e4d86c1bf7cef3adc0ec72f0c46214",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "44cc26694aa8439cbbe4213850868ff7241f741ce6db8755a2d02728037fb174",
+      "initializerArtifactSha256": "42e2383d890f311c49c1df7a648af823742780026531ddeb420dae64e422734b",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 7,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "71808240bdd0e7dded1c493e7d0a573200eef329ed1aa40333a41531d43200dc",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.023994910451394867,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923367986723326,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.005790842393812774,
+              "leftP95ErrorOnCommonSet": 0.014856549378683255,
+              "medianPairedErrorDelta": -0.01974874506933252,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.03818519100919029,
+              "rightMedianErrorOnCommonSet": 0.0244506046636229,
+              "rightP95ErrorOnCommonSet": 0.05304174038787354
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 27,
+              "ready-local": 20
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 39,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 39,
+              "leftMedianErrorOnCommonSet": 0.005790842393812774,
+              "leftP95ErrorOnCommonSet": 0.014856549378683255,
+              "medianPairedErrorDelta": -0.01974871704117304,
+              "neitherSupportedLandmarks": 15,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 18,
+              "p95ErrorDeltaOnCommonSet": -0.038185170143908216,
+              "rightMedianErrorOnCommonSet": 0.024450566634076222,
+              "rightP95ErrorOnCommonSet": 0.05304171952259147
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 18,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 27,
+              "ready-local": 20
+            },
+            "right": {
+              "own-overview": 57
+            }
+          }
+        },
+        "initializerArtifactSha256": "42e2383d890f311c49c1df7a648af823742780026531ddeb420dae64e422734b",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 57,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.02399488492463003,
+          "observedCoverage": 0.7125,
+          "observedLandmarks": 57,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.051923348727392495,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 57,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 57
+          },
+          "unsupportedLandmarks": 23,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 8,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 8,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 8,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 8,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 8,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 8,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "atomicInvocationReceiptSha256": "654a1d0b6b58477b5d2851219b04918983774011b119610e9cd3a03947259273",
+      "effectiveSettingsDigest": "35358d4abca04161cb81b937372083724ab8a0a18ab814ffc25b7b64f4fbf8e9",
+      "finalMapCanonicalSha256": "fbf8b1584c33980e79e6708fbb387b917561bdd370d666d28c2b105eca2fa504",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "d19d6fc0678581560ab4da8dad1e5ff23735f7d366faab5093a819a8cc9ee1fc",
+      "initializerArtifactSha256": "18d3207cb521c8cba3f7657f165e1e61b76ff2f259f00b88b1eefffb6e5e35a2",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 9,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "db3282634eaa451b8846890feb7660dfca8c4a30ae548bf6e28978f4e79e7c14",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 47,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.009591391162467272,
+          "observedCoverage": 0.5875,
+          "observedLandmarks": 47,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.027900179551543305,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 47,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 47
+          },
+          "unsupportedLandmarks": 33,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 27,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 27,
+              "leftMedianErrorOnCommonSet": 0.006105793458724199,
+              "leftP95ErrorOnCommonSet": 0.015717751722407063,
+              "medianPairedErrorDelta": -0.003687243746351064,
+              "neitherSupportedLandmarks": 27,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 20,
+              "p95ErrorDeltaOnCommonSet": -0.010674932795529786,
+              "rightMedianErrorOnCommonSet": 0.010083927465035747,
+              "rightP95ErrorOnCommonSet": 0.02639268451793685
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 20,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 33
+            },
+            "right": {
+              "own-overview": 47
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 27,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 27,
+              "leftMedianErrorOnCommonSet": 0.006105793458724199,
+              "leftP95ErrorOnCommonSet": 0.015717751722407063,
+              "medianPairedErrorDelta": -0.003687231806716283,
+              "neitherSupportedLandmarks": 27,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 20,
+              "p95ErrorDeltaOnCommonSet": -0.010674894035448555,
+              "rightMedianErrorOnCommonSet": 0.01008390990326143,
+              "rightP95ErrorOnCommonSet": 0.026392645757855618
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 20,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 33
+            },
+            "right": {
+              "own-overview": 47
+            }
+          }
+        },
+        "initializerArtifactSha256": "18d3207cb521c8cba3f7657f165e1e61b76ff2f259f00b88b1eefffb6e5e35a2",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 47,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.009591354732305487,
+          "observedCoverage": 0.5875,
+          "observedLandmarks": 47,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.027900141359449317,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 47,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 47
+          },
+          "unsupportedLandmarks": 33,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "49210232f7907a6620a762b2b740984c93f41f7cc18fd2e3a1f2e97b0964bd57",
+      "effectiveSettingsDigest": "35358d4abca04161cb81b937372083724ab8a0a18ab814ffc25b7b64f4fbf8e9",
+      "finalMapCanonicalSha256": "56eacf5e9f9c16ce9351fee13d259da93c74590e918573e398cd144193539260",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "d19d6fc0678581560ab4da8dad1e5ff23735f7d366faab5093a819a8cc9ee1fc",
+      "initializerArtifactSha256": "3f040d7d9950d73183cd75c481dffbed4b3fd925d8df21adae07b391b1a18d29",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 9,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "f0b3c9b9bd0b39b12062b04d144570f67bde00b8cb8dcd3cb6828fb5a7845d30",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "db3282634eaa451b8846890feb7660dfca8c4a30ae548bf6e28978f4e79e7c14",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 47,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.009591391162467272,
+          "observedCoverage": 0.5875,
+          "observedLandmarks": 47,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.027900179551543305,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 47,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 47
+          },
+          "unsupportedLandmarks": 33,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 27,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 27,
+              "leftMedianErrorOnCommonSet": 0.006105793458724199,
+              "leftP95ErrorOnCommonSet": 0.015717751722407063,
+              "medianPairedErrorDelta": -0.003687243746351064,
+              "neitherSupportedLandmarks": 27,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 20,
+              "p95ErrorDeltaOnCommonSet": -0.010674932795529786,
+              "rightMedianErrorOnCommonSet": 0.010083927465035747,
+              "rightP95ErrorOnCommonSet": 0.02639268451793685
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 20,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 33
+            },
+            "right": {
+              "own-overview": 47
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 27,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 27,
+              "leftMedianErrorOnCommonSet": 0.006105793458724199,
+              "leftP95ErrorOnCommonSet": 0.015717751722407063,
+              "medianPairedErrorDelta": -0.003687231806716283,
+              "neitherSupportedLandmarks": 27,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 20,
+              "p95ErrorDeltaOnCommonSet": -0.010674894035448555,
+              "rightMedianErrorOnCommonSet": 0.01008390990326143,
+              "rightP95ErrorOnCommonSet": 0.026392645757855618
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 20,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 33
+            },
+            "right": {
+              "own-overview": 47
+            }
+          }
+        },
+        "initializerArtifactSha256": "3f040d7d9950d73183cd75c481dffbed4b3fd925d8df21adae07b391b1a18d29",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 47,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.009591354732305487,
+          "observedCoverage": 0.5875,
+          "observedLandmarks": 47,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.027900141359449317,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 47,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 47
+          },
+          "unsupportedLandmarks": 33,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 9,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 9,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 9,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 9,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 10,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 10,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 10,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 10,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "atomicInvocationReceiptSha256": "5a7571155fabcb78d71b45a7a5527021c23e94844b85c972e1e558333487ec25",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "f873730ebc61ef6455856fd4052622a5ee76bf15fdbe95d61702f1c005b12bb6",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a9eacea730b09e5a9ed38053cf8884f5c8dbce343b5414aa24d24d89493309ff",
+      "initializerArtifactSha256": "27fe3aa89569850c187c8314bb0057e92e5999589429115d799f0ef8b5939fe1",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 10,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "5cb10aa6691443b04576ce30e793cdcd199bbe3fff2319d4efde60a4a6e5486d",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 30,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0047629465412547065,
+          "observedCoverage": 0.375,
+          "observedLandmarks": 30,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.02151510030496336,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 30,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 30
+          },
+          "unsupportedLandmarks": 50,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 11,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 11,
+              "leftMedianErrorOnCommonSet": 0.004601372722920005,
+              "leftP95ErrorOnCommonSet": 0.012283529081834242,
+              "medianPairedErrorDelta": -0.00019856018727167427,
+              "neitherSupportedLandmarks": 45,
+              "onlyLeftSupportedLandmarks": 5,
+              "onlyRightSupportedLandmarks": 19,
+              "p95ErrorDeltaOnCommonSet": 0.0010917373452544801,
+              "rightMedianErrorOnCommonSet": 0.005360236498655473,
+              "rightP95ErrorOnCommonSet": 0.011191791736579762
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 5,
+          "onlyRightSupportedLandmarks": 19,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 11,
+              "ready-local": 5
+            },
+            "right": {
+              "own-overview": 30
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 11,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 11,
+              "leftMedianErrorOnCommonSet": 0.004601372722920005,
+              "leftP95ErrorOnCommonSet": 0.012283529081834242,
+              "medianPairedErrorDelta": -0.00019852015631108277,
+              "neitherSupportedLandmarks": 45,
+              "onlyLeftSupportedLandmarks": 5,
+              "onlyRightSupportedLandmarks": 19,
+              "p95ErrorDeltaOnCommonSet": 0.001091756940006584,
+              "rightMedianErrorOnCommonSet": 0.005360241069406415,
+              "rightP95ErrorOnCommonSet": 0.011191772141827658
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 5,
+          "onlyRightSupportedLandmarks": 19,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 11,
+              "ready-local": 5
+            },
+            "right": {
+              "own-overview": 30
+            }
+          }
+        },
+        "initializerArtifactSha256": "27fe3aa89569850c187c8314bb0057e92e5999589429115d799f0ef8b5939fe1",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 30,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.004762958973634204,
+          "observedCoverage": 0.375,
+          "observedLandmarks": 30,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.021515128263323316,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 30,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 30
+          },
+          "unsupportedLandmarks": 50,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "1ee272b1c14eb4b600e65f5fad76f413bc1407088c53c5c0b81c9f1b39d8b624",
+      "effectiveSettingsDigest": "a7e4d789bca7741333915e8fc4c6fac65660d16fb8b909c20ba248cf4de3b1d4",
+      "finalMapCanonicalSha256": "ed5b2072f25b4c576c19e25be2642911c053f3f084d28f5503f15b9e78d87eb2",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a9eacea730b09e5a9ed38053cf8884f5c8dbce343b5414aa24d24d89493309ff",
+      "initializerArtifactSha256": "1fed355cb8e30195b51f01647e2171e48da31e1052558af7bcff0e6e30c0ed29",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 10,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "5cb10aa6691443b04576ce30e793cdcd199bbe3fff2319d4efde60a4a6e5486d",
+        "0eb653348542a402aed62aba51f93db4f04675fbccff2a5c8939b3f17f6a628a"
+      ],
+      "requestedSettingsDigest": "c99f39e706bce66da58c410214a82165a5e50b8edfd5c86b0e640a569fcd1158",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 30,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0047629465412547065,
+          "observedCoverage": 0.375,
+          "observedLandmarks": 30,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.02151510030496336,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 30,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 30
+          },
+          "unsupportedLandmarks": 50,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 11,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 11,
+              "leftMedianErrorOnCommonSet": 0.004601372722920005,
+              "leftP95ErrorOnCommonSet": 0.012283529081834242,
+              "medianPairedErrorDelta": -0.00019856018727167427,
+              "neitherSupportedLandmarks": 45,
+              "onlyLeftSupportedLandmarks": 5,
+              "onlyRightSupportedLandmarks": 19,
+              "p95ErrorDeltaOnCommonSet": 0.0010917373452544801,
+              "rightMedianErrorOnCommonSet": 0.005360236498655473,
+              "rightP95ErrorOnCommonSet": 0.011191791736579762
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 5,
+          "onlyRightSupportedLandmarks": 19,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 11,
+              "ready-local": 5
+            },
+            "right": {
+              "own-overview": 30
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 11,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 11,
+              "leftMedianErrorOnCommonSet": 0.004601372722920005,
+              "leftP95ErrorOnCommonSet": 0.012283529081834242,
+              "medianPairedErrorDelta": -0.00019852015631108277,
+              "neitherSupportedLandmarks": 45,
+              "onlyLeftSupportedLandmarks": 5,
+              "onlyRightSupportedLandmarks": 19,
+              "p95ErrorDeltaOnCommonSet": 0.001091756940006584,
+              "rightMedianErrorOnCommonSet": 0.005360241069406415,
+              "rightP95ErrorOnCommonSet": 0.011191772141827658
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 5,
+          "onlyRightSupportedLandmarks": 19,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 11,
+              "ready-local": 5
+            },
+            "right": {
+              "own-overview": 30
+            }
+          }
+        },
+        "initializerArtifactSha256": "1fed355cb8e30195b51f01647e2171e48da31e1052558af7bcff0e6e30c0ed29",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 30,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 80,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.004762958973634204,
+          "observedCoverage": 0.375,
+          "observedLandmarks": 30,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.021515128263323316,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 30,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 30
+          },
+          "unsupportedLandmarks": 50,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "a2e7489e24cc735e7bfe7eaa9fdc674712b9d58ca58ef9c3f9b3fc928d54337f",
+      "effectiveSettingsDigest": "e21b77e6eb1f0be7b98c6f83e33b26b0ee922580f82688cc33e0d0a326f41e5c",
+      "finalMapCanonicalSha256": "d102de89af344726d7edf08a47b0cecee4e03bf817069ab085bfe85f6f638a6d",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a7cc6b64670468564b922a499a641e7c0f1d395714fa1e5e86889d00038389bf",
+      "initializerArtifactSha256": "bb48f20d32d14fc84a6215568b5cf5c43fd29ffa81893a04301c2a58c5e6bb07",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 11,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "9b6d35ab372e06b8c86c8f67e7d7ef7255c06f95ebfa4cea0220fb55028063cc",
+        "6bef3ab1955589126ae3714901790b384f9e2e31573c4f39b432d083857fa9e7"
+      ],
+      "requestedSettingsDigest": "25b484e3aab46b55cbd055fde02964e83ccdbf88777f82e0bb48d6fec0a18c97",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0035422923745837124,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051435352479547,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0028159022726089496,
+              "leftP95ErrorOnCommonSet": 0.011198549485883644,
+              "medianPairedErrorDelta": -7.788809031816096e-05,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.00029261433470594185,
+              "rightMedianErrorOnCommonSet": 0.003800033639358055,
+              "rightP95ErrorOnCommonSet": 0.011491163820589586
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 40
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0028159022726089496,
+              "leftP95ErrorOnCommonSet": 0.011198549485883644,
+              "medianPairedErrorDelta": -7.784133266558197e-05,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.00029259103007298927,
+              "rightMedianErrorOnCommonSet": 0.003800011198970525,
+              "rightP95ErrorOnCommonSet": 0.011491140515956634
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 40
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "initializerArtifactSha256": "bb48f20d32d14fc84a6215568b5cf5c43fd29ffa81893a04301c2a58c5e6bb07",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.003542275820752594,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051409679782034,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "77c56117c3c766f41efab8df3eaa812a8411bc647893802f7142f36de457e769",
+      "effectiveSettingsDigest": "e21b77e6eb1f0be7b98c6f83e33b26b0ee922580f82688cc33e0d0a326f41e5c",
+      "finalMapCanonicalSha256": "fc0919c8f8519f23ae0c9f728559c291172e160a1fcadba9236c932bd1dbc21b",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a7cc6b64670468564b922a499a641e7c0f1d395714fa1e5e86889d00038389bf",
+      "initializerArtifactSha256": "03a8ea3ccc734bf0ee23d8da7e49eeba51774bf945d20e2bffca4905e6471e97",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 11,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "registeredInputDigests": [
+        "9b6d35ab372e06b8c86c8f67e7d7ef7255c06f95ebfa4cea0220fb55028063cc",
+        "6bef3ab1955589126ae3714901790b384f9e2e31573c4f39b432d083857fa9e7"
+      ],
+      "requestedSettingsDigest": "25b484e3aab46b55cbd055fde02964e83ccdbf88777f82e0bb48d6fec0a18c97",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0035422923745837124,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051435352479547,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0028159022726089496,
+              "leftP95ErrorOnCommonSet": 0.011198549485883644,
+              "medianPairedErrorDelta": -7.788809031816096e-05,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.00029261433470594185,
+              "rightMedianErrorOnCommonSet": 0.003800033639358055,
+              "rightP95ErrorOnCommonSet": 0.011491163820589586
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 40
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0028159022726089496,
+              "leftP95ErrorOnCommonSet": 0.011198549485883644,
+              "medianPairedErrorDelta": -7.784133266558197e-05,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.00029259103007298927,
+              "rightMedianErrorOnCommonSet": 0.003800011198970525,
+              "rightP95ErrorOnCommonSet": 0.011491140515956634
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 40
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "initializerArtifactSha256": "03a8ea3ccc734bf0ee23d8da7e49eeba51774bf945d20e2bffca4905e6471e97",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.003542275820752594,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051409679782034,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "a0622b67afb4b892441c40ba911a7f7fce9bcb094ec5078dbae272adfe23aea4",
+      "effectiveSettingsDigest": "dde708ddae82a79fe2f7b44e65b03014d8557c86d7b3851029bb03e92162792d",
+      "finalMapCanonicalSha256": "bd1da8c94c6541cd97dc4142821d5e08382845c676a8cb40cbb56e4911bcf634",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a7cc6b64670468564b922a499a641e7c0f1d395714fa1e5e86889d00038389bf",
+      "initializerArtifactSha256": "e13ae39085ad9e4bb4c5f7c7a27275ede336bb7db66dabd1364be8eed9aa10cd",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 11,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "registeredInputDigests": [
+        "9b6d35ab372e06b8c86c8f67e7d7ef7255c06f95ebfa4cea0220fb55028063cc",
+        "6bef3ab1955589126ae3714901790b384f9e2e31573c4f39b432d083857fa9e7"
+      ],
+      "requestedSettingsDigest": "5ece690298badfa0c3cad59ee3e6188d7b50ff685274f6118188ac5ce7a722af",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 34,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.005775467266548035,
+          "observedCoverage": 0.4927536231884058,
+          "observedLandmarks": 34,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.012447747902256358,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 34,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 34
+          },
+          "unsupportedLandmarks": 35,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.002750084152008923,
+              "leftP95ErrorOnCommonSet": 0.0110212041338844,
+              "medianPairedErrorDelta": -0.0020363077359151866,
+              "neitherSupportedLandmarks": 29,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0017608493965385972,
+              "rightMedianErrorOnCommonSet": 0.005775467266548036,
+              "rightP95ErrorOnCommonSet": 0.012782053530422997
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 38
+            },
+            "right": {
+              "own-overview": 34
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.002750084152008923,
+              "leftP95ErrorOnCommonSet": 0.0110212041338844,
+              "medianPairedErrorDelta": -0.0020172311430800265,
+              "neitherSupportedLandmarks": 29,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0017434715600272606,
+              "rightMedianErrorOnCommonSet": 0.005762389144118904,
+              "rightP95ErrorOnCommonSet": 0.01276467569391166
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 38
+            },
+            "right": {
+              "own-overview": 34
+            }
+          }
+        },
+        "initializerArtifactSha256": "e13ae39085ad9e4bb4c5f7c7a27275ede336bb7db66dabd1364be8eed9aa10cd",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 34,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.005762389144118902,
+          "observedCoverage": 0.4927536231884058,
+          "observedLandmarks": 34,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.012433136756421586,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 34,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 34
+          },
+          "unsupportedLandmarks": 35,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "822208ab97ff9fd783cdcb3bfc05cacda1f39d90b030e65021284fca51a04f81",
+      "effectiveSettingsDigest": "dde708ddae82a79fe2f7b44e65b03014d8557c86d7b3851029bb03e92162792d",
+      "finalMapCanonicalSha256": "2a45e02de56bcafe01dfb3eafbfe6b072fe8ee91c3231eb7aca7e3ad4b183a1d",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a7cc6b64670468564b922a499a641e7c0f1d395714fa1e5e86889d00038389bf",
+      "initializerArtifactSha256": "e13ae39085ad9e4bb4c5f7c7a27275ede336bb7db66dabd1364be8eed9aa10cd",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 11,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "registeredInputDigests": [
+        "9b6d35ab372e06b8c86c8f67e7d7ef7255c06f95ebfa4cea0220fb55028063cc",
+        "6bef3ab1955589126ae3714901790b384f9e2e31573c4f39b432d083857fa9e7"
+      ],
+      "requestedSettingsDigest": "5ece690298badfa0c3cad59ee3e6188d7b50ff685274f6118188ac5ce7a722af",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 34,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.005775467266548035,
+          "observedCoverage": 0.4927536231884058,
+          "observedLandmarks": 34,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.012447747902256358,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 34,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 34
+          },
+          "unsupportedLandmarks": 35,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.002750084152008923,
+              "leftP95ErrorOnCommonSet": 0.0110212041338844,
+              "medianPairedErrorDelta": -0.0020363077359151866,
+              "neitherSupportedLandmarks": 29,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0017608493965385972,
+              "rightMedianErrorOnCommonSet": 0.005775467266548036,
+              "rightP95ErrorOnCommonSet": 0.012782053530422997
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 38
+            },
+            "right": {
+              "own-overview": 34
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.002750084152008923,
+              "leftP95ErrorOnCommonSet": 0.0110212041338844,
+              "medianPairedErrorDelta": -0.0020172311430800265,
+              "neitherSupportedLandmarks": 29,
+              "onlyLeftSupportedLandmarks": 6,
+              "onlyRightSupportedLandmarks": 2,
+              "p95ErrorDeltaOnCommonSet": -0.0017434715600272606,
+              "rightMedianErrorOnCommonSet": 0.005762389144118904,
+              "rightP95ErrorOnCommonSet": 0.01276467569391166
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 6,
+          "onlyRightSupportedLandmarks": 2,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 38
+            },
+            "right": {
+              "own-overview": 34
+            }
+          }
+        },
+        "initializerArtifactSha256": "e13ae39085ad9e4bb4c5f7c7a27275ede336bb7db66dabd1364be8eed9aa10cd",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 34,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.005762389144118902,
+          "observedCoverage": 0.4927536231884058,
+          "observedLandmarks": 34,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.012433136756421586,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 34,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 34
+          },
+          "unsupportedLandmarks": 35,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "6ae604b9778e5d2ce17e0e18eeab78bbe0d2062410bfc383d410f820ecd8b1ae",
+      "effectiveSettingsDigest": "1818082e7d8a983b3a95f4a0bb9ff71722ce01e5560451dba74193302eb7ef9a",
+      "finalMapCanonicalSha256": "86706389f487c0fb9180210f202ee97e7147e6abcd26cf20f11f7f40dda43d5e",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a7cc6b64670468564b922a499a641e7c0f1d395714fa1e5e86889d00038389bf",
+      "initializerArtifactSha256": "9599c76f6c275a39a99f802683d877f13e03e75a76a7b81379054d17459b377f",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 11,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "9b6d35ab372e06b8c86c8f67e7d7ef7255c06f95ebfa4cea0220fb55028063cc",
+        "6bef3ab1955589126ae3714901790b384f9e2e31573c4f39b432d083857fa9e7"
+      ],
+      "requestedSettingsDigest": "827116a78e861901326aab3db2f09b4c58397e5eb59ee33395d4881cc5a8ee21",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0035422923745837124,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051435352479547,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0025437828525884344,
+              "leftP95ErrorOnCommonSet": 0.010361748842059528,
+              "medianPairedErrorDelta": -0.0007470571706506975,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.0011294149785300578,
+              "rightMedianErrorOnCommonSet": 0.003800033639358055,
+              "rightP95ErrorOnCommonSet": 0.011491163820589586
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 3,
+              "ready-local": 37
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0025437828525884344,
+              "leftP95ErrorOnCommonSet": 0.010361748842059528,
+              "medianPairedErrorDelta": -0.0007470457586660416,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.0011293916738971052,
+              "rightMedianErrorOnCommonSet": 0.003800011198970525,
+              "rightP95ErrorOnCommonSet": 0.011491140515956634
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 3,
+              "ready-local": 37
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "initializerArtifactSha256": "9599c76f6c275a39a99f802683d877f13e03e75a76a7b81379054d17459b377f",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.003542275820752594,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051409679782034,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "255ee3a6768227062821a1284461392d43bf6fa3ae1a0058f42bad444c27625b",
+      "effectiveSettingsDigest": "1818082e7d8a983b3a95f4a0bb9ff71722ce01e5560451dba74193302eb7ef9a",
+      "finalMapCanonicalSha256": "a7e7a3fbcadbc6445bdc2e0bd0979ff3a33554bdbe6b5fd2e86691424bb600f1",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "a7cc6b64670468564b922a499a641e7c0f1d395714fa1e5e86889d00038389bf",
+      "initializerArtifactSha256": "5015b33ae2b3e70aa561d5e8dca1e6d0ec1b29480e8e1e7ff6a3e61e317b08ad",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 11,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "9b6d35ab372e06b8c86c8f67e7d7ef7255c06f95ebfa4cea0220fb55028063cc",
+        "6bef3ab1955589126ae3714901790b384f9e2e31573c4f39b432d083857fa9e7"
+      ],
+      "requestedSettingsDigest": "827116a78e861901326aab3db2f09b4c58397e5eb59ee33395d4881cc5a8ee21",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.0035422923745837124,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051435352479547,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0025437828525884344,
+              "leftP95ErrorOnCommonSet": 0.010361748842059528,
+              "medianPairedErrorDelta": -0.0007470571706506975,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.0011294149785300578,
+              "rightMedianErrorOnCommonSet": 0.003800033639358055,
+              "rightP95ErrorOnCommonSet": 0.011491163820589586
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 3,
+              "ready-local": 37
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 32,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 32,
+              "leftMedianErrorOnCommonSet": 0.0025437828525884344,
+              "leftP95ErrorOnCommonSet": 0.010361748842059528,
+              "medianPairedErrorDelta": -0.0007470457586660416,
+              "neitherSupportedLandmarks": 26,
+              "onlyLeftSupportedLandmarks": 8,
+              "onlyRightSupportedLandmarks": 3,
+              "p95ErrorDeltaOnCommonSet": -0.0011293916738971052,
+              "rightMedianErrorOnCommonSet": 0.003800011198970525,
+              "rightP95ErrorOnCommonSet": 0.011491140515956634
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 8,
+          "onlyRightSupportedLandmarks": 3,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 3,
+              "ready-local": 37
+            },
+            "right": {
+              "own-overview": 35
+            }
+          }
+        },
+        "initializerArtifactSha256": "5015b33ae2b3e70aa561d5e8dca1e6d0ec1b29480e8e1e7ff6a3e61e317b08ad",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 35,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 69,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.003542275820752594,
+          "observedCoverage": 0.5072463768115942,
+          "observedLandmarks": 35,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011051409679782034,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 35,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 35
+          },
+          "unsupportedLandmarks": 34,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 12,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 12,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 12,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 12,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "atomicInvocationReceiptSha256": "b0b309a326c465ba5530068e6a7e7917c638e20c60746637066e020e5e132619",
+      "effectiveSettingsDigest": "1818082e7d8a983b3a95f4a0bb9ff71722ce01e5560451dba74193302eb7ef9a",
+      "finalMapCanonicalSha256": "3b45b1eaef01e2a0fff750d71fe6f76eb12d398f9c95a2f224c9b8c11d1d0653",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "6da7d20370f289b91f4ac1ebb130fc92d28bff5ead4d36e64aac0439c3a38666",
+      "initializerArtifactSha256": "d91bd922c1569a8b22a09cec77e192cae508c05efa643b02281bbaa548b8364f",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 12,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "8bb254612f579590187896edb72acbd417c6daed5f073d163771336c136200c9",
+        "b735e7375b3cef0a0732897c7bd1910da209d2c3f7d41cf1f8c31921c90f8dd9"
+      ],
+      "requestedSettingsDigest": "827116a78e861901326aab3db2f09b4c58397e5eb59ee33395d4881cc5a8ee21",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 48,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 78,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.004154651683457712,
+          "observedCoverage": 0.6153846153846154,
+          "observedLandmarks": 48,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011573417967283433,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 48,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 48
+          },
+          "unsupportedLandmarks": 30,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 48,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 48,
+              "leftMedianErrorOnCommonSet": 0.004275855724940023,
+              "leftP95ErrorOnCommonSet": 0.011474431126053772,
+              "medianPairedErrorDelta": -0.0002005185914424791,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 20,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -9.898684122966114e-05,
+              "rightMedianErrorOnCommonSet": 0.004154651683457713,
+              "rightP95ErrorOnCommonSet": 0.011573417967283433
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 20,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 48
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 48,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 48,
+              "leftMedianErrorOnCommonSet": 0.004275855724940023,
+              "leftP95ErrorOnCommonSet": 0.011474431126053772,
+              "medianPairedErrorDelta": -0.00020053127568669938,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 20,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -9.89875426064199e-05,
+              "rightMedianErrorOnCommonSet": 0.004154679329930926,
+              "rightP95ErrorOnCommonSet": 0.011573418668660192
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 20,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 48
+            }
+          }
+        },
+        "initializerArtifactSha256": "d91bd922c1569a8b22a09cec77e192cae508c05efa643b02281bbaa548b8364f",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 48,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 78,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.004154679329930926,
+          "observedCoverage": 0.6153846153846154,
+          "observedLandmarks": 48,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011573418668660192,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 48,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 48
+          },
+          "unsupportedLandmarks": 30,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "atomicInvocationReceiptSha256": "455e3563e8debb99634ad8f907e3e8a764851f222f24aff8e1370de7ef7712a7",
+      "effectiveSettingsDigest": "1818082e7d8a983b3a95f4a0bb9ff71722ce01e5560451dba74193302eb7ef9a",
+      "finalMapCanonicalSha256": "26881cd6434703d7a73e189ff8bfa088937afb2e9145b108cd5f95d6b0fe3c98",
+      "fitPerformed": false,
+      "groundTruthCanonicalSha256": "6da7d20370f289b91f4ac1ebb130fc92d28bff5ead4d36e64aac0439c3a38666",
+      "initializerArtifactSha256": "84d92538cacbff255896431df272526d101a1eb3c70aa82e7418f4dcffc02f35",
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "accepted-supported-map",
+      "pairOrdinal": 12,
+      "qualified": false,
+      "recipe": "native-valis",
+      "registeredInputDigests": [
+        "8bb254612f579590187896edb72acbd417c6daed5f073d163771336c136200c9",
+        "b735e7375b3cef0a0732897c7bd1910da209d2c3f7d41cf1f8c31921c90f8dd9"
+      ],
+      "requestedSettingsDigest": "827116a78e861901326aab3db2f09b4c58397e5eb59ee33395d4881cc5a8ee21",
+      "runtimeIdentityCanonicalSha256": "7c017e5aba5c5855860662d34986e1d09c3d1eac65b3b3a1bc363662a8d6a155",
+      "stageContribution": {
+        "appliedAffineProjectionWithinInitializerSupportedCellsMetrics": {
+          "approximateLandmarks": 48,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 78,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.004154651683457712,
+          "observedCoverage": 0.6153846153846154,
+          "observedLandmarks": 48,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011573417967283433,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 48,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 48
+          },
+          "unsupportedLandmarks": 30,
+          "wrongStructureMatches": null
+        },
+        "appliedAffineScope": "only-initializer-engine-supported-source-cells",
+        "finalVsAppliedAffineProjectionCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 48,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 48,
+              "leftMedianErrorOnCommonSet": 0.004275855724940023,
+              "leftP95ErrorOnCommonSet": 0.011474431126053772,
+              "medianPairedErrorDelta": -0.0002005185914424791,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 20,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -9.898684122966114e-05,
+              "rightMedianErrorOnCommonSet": 0.004154651683457713,
+              "rightP95ErrorOnCommonSet": 0.011573417967283433
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 20,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 48
+            }
+          }
+        },
+        "finalVsInitializerEngineOutputCommonLandmarkComparison": {
+          "commonSupportedLandmarks": 48,
+          "errorsByUnit": {
+            "reference-image-diagonal": {
+              "commonSupportedLandmarks": 48,
+              "leftMedianErrorOnCommonSet": 0.004275855724940023,
+              "leftP95ErrorOnCommonSet": 0.011474431126053772,
+              "medianPairedErrorDelta": -0.00020053127568669938,
+              "neitherSupportedLandmarks": 10,
+              "onlyLeftSupportedLandmarks": 20,
+              "onlyRightSupportedLandmarks": 0,
+              "p95ErrorDeltaOnCommonSet": -9.89875426064199e-05,
+              "rightMedianErrorOnCommonSet": 0.004154679329930926,
+              "rightP95ErrorOnCommonSet": 0.011573418668660192
+            }
+          },
+          "fitPerformed": false,
+          "invalidLandmarks": 0,
+          "onlyLeftSupportedLandmarks": 20,
+          "onlyRightSupportedLandmarks": 0,
+          "pairedErrorDeltaSign": "left-minus-right / negative-is-lower-error",
+          "qualificationEvidence": false,
+          "reason": null,
+          "scope": "same-fit-free-published-landmarks-supported-by-both-saved-original-frame-maps",
+          "status": "measured",
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportTierCounts": {
+            "left": {
+              "own-overview": 68
+            },
+            "right": {
+              "own-overview": 48
+            }
+          }
+        },
+        "initializerArtifactSha256": "84d92538cacbff255896431df272526d101a1eb3c70aa82e7418f4dcffc02f35",
+        "initializerCoordinateFrame": "original-moving-to-reference-level-zero",
+        "initializerEngineOutputMetrics": {
+          "approximateLandmarks": 48,
+          "calibratedCoverage": 0.0,
+          "coverage": 0.0,
+          "eligibleLandmarks": 78,
+          "evaluatedLandmarks": 0,
+          "invalidLandmarks": 0,
+          "measurementMethod": "mapped-source-coordinates",
+          "medianErrorUm": null,
+          "medianRelativeError": 0.004154679329930926,
+          "observedCoverage": 0.6153846153846154,
+          "observedLandmarks": 48,
+          "p95ErrorUm": null,
+          "p95RelativeError": 0.011573418668660192,
+          "qualified": false,
+          "readyMedianErrorUm": null,
+          "readyP95ErrorUm": null,
+          "relativeLandmarks": 48,
+          "supportMappingPolicy": "pointwise-supported-cells/2",
+          "supportMappingScope": "explicit cells only; no affine extrapolation or viewport gap snaps",
+          "supportTierCounts": {
+            "own-overview": 48
+          },
+          "unsupportedLandmarks": 30,
+          "wrongStructureMatches": null
+        },
+        "pairedComparisonDirection": "left=final-hybrid / right=initializer-or-explicit-affine-projection",
+        "residualFrameAccuracy": null,
+        "residualFrameAccuracyReason": "warped-moving-reference-frame-is-not-original-source-frame",
+        "status": "measured",
+        "wholeInitializerPiecewiseMapAppliedToWarp": false
+      },
+      "stageMeasured": true,
+      "stageUnavailableReason": null
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 13,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 13,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 13,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 13,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 13,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 13,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 14,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 14,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 14,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 14,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 14,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 14,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 15,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 15,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 15,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 15,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 15,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 15,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 16,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 16,
+      "qualified": false,
+      "recipe": "native-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 16,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 16,
+      "qualified": false,
+      "recipe": "valis-rigid-wsireg",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 1,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 16,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    },
+    {
+      "fitPerformed": false,
+      "initializerGeometryFlagsInferred": false,
+      "invocationOrdinal": 2,
+      "outcome": "registration-rejection",
+      "pairOrdinal": 16,
+      "qualified": false,
+      "recipe": "native-valis",
+      "stageMeasured": false,
+      "stageUnavailableReason": "final-map-not-accepted"
+    }
+  ],
+  "samplingGeometryGuardModified": false,
+  "schema": "pathlab.warm-plain-jpeg-producer-bound-stage-posthoc/1",
+  "scope": "separate producer-bound plain-JPEG analysis; initializer engine output, applied affine on own source cells, and final-versus-stage same-landmark comparison; original warm guard/report remain unchanged",
+  "scorerGitBytesSha256": "54de266ecfd10f4fe16bfdbe987c28ac28564c6fd5b40743eee910531dcc8e8d",
+  "unmeasuredStages": 72
+}

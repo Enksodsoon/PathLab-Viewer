@@ -1,0 +1,154 @@
+{
+  "allBoundInputsUnchanged": true,
+  "analysisRuntimeVerification": {
+    "baseInterpreterSha256": "4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a",
+    "launcherSha256": "0b471133e110cfb53a061cad528ce8e517d7b9ac41a0a396c39ad795a487fc14",
+    "loadedNumpyCoreSha256": "a9d5c4202cf109bf24305f3f1180e0509aaf661ba850612bd75df7cfd9f928b8",
+    "numpy": "2.5.3",
+    "python": "3.12.10",
+    "scope": "post-analysis exact owned QA interpreter/profile verification; independent from historical registration research runtime"
+  },
+  "analysisStartupHead": "1e613d3b771f5bd99f78ebab19bda75518ff6eaa",
+  "boundMeasuredInitializerSidecars": 24,
+  "boundUniqueJpegInputs": 9,
+  "fitPerformed": false,
+  "jpegHeaderDimensionsEqualDeclaredOriginalFrame": true,
+  "noDziOrImmutableDescriptor": true,
+  "observationsSha256": "df80e49c0dd68d39b0f207efdbdcef6c7049ea2beb5b8558f4346f163ed41520",
+  "privateBindingProofSha256": "416ffa41c9811105c5a02d782b82f2b953ba93574545aa7b99a97aea6793297d",
+  "qualificationEvidence": false,
+  "registrationReruns": 0,
+  "registrationSourceFreezeHead": "9eab3edeeedded8b2fca9c0521c88cdec388e0cc",
+  "runtimeStartupTerminalEqual": true,
+  "schema": "pathlab.warm-plain-jpeg-stage-binding-public/1",
+  "scorerGitBytesSha256": "54de266ecfd10f4fe16bfdbe987c28ac28564c6fd5b40743eee910531dcc8e8d",
+  "scriptSha256": "e0943d0bdeed30e57d9d32b53c7780adb654d01bef028b6f44093836ae17e979",
+  "sourceModuleProofs": {
+    "apps/web/scripts/measure-alignment-operational-ui.mjs": {
+      "admittedRawBytesSha256": "740a8e33a616e8d4374e997112a676f86b78f17f6837593819c37f0a58739a8a",
+      "frozenGitBytesSha256": "46bd324ab69803d66c047516926df042992a4da2a75defa2d6615a31ff592004"
+    },
+    "apps/web/src/alignment.ts": {
+      "admittedRawBytesSha256": "8b24aacf12b241204265b85560e0d1ea1aa8633b815c83dc9d3bc7d408ad3ae1",
+      "frozenGitBytesSha256": "4d39b109325bf5d9052d19d36e00cb0b895580673ae012f7c93878cc3311e467"
+    },
+    "apps/web/src/candidatePreview.ts": {
+      "admittedRawBytesSha256": "33ee36b7fa35961af396bdc928554940194d9c7468f007284143f176c3ce6bf4",
+      "frozenGitBytesSha256": "33ee36b7fa35961af396bdc928554940194d9c7468f007284143f176c3ce6bf4"
+    },
+    "apps/web/src/components/OpenSeadragonViewer.tsx": {
+      "admittedRawBytesSha256": "facab4bc35f2afd510973f498538f05c502f64b5d500209b02b4c8d7b49a9199",
+      "frozenGitBytesSha256": "5f87fa780a5fae942979a72cecdd827ade0df87392c4a231269a0afb2ac44d28"
+    },
+    "apps/web/src/pages/ComparisonPage.tsx": {
+      "admittedRawBytesSha256": "27319911bd34cffe52e84cb3ff9a8029324fafa1f902814b8e929964fa36b027",
+      "frozenGitBytesSha256": "183c548abb54a26871dab1d0538d0c37916dda987bf3a47e11d41bfdfde6b947"
+    },
+    "scripts/benchmark_alignment_warm_process.py": {
+      "admittedRawBytesSha256": "4f7e5838e611d258373f3d6ccef18b3cf51082dbc3116c0f5d5ed3db7cb625ae",
+      "frozenGitBytesSha256": "4f7e5838e611d258373f3d6ccef18b3cf51082dbc3116c0f5d5ed3db7cb625ae"
+    },
+    "scripts/capture_alignment_admission.py": {
+      "admittedRawBytesSha256": "280349f945358c2fa0d62d89a04f98afdfc2e2bddfe1415d9d0754b260dfc16f",
+      "frozenGitBytesSha256": "280349f945358c2fa0d62d89a04f98afdfc2e2bddfe1415d9d0754b260dfc16f"
+    },
+    "scripts/measure_alignment_operational_profile.py": {
+      "admittedRawBytesSha256": "a86d216724e831cfb4fd08727430701417f94ebf75c0e0425de5fc7e1795e74c",
+      "frozenGitBytesSha256": "a86d216724e831cfb4fd08727430701417f94ebf75c0e0425de5fc7e1795e74c"
+    },
+    "scripts/report_alignment_campaign.py": {
+      "admittedRawBytesSha256": "66807d5cbcee323d0dc5e79755590e38fa808baa672358b0683ced926d2970cb",
+      "frozenGitBytesSha256": "54de266ecfd10f4fe16bfdbe987c28ac28564c6fd5b40743eee910531dcc8e8d"
+    },
+    "scripts/run_alignment_operational_profile.py": {
+      "admittedRawBytesSha256": "f51d10276764a29b43ff26fc2dcdac30c42ceea5001859aecc6c43236fbd1d55",
+      "frozenGitBytesSha256": "57053193b2629ec6c6cd53222340013a5d3e837b15ace14acb5358801dc251a5"
+    },
+    "scripts/run_fullstack_tests.py": {
+      "admittedRawBytesSha256": "11f194358fbe41e89ec052a4ad876b66ba481c57ece47c86a526712178531d66",
+      "frozenGitBytesSha256": "673d8c8eb1d77c5fcc541a802e69b8c6e67c5552857a65411195657419183e3d"
+    },
+    "scripts/seed_frontend_qa.py": {
+      "admittedRawBytesSha256": "a0ad25c97e7db571c4ea2effabb35cd2b0b06663ac99bb3fccbbc5c4ce054bb7",
+      "frozenGitBytesSha256": "c733a4dd13e9f7b1cdd717f763b1d92a36db4448587a1728dd3ab08988623265"
+    },
+    "server/wsi_viewer/alignment.py": {
+      "admittedRawBytesSha256": "a515dd3389344ed95f7e6533b78e6604ceea6d041be27f6be097635d223a4cb1",
+      "frozenGitBytesSha256": "7e8f8684e64fe77e96e79c911cbf30ad94a2a368ad698aecbb674a316cdc0e6b"
+    },
+    "server/wsi_viewer/alignment_artifacts.py": {
+      "admittedRawBytesSha256": "73f91dbb69ea01e45f3c64530972eeb980018e303e43a2e3aa4ad3538f71f7af",
+      "frozenGitBytesSha256": "73f91dbb69ea01e45f3c64530972eeb980018e303e43a2e3aa4ad3538f71f7af"
+    },
+    "server/wsi_viewer/alignment_benchmark.py": {
+      "admittedRawBytesSha256": "1008fcf189f6f0e8226f519521d8be46682b56bc381e7c15218732ba1c9d0e2e",
+      "frozenGitBytesSha256": "1008fcf189f6f0e8226f519521d8be46682b56bc381e7c15218732ba1c9d0e2e"
+    },
+    "server/wsi_viewer/alignment_calibration.py": {
+      "admittedRawBytesSha256": "906d5ec4177f88d88636753bc723ececea2aefb22dca21fe196fd7450439272f",
+      "frozenGitBytesSha256": "906d5ec4177f88d88636753bc723ececea2aefb22dca21fe196fd7450439272f"
+    },
+    "server/wsi_viewer/alignment_engines.py": {
+      "admittedRawBytesSha256": "d7e354d7d698ecee8ba72d061dfbec08ab6b4fd3b27a5aa11a345e9cd8047e33",
+      "frozenGitBytesSha256": "0a38028ad400964167d0497fd4be4b0eccfc3fa839782bb7fb5a6ff9db24397c"
+    },
+    "server/wsi_viewer/alignment_evaluation.py": {
+      "admittedRawBytesSha256": "906225909a798a0c03dcb84e49f8e7ce929cd56e7968d69481830fcd1e99289b",
+      "frozenGitBytesSha256": "29b02baf0738832cd355dbcd62e3986c046a34a024d53449350d72bfbdbf9807"
+    },
+    "server/wsi_viewer/alignment_fast.py": {
+      "admittedRawBytesSha256": "c273c32710f7e37ad75cf0d1d6e05274738ebd4afd0a8750142b2f6abf91e797",
+      "frozenGitBytesSha256": "a334a7c87b1e87c6763e01f00df34cf3ff5b9bcc2dadf6d274841e33ee33c760"
+    },
+    "server/wsi_viewer/alignment_geometry.py": {
+      "admittedRawBytesSha256": "e1b19eef32e9f661b19886445302096f89fd4fa3d9b8b94f72d723ed328a3b04",
+      "frozenGitBytesSha256": "e1b19eef32e9f661b19886445302096f89fd4fa3d9b8b94f72d723ed328a3b04"
+    },
+    "server/wsi_viewer/alignment_inputs.py": {
+      "admittedRawBytesSha256": "3606d7edc087c9743c7c4ca42643e1d417f00c999a33acbdd9be47d83de3844b",
+      "frozenGitBytesSha256": "3606d7edc087c9743c7c4ca42643e1d417f00c999a33acbdd9be47d83de3844b"
+    },
+    "server/wsi_viewer/alignment_optional.py": {
+      "admittedRawBytesSha256": "b5a0494e9154c981f453a34af8efa8ca8dc2f52638de4d8e7c106b4f6553ad76",
+      "frozenGitBytesSha256": "b5a0494e9154c981f453a34af8efa8ca8dc2f52638de4d8e7c106b4f6553ad76"
+    },
+    "server/wsi_viewer/alignment_policy.py": {
+      "admittedRawBytesSha256": "5ea32b48f8b899f0e1b76f92210d1641cf771bd4cea4a6ac4a25cae6f4a0ca7c",
+      "frozenGitBytesSha256": "bce946c13930ed99f16ddb56b5fc4adb4ad3d7734de103a5d0a5a80d33474a7d"
+    },
+    "server/wsi_viewer/alignment_processes.py": {
+      "admittedRawBytesSha256": "0845a2052d2480b7f6d22aeb963d3cbccd117ce89ee3a7b05485fae6882df7f7",
+      "frozenGitBytesSha256": "0fee111af0ee10eca10430d2d9fc1baa8efd06f7cfd3e3f32f19624889571263"
+    },
+    "server/wsi_viewer/alignment_recipes.py": {
+      "admittedRawBytesSha256": "91129b69b16d2f9fddf1927aee6241a3ae9001d712f436a81fb1fe9e4bbc9105",
+      "frozenGitBytesSha256": "91129b69b16d2f9fddf1927aee6241a3ae9001d712f436a81fb1fe9e4bbc9105"
+    },
+    "server/wsi_viewer/alignment_resources.py": {
+      "admittedRawBytesSha256": "785d3d063237f110d97e85b1cbb2c1a9dce6e9cfde0a8fb27e2a891404c80d7b",
+      "frozenGitBytesSha256": "785d3d063237f110d97e85b1cbb2c1a9dce6e9cfde0a8fb27e2a891404c80d7b"
+    },
+    "server/wsi_viewer/alignment_routes.py": {
+      "admittedRawBytesSha256": "b2cc926d7c59f84bdd2199b104d4be843599bd474df3f61f7caceb912114963d",
+      "frozenGitBytesSha256": "a8a61f7b5437e77c813b3f4f79bb8807175c75841f0901528bbd0660ad6276be"
+    },
+    "server/wsi_viewer/alignment_warm.py": {
+      "admittedRawBytesSha256": "1036c3c46a895e70935e8aac1c81f9780f0e88738a1cf60d52763b4966407a6b",
+      "frozenGitBytesSha256": "1036c3c46a895e70935e8aac1c81f9780f0e88738a1cf60d52763b4966407a6b"
+    },
+    "server/wsi_viewer/config.py": {
+      "admittedRawBytesSha256": "191bcd4569f304a0e6cd70573ba34f38738610fe488c6dbf4f7d3c2c7b355384",
+      "frozenGitBytesSha256": "df2b3cc9eb342f7ac902e9f89b6a976baa156d17eec9cd61e2caa18c7f96cbf4"
+    },
+    "server/wsi_viewer/main.py": {
+      "admittedRawBytesSha256": "a512b83682b64ebba794e1addac37c01eef4c5c504e29c1f9e3a88a943b3272d",
+      "frozenGitBytesSha256": "038aa4e5f8fd3d594ca744003f4c83941db50ac0445fbaca20257427c2f7ca4c"
+    },
+    "server/wsi_viewer/worker.py": {
+      "admittedRawBytesSha256": "4a038923ec0e486a418cfcdf9328bce7dcc20a95577d82641ea2b7761250ab41",
+      "frozenGitBytesSha256": "b10293b9917ecb26a45688e70b8df8ccb38ed97bf07bb42da36f8af61cd3f5dd"
+    }
+  },
+  "startupAdmissionSha256": "6acf57599ccf9836ed21a3d56f3d18df9748288d2a92c2453886e4c6fb1dfba7",
+  "terminalAdmissionSha256": "168b2089adc1f4fd2828df07991cc627f7429aa7d28b0ac4588b73bac250d1ef"
+}
