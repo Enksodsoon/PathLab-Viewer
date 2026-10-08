@@ -24,22 +24,20 @@ esac
 }
 backup_root="$(readlink -f -- "$backup_dir")"
 test -d "$backup_root"
+if [[ "$engine" == postgres ]]; then
+  exec "${PATHLAB_PYTHON_COMMAND:-python3}" "$script_dir/postgres_backup_manifest.py" \
+    prune "$backup_root" --keep "$retention_count"
+fi
 
 valid_count=0
-candidate_count=0
 while IFS= read -r name; do
   [[ "$name" =~ $pattern ]] || continue
   candidate="${backup_root}/${name}"
   [[ -d "$candidate" && ! -L "$candidate" ]] || continue
   resolved="$(readlink -f -- "$candidate")"
   [[ "$(dirname "$resolved")" == "$backup_root" ]] || continue
-  candidate_count=$((candidate_count + 1))
   [[ -f "$resolved/database/$database" && -f "$resolved/files.tar.gz" && -f "$resolved/SHA256SUMS" ]] || continue
-  if [[ "$engine" == postgres ]]; then
-    "${PATHLAB_PYTHON_COMMAND:-python3}" "$script_dir/postgres_backup_manifest.py" verify-retention "$resolved" >/dev/null || continue
-  else
-    (cd "$resolved" && sha256sum --check --status SHA256SUMS) || continue
-  fi
+  (cd "$resolved" && sha256sum --check --status SHA256SUMS) || continue
   valid_count=$((valid_count + 1))
   if (( valid_count <= retention_count )); then
     echo "Retained verified backup: $name" >&2
@@ -52,7 +50,3 @@ while IFS= read -r name; do
   rm -rf -- "$resolved"
   echo "Pruned verified backup: $name" >&2
 done < <(find -P "$backup_root" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | LC_ALL=C sort -r)
-if [[ "$engine" == postgres ]] && (( candidate_count > 0 && valid_count == 0 )); then
-  echo "PostgreSQL retention failed: no matching backup could be verified" >&2
-  exit 1
-fi

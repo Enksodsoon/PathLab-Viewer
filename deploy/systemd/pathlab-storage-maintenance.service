@@ -12,3 +12,4 @@ Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
 UMask=0077
+MemoryMax=256M

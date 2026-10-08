@@ -36,6 +36,7 @@ case "${backup_dir}" in
 esac
 [[ -f "${signing_key_file}" && ! -L "${signing_key_file}" ]] || exit 4
 export PATHLAB_BACKUP_SIGNING_KEY="$(cat "${signing_key_file}")"
+source "$script_dir/backup-lock.sh"
 manifest="$(python3 "${script_dir}/postgres_backup_manifest.py" verify "${backup_dir}")"
 manifest_revision="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["schemaRevision"])' \
   <<<"${manifest}")"

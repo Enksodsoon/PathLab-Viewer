@@ -9,7 +9,8 @@ cache also occupied 7.86 GB on the separate root filesystem.
 `storage-maintenance.sh` retains the newest five verified PostgreSQL backups
 and prunes unused Docker build cache older than 24 hours, keeping 2 GB of cache.
 Signed manifests, payload hashes and `SHA256SUMS` must pass before a backup
-counts toward retention. Archive layout was validated when signed; retention
+counts toward retention. Signed creation timestamps determine order; duplicate
+signed manifests do not take extra retention slots. Archive layout was validated when signed; retention
 hashes unchanged archive bytes once, while restore keeps full layout validation.
 Invalid backups and SQLite migration
 backups are preserved. Live originals, derivatives, database volumes, Docker
@@ -17,6 +18,8 @@ images and qualification/cutover evidence are excluded.
 If matching PostgreSQL backups exist but none can be verified, the job fails
 without deleting them. Backup retention runs before Docker cache pruning, so a
 Docker failure cannot suppress backup cleanup.
+Manifest and checksum metadata reads are size-bounded and the service has a
+256 MB memory limit. Restore drills and PostgreSQL rollback share the backup lock.
 
 Install as root, outside the release checkout, so deployments cannot replace
 the maintenance code. Copy `storage-maintenance.sh`, `backup-lock.sh`, `prune-backups.sh` and
