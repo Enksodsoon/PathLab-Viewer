@@ -12,6 +12,10 @@ type Application = { sourceSlideId: string; slideId: string; retainedOverview: b
 type Restoration = { slideId: string; requestedViewport: View; actualViewport: View | null }
 type PointerRelease = { x: number; y: number; captured: boolean }
 
+function angularDistance(left: number, right: number) {
+  return Math.abs(((left - right + 180) % 360 + 360) % 360 - 180)
+}
+
 // Independent barycentric oracle: this does not call the production map lookup.
 function inCell(cell: RegistrationTriangle, point: Point, reverse: boolean): Point | null {
   const source = reverse ? cell.reference : cell.moving, target = reverse ? cell.moving : cell.reference
@@ -236,12 +240,17 @@ test('alignment candidate support retains current overview and direct pane Reset
   await expect(page.getByText('Experimental alignment preview', { exact: true })).toHaveCount(0)
   await expect.poll(async () => (await restorations()).slice(restoreCount).length).toBe(2)
   const restoredFields = (await restorations()).slice(restoreCount)
+  const restorationResiduals: unknown[] = []
   for (const [index, id] of [fixture.anchorId, fixture.sourceId].entries()) {
     const restored = restoredFields.find(row => row.slideId === id)!
     expect(restored.actualViewport).not.toBeNull()
     for (const field of ['centerX', 'centerY', 'imageZoom', 'rotation'] as const) {
-      expect(Math.abs(restored.requestedViewport[field] - savedViews[index][field])).toBeLessThan(0.01)
-      expect(Math.abs(restored.actualViewport![field] - restored.requestedViewport[field])).toBeLessThan(0.01)
+      const distance = field === 'rotation' ? angularDistance : (left: number, right: number) => Math.abs(left - right)
+      const requestedVsSaved = distance(restored.requestedViewport[field], savedViews[index][field])
+      const actualVsRequested = distance(restored.actualViewport![field], restored.requestedViewport[field])
+      expect(requestedVsSaved).toBeLessThan(0.01)
+      expect(actualVsRequested).toBeLessThan(0.01)
+      restorationResiduals.push({ slideId: id, field, requestedVsSaved, actualVsRequested })
     }
   }
   expect((await getSet()).members[1].registration).toEqual(canonicalBefore)
@@ -259,5 +268,5 @@ test('alignment candidate support retains current overview and direct pane Reset
   await expect(preview).toBeDisabled()
   await page.getByText('Advanced', { exact: true }).click()
   await page.screenshot({ path: testInfo.outputPath('candidate-source-invalidated.png'), fullPage: true })
-  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job.', panReceipts, resetReceipts, advancedKeyboardReceipts, supportReceipts, restoredFields, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
+  await testInfo.attach('candidate-reset-receipt', { body: JSON.stringify({ scope: 'Actual worker Native support, original synthetic DZI pixels, real API candidate admission and OSD viewport readback. Partial candidate support is a synthetic UI fixture, not an engine result or anatomical accuracy evidence. Captured actual foreground may be retained by the fixture only after live backend source/frame/geometry/token revalidation, preserving canonical cells/transform. Polling is held by fixture status without creating a registration job. Rotation restoration residuals use circular degrees; center and zoom residuals remain linear.', panReceipts, resetReceipts, advancedKeyboardReceipts, supportReceipts, savedViews, restoredFields, restorationResiduals, loadedTiles, fixture, candidateId: fixture.candidateId, currentPair: candidate.currentPair, oldToken, freshToken: invalidated.members[1].alignmentSourceVersion, comparisonVersionUnchanged: invalidated.version === current.version }), contentType: 'application/json' })
 })
