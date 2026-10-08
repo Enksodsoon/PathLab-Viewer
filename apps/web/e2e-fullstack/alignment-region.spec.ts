@@ -73,6 +73,43 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
     expect(row).toBeDefined()
     return row!.sourceSlideId === sourceId ? row!.sourceViewport : row!.viewport
   }
+  // Read only the two displayed handles. Restoration telemetry may truthfully
+  // be unavailable before remounted DZI worlds open; application history is
+  // not a substitute for their current viewport.
+  const currentFields = () => page.evaluate(ids => {
+    type Hook = { memoizedState?: { current?: unknown }; next?: Hook }
+    type Fiber = { memoizedState?: Hook; return?: Fiber }
+    const node = document.querySelector('.comparison-pane')
+    const key = node && Object.keys(node).find(key => key.startsWith('__reactFiber$'))
+    let fiber: Fiber | undefined = node && key ? Reflect.get(node, key) : undefined
+    let handles: Map<string, { getImageViewport: () => ImageView }> | undefined
+    for (let ancestor = 0; fiber && ancestor < 30 && !handles; ancestor++, fiber = fiber.return) {
+      let hook = fiber.memoizedState
+      for (let index = 0; hook && index < 80; index++, hook = hook.next) {
+        const map = hook.memoizedState?.current
+        if (map instanceof Map && ids.every(id => typeof map.get(id)?.getImageViewport === 'function')) {
+          handles = map
+          break
+        }
+      }
+    }
+    return Object.fromEntries(ids.map(id => {
+      const view = handles?.get(id)?.getImageViewport()
+      const valid = view?.visibleBounds?.length === 4
+        && [...view.visibleBounds, view.centerX, view.centerY, view.imageZoom, view.rotation].every(Number.isFinite)
+        && view.visibleBounds[2] > 0 && view.visibleBounds[3] > 0 && view.imageZoom > 0
+      const pane = [...document.querySelectorAll('.comparison-pane')].find(pane => pane.querySelector('select')?.value === id)
+      const canvas = pane?.querySelector<HTMLCanvasElement>('.openseadragon-canvas canvas')
+      const context = canvas?.getContext('2d'), colors = new Set<string>()
+      if (canvas?.width && canvas.height && context) {
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+        for (let index = 0; index < pixels.length; index += 404) {
+          if (pixels[index + 3] && (pixels[index] < 240 || pixels[index + 1] < 240 || pixels[index + 2] < 240)) colors.add(`${pixels[index]},${pixels[index + 1]},${pixels[index + 2]}`)
+        }
+      }
+      return [id, { viewport: valid ? { centerX: view.centerX, centerY: view.centerY, imageZoom: view.imageZoom, rotation: view.rotation, visibleBounds: [...view.visibleBounds!] as [number, number, number, number] } : null, nonuniform: colors.size > 10 }]
+    }))
+  }, slideIds.slice(1, 3))
   const releaseStroke = async (canvas: ReturnType<typeof page.locator>, stroke: { start: number[]; end: number[]; visibleBounds: number[] }) => {
     const releasesBefore = (await pointerReleases()).length
     await page.mouse.move(stroke.start[0], stroke.start[1]); await page.mouse.down()
@@ -258,6 +295,11 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await page.getByRole('button', { name: 'Cancel correction' }).click()
   await expect.poll(async () => (await restorations()).length).toBeGreaterThanOrEqual(restoredBefore + 2)
   const afterCancelFields = (await restorations()).slice(restoredBefore)
+  await expect.poll(async () => {
+    const fields = await currentFields()
+    return slideIds.slice(1, 3).every(id => fields[id].viewport && fields[id].nonuniform)
+  }).toBe(true)
+  const settledCancelFields = await currentFields()
   const assertBoundsContainCenter = (view: ImageView) => {
     expect(view.visibleBounds).toHaveLength(4)
     const [left, top, width, height] = view.visibleBounds!
@@ -270,11 +312,16 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   }
   for (const slideId of slideIds.slice(1, 3)) {
     const restored = afterCancelFields.findLast(row => row.slideId === slideId)!
-    expect(restored.actualViewport).not.toBeNull()
-    assertBoundsContainCenter(restored.actualViewport!)
-    expect(restored.actualViewport!.rotation).toBeCloseTo(restored.requestedViewport.rotation, 8)
+    const actual = settledCancelFields[slideId].viewport!
+    assertBoundsContainCenter(actual)
+    expect(actual.centerX).toBeCloseTo(restored.requestedViewport.centerX, 2)
+    expect(actual.centerY).toBeCloseTo(restored.requestedViewport.centerY, 2)
+    expect(actual.imageZoom).toBeCloseTo(restored.requestedViewport.imageZoom, 8)
+    expect(actual.rotation).toBeCloseTo(restored.requestedViewport.rotation, 8)
+    for (let axis = 0; axis < 4; axis++) expect(actual.visibleBounds[axis]).toBeCloseTo(restored.requestedViewport.visibleBounds![axis], 2)
   }
-  expect(afterCancelFields.some(row => Math.abs(row.actualViewport!.rotation) > 0.5)).toBe(true)
+  expect(Object.values(settledCancelFields).some(row => Math.abs(row.viewport!.rotation) > 0.5)).toBe(true)
+  await testInfo.attach('restoration-readback-receipt', { body: JSON.stringify({ scope: 'Bounded read-only current handles after both image worlds render nonuniform original pixels; first restoration events retained separately.', firstEvents: afterCancelFields, settledFields: settledCancelFields }), contentType: 'application/json' })
   const afterCancel = await (await page.request.get(endpoint)).json()
   expect(afterCancel.version).toBe(savedSet.version)
   expect(afterCancel.regionalCorrections).toHaveLength(1)
@@ -282,8 +329,8 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await rotationControl.click()
   await page.getByRole('button', { name: 'Rotate to 0 degrees' }).click()
   await rotationControl.click()
-  await expect.poll(async () => (await viewFor(slideIds[1])).rotation).toBeCloseTo(0, 8)
-  assertBoundsContainCenter(await viewFor(slideIds[1]))
+  await expect.poll(async () => (await currentFields())[slideIds[1]].viewport?.rotation).toBeCloseTo(0, 8)
+  assertBoundsContainCenter((await currentFields())[slideIds[1]].viewport!)
   await page.getByRole('button', { name: 'Adjust region' }).click()
   await recordTwoPoints()
   const secondPreviewResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
