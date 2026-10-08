@@ -22422,12 +22422,12 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 END NOTICE package/LICENSE.txt
 
-ID: npm:source-map-js@1.2.1
+ID: npm:source-map-js@1.2.2
 Name: source-map-js
-Version: 1.2.1
+Version: 1.2.2
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/source-map-js/1.2.1
+Source: https://registry.npmjs.org/source-map-js/1.2.2
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:6cb0631f71c7749763fd3dd1d5bee52dd1070ec17f2edc1710079ad070bd2fbd

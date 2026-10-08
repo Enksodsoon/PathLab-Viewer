@@ -17904,15 +17904,15 @@
       "version": "4.1.0"
     },
     {
-      "bom-ref": "dependency:npm:source-map-js@1.2.1",
+      "bom-ref": "dependency:npm:source-map-js@1.2.2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz"
+          "url": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/source-map-js/1.2.1"
+          "url": "https://registry.npmjs.org/source-map-js/1.2.2"
         }
       ],
       "licenses": [
@@ -17924,7 +17924,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:source-map-js@1.2.1"
+          "value": "npm:source-map-js@1.2.2"
         },
         {
           "name": "pathlab:role",
@@ -17943,9 +17943,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/source-map-js@1.2.1",
+      "purl": "pkg:npm/source-map-js@1.2.2",
       "type": "library",
-      "version": "1.2.1"
+      "version": "1.2.2"
     },
     {
       "bom-ref": "dependency:npm:splaytree@3.2.3",
@@ -26215,7 +26215,7 @@
         "dependency:npm:siginfo@2.0.0",
         "dependency:npm:signal-exit@3.0.7",
         "dependency:npm:signal-exit@4.1.0",
-        "dependency:npm:source-map-js@1.2.1",
+        "dependency:npm:source-map-js@1.2.2",
         "dependency:npm:splaytree@3.2.3",
         "dependency:npm:stackback@0.0.2",
         "dependency:npm:std-env@4.2.0",
@@ -26386,7 +26386,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:671222ca36ae653066f406c781e621936127317f"
+      "ref": "pathlab:build:fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
     },
     {
       "dependsOn": [],
@@ -28018,7 +28018,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:source-map-js@1.2.1"
+      "ref": "dependency:npm:source-map-js@1.2.2"
     },
     {
       "dependsOn": [],
@@ -28699,15 +28699,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:671222ca36ae653066f406c781e621936127317f",
+      "bom-ref": "pathlab:build:fd45b4d769be4b31c05b07a2fca66bc901e4cc49",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/671222ca36ae653066f406c781e621936127317f"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/671222ca36ae653066f406c781e621936127317f"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
         }
       ],
       "licenses": [
@@ -28738,13 +28738,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@671222ca36ae653066f406c781e621936127317f",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@fd45b4d769be4b31c05b07a2fca66bc901e4cc49",
       "type": "application",
-      "version": "671222ca36ae653066f406c781e621936127317f"
+      "version": "fd45b4d769be4b31c05b07a2fca66bc901e4cc49"
     },
-    "timestamp": "2026-10-08T01:16:12Z"
+    "timestamp": "2026-10-08T01:31:09Z"
   },
-  "serialNumber": "urn:uuid:671222ca-36ae-4530-a6f4-06c781e62193",
+  "serialNumber": "urn:uuid:fd45b4d7-69be-4b31-a05b-07a2fca66bc9",
   "specVersion": "1.6",
   "version": 1
 }

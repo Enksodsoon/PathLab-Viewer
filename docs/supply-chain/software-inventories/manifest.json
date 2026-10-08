@@ -2,27 +2,27 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "a66edf5efc7a0f7159fca9be2e1e05123a3a70d578376052fa7af1c1e60fc5ed",
+      "sha256": "acdb6b332a9c29e2d9a503918cc8981e00e68c47d537c58ba525e9562fb5fbec",
       "sizeBytes": 1458116
     },
     {
       "path": "build.cdx.json",
-      "sha256": "e4aa9354a251cf0974c531531f1b121f40d668c3386ac707f2fd61da7031f0f0",
+      "sha256": "771dd3f7fbf2b9f021f5c3f84dce1d387f2e4d0c6741f94bbe768b51d9047380",
       "sizeBytes": 731952
     },
     {
       "path": "build.spdx.json",
-      "sha256": "20bd61acf64841649414affb4dbf736a3b1c370d6dc93ef62ba232039362d439",
+      "sha256": "fa8267d35fccd65b86bc88659dfcddefc09e60ea4f6bcd5ed28726888ad5920d",
       "sizeBytes": 591645
     },
     {
       "path": "source.cdx.json",
-      "sha256": "11fd778af1d2bb86972d3eb516142e3858bf01dead7755ef7507ea751da60688",
+      "sha256": "fa17145540d9589ee0f68edc830da820693fc9c165a4292e99b2cfeaa50e9758",
       "sizeBytes": 774506
     },
     {
       "path": "source.spdx.json",
-      "sha256": "bde46508eec03812024f0ac2419fddb41849b0e49e0cab459b15d941fddc8f0a",
+      "sha256": "b10d7cd29c765becfdb3c2dce024cccc75478d711cd6f92a116376870431c82e",
       "sizeBytes": 625295
     }
   ],
@@ -31,7 +31,7 @@
     "assetRecords": 16,
     "buildComponents": 577,
     "currentShippedInputs": 176,
-    "dependencyRecordIdsSha256": "7b0b0dc6ed40832ffa404ee4e4716b50c13e939f16c8bb82bebdf5637727133c",
+    "dependencyRecordIdsSha256": "5b5f989688e596f84a1ef330935ca71f1a6822720ee579a17e4078b65dd82f19",
     "dependencyRecords": 585,
     "sourceComponents": 615,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-08T01:16:12Z",
+  "generatedAt": "2026-10-08T01:31:09Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -63,10 +63,10 @@
       "sizeBytes": 485
     },
     {
-      "gitBlob": "58a780cce56476840fa7e0b76379d7f4d1aca146",
+      "gitBlob": "de613bf10f01fc2033f8ce403ff841d139f69366",
       "path": "pnpm-lock.yaml",
-      "sha256": "0ef2042017000189d5c68b74458f39ebee36184e1dfe89180802646c2a44f17e",
-      "sizeBytes": 134380
+      "sha256": "7f30b2cf101d9ee035e65a560af0de2eb87f82a59ddb756c4d0a1faf09bf8436",
+      "sizeBytes": 134403
     },
     {
       "gitBlob": "8c7d0febcc216accc0624ff1dd21bf8b2bb50c7c",
@@ -117,9 +117,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "e37b00d65d3c24103cd1f94b1e720108ded266e3",
+      "gitBlob": "5ce39cb1c526d0eff3fd0a93002a0584a051eab5",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "9c224a2f68498069c0061f9e7cbbf5ead031c1f2be06eda418665b2c6eb022c3",
+      "sha256": "e8dcefe7baeb75dc4f943ba81b15a1f6d85e1511ab9827219caba459748ff3c1",
       "sizeBytes": 822008
     },
     {
@@ -171,9 +171,9 @@
       "sizeBytes": 37287
     },
     {
-      "gitBlob": "caefe58008d3a4469ecfc5f7d626b8b1cee11f24",
+      "gitBlob": "2462116837508e5b7b318cc2e42b5cb594f88ffe",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "964dc9bc5a54c99a360cb8127c16185245b30d025a3aff51927cf0b568a65b55",
+      "sha256": "eb37ac1ca2eed96db78e9e99c7f602de7c57acce8c47a3051ad96754f63ad67d",
       "sizeBytes": 873277
     },
     {
@@ -1565,6 +1565,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "671222ca36ae653066f406c781e621936127317f",
-  "subjectTree": "33dbd0d73559be43a22ac39659c1f25dcfd2f707"
+  "subjectCommit": "fd45b4d769be4b31c05b07a2fca66bc901e4cc49",
+  "subjectTree": "3e3378fa77510be9f0443b8f842a56f72b3f2db4"
 }
