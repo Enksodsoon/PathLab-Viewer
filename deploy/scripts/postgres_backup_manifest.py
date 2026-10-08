@@ -168,7 +168,9 @@ def create_manifest(
     }
 
 
-def verify_manifest(backup: Path, *, signing_key: str) -> dict[str, Any]:
+def verify_manifest(
+    backup: Path, *, signing_key: str, check_archive: bool = True,
+) -> dict[str, Any]:
     backup = backup.resolve(strict=True)
     try:
         manifest = json.loads((backup / "manifest.json").read_text(encoding="utf-8"))
@@ -237,9 +239,26 @@ def verify_manifest(backup: Path, *, signing_key: str) -> dict[str, Any]:
         raise BackupManifestError("database backup checksum mismatch")
     if private_files.get("sha256") != _sha256_file(backup / EXPECTED_FILES[1]):
         raise BackupManifestError("private-file backup checksum mismatch")
-    if private_files.get("roots") != _archive_roots(backup / EXPECTED_FILES[1]):
+    if check_archive and private_files.get("roots") != _archive_roots(backup / EXPECTED_FILES[1]):
         raise BackupManifestError("private-file archive roots do not match the manifest")
     return {**manifest, "signature": signature}
+
+
+def verify_retention(backup: Path, *, signing_key: str) -> dict[str, Any]:
+    # Signing already validated archive layout; unchanged signed bytes need one hash pass.
+    manifest = verify_manifest(backup, signing_key=signing_key, check_archive=False)
+    expected = [
+        f"{manifest['database']['sha256']}  database/pathlab.dump",
+        f"{manifest['privateFiles']['sha256']}  files.tar.gz",
+        f"{_sha256_file(backup / 'manifest.json')}  manifest.json",
+    ]
+    try:
+        actual = (backup / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
+    except OSError as error:
+        raise BackupManifestError("backup checksum manifest is unavailable") from error
+    if actual != expected:
+        raise BackupManifestError("backup checksum manifest does not match signed payloads")
+    return manifest
 
 
 def _signing_key() -> str:
@@ -259,6 +278,8 @@ def main() -> int:
     create.add_argument("--database-name", required=True)
     verify = subparsers.add_parser("verify")
     verify.add_argument("backup", type=Path)
+    retention = subparsers.add_parser("verify-retention")
+    retention.add_argument("backup", type=Path)
     restore = subparsers.add_parser("restore-files")
     restore.add_argument("backup", type=Path)
     restore.add_argument("destination", type=Path)
@@ -277,6 +298,8 @@ def main() -> int:
             os.chmod(destination, 0o600)
         elif args.command == "restore-files":
             manifest = restore_files(args.backup, args.destination, signing_key=_signing_key())
+        elif args.command == "verify-retention":
+            manifest = verify_retention(args.backup, signing_key=_signing_key())
         else:
             manifest = verify_manifest(args.backup, signing_key=_signing_key())
     except (OSError, BackupManifestError) as error:
