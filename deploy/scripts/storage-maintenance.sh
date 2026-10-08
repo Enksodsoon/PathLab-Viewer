@@ -10,5 +10,5 @@ source "$script_dir/backup-lock.sh"
 key=/etc/pathlab-viewer/postgres/backup-signing-key
 [[ -f "$key" && ! -L "$key" ]] || exit 2
 export PATHLAB_BACKUP_SIGNING_KEY="$(cat "$key")"
-docker builder prune --all --force --filter until=24h --keep-storage 2GB
 nice -n 10 ionice -c 2 -n 7 bash "$script_dir/prune-backups.sh" /srv/pathlab/data/backups 5 postgres
+docker builder prune --all --force --filter until=24h --keep-storage 2GB

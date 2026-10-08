@@ -106,6 +106,15 @@ def test_postgres_retention_keeps_five_verified_backups(tmp_path: Path) -> None:
     assert corrupt.exists()
     assert unsigned_backup.exists()
     assert sqlite.exists()
+    for overrides in (
+        {"PATHLAB_BACKUP_SIGNING_KEY": "wrong-synthetic-signing-key"},
+        {"PATHLAB_PYTHON_COMMAND": "/missing-python"},
+    ):
+        failed = subprocess.run(command, env={**env, **overrides}, capture_output=True, text=True)
+        assert failed.returncode != 0
+        assert "no matching backup could be verified" in failed.stderr
+        assert all((root / name).exists() for name in names[-5:])
+        assert corrupt.exists() and unsigned_backup.exists()
 
 
 

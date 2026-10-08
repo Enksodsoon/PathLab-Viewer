@@ -14,6 +14,9 @@ hashes unchanged archive bytes once, while restore keeps full layout validation.
 Invalid backups and SQLite migration
 backups are preserved. Live originals, derivatives, database volumes, Docker
 images and qualification/cutover evidence are excluded.
+If matching PostgreSQL backups exist but none can be verified, the job fails
+without deleting them. Backup retention runs before Docker cache pruning, so a
+Docker failure cannot suppress backup cleanup.
 
 Install as root, outside the release checkout, so deployments cannot replace
 the maintenance code. Copy `storage-maintenance.sh`, `backup-lock.sh`, `prune-backups.sh` and
