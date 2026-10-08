@@ -405,8 +405,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.14.0", cache: pnpm }
       - name: Install native test services at repository runtime versions
+        env:
+          GOTOOLCHAIN: go1.26.8
         run: |
           set -euo pipefail
+          test "$(go env GOVERSION)" = "$GOTOOLCHAIN"
+          go version
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libvips-tools
           go install github.com/tus/tusd/v2/cmd/tusd@v2.9.2
