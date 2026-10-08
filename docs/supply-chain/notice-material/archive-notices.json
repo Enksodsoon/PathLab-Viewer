@@ -1683,6 +1683,18 @@
       ]
     },
     {
+      "artifact": "https://files.pythonhosted.org/packages/ed/aa/02910bdb8e2f1444f6654d5b296cd827d126f82209050ee7b1000f92ac4b/alembic-1.20.0.tar.gz",
+      "checksum": "sha256:db505480647bc60386c5369402f4a57a506b7539c9e9ef5e270d45cbbe4939bf",
+      "id": "pypi:alembic@1.20.0",
+      "notices": [
+        {
+          "member": "alembic-1.20.0/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/6e68d94a03a0e3e327ddf3e86d1ebedc14eece3922022618fc246a36296fd0cc",
+          "sha256": "6e68d94a03a0e3e327ddf3e86d1ebedc14eece3922022618fc246a36296fd0cc"
+        }
+      ]
+    },
+    {
       "artifact": "https://files.pythonhosted.org/packages/5a/8e/38aa427ed5402449e226975b649c5dc73ccadfefeb95e6aecb8f8ea4b6b6/annotated_doc-0.0.5.tar.gz",
       "checksum": "sha256:c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb",
       "id": "pypi:annotated-doc@0.0.5",
