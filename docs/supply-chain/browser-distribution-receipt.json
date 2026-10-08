@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "e361bb8b33fadc07dd2adaed9dbcdbc205ce0a51",
-  "subjectTree": "d894c14da2a810b5f00ef8220627d4142d427260",
+  "subjectCommit": "edff6451dc4d8897ae6f79de5e6bf14c0c9bda94",
+  "subjectTree": "d9b7dd90c37ca6bb90211d5a7d5921c727e43190",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -8210,8 +8210,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 511,
-      "sha256": "3777cc67e95a528e43b4bb2fbf1bb7cb64cb1d30465e60c253a41266167f9b2b"
+      "bytes": 497,
+      "sha256": "90ce85f9085a2b7ad37805b9c182ad917f6018c507add9d6d4f15d1042b482be"
     },
     {
       "path": "models/qwen3-0.6b-int4/manifest.json",
