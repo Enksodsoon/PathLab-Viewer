@@ -1,0 +1,65 @@
+{
+  "schema": "pathlab.maintained-backend-public-observations/1",
+  "sourceHead": "76e8f5db4d443211e72fa2b04a39faa43534997e",
+  "scope": "Entire backend suite on maintained Windows x64 QA; platform/optional skips remain separate from Linux and ARM execution",
+  "privateReceiptSha256": "9f74fb3850503172a33b64c4bc45ab2c4cef786f5d624fae04307fb5773e4746",
+  "sourceUnchanged": true,
+  "runtimeUnchanged": true,
+  "terminalContainmentVerified": true,
+  "terminalOwnedProcesses": 0,
+  "supervisedWallSeconds": 1215.969,
+  "pytestSeconds": 1182.56,
+  "counts": {
+    "measurementAvailable": true,
+    "recordedCases": 2224,
+    "passed": 2106,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 118,
+    "skipReasons": {
+      "Linux PID-fd containment": 5,
+      "could not import 'wsireg': No module named 'wsireg'": 1,
+      "Windows host does not permit symlink creation": 1,
+      "isolated PostgreSQL is required for actual draft revision admission": 4,
+      "Root ownership and O_NOFOLLOW are Linux controls": 1,
+      "Exercises the Ubuntu Actions shell": 8,
+      "Host lacks permission to create symbolic links; Linux CI exercises this case": 1,
+      "POSIX process-group signals are required": 2,
+      "requires Linux flock": 1,
+      "PATHLAB_POSTGRES_TEST_URL is required for isolated PostgreSQL": 3,
+      "POSIX process group escalation": 1,
+      "PATHLAB_POSTGRES_TEST_URL is required for the PostgreSQL lock test": 1,
+      "set PATHLAB_REAL_FORGE_OME to run the optional real-file regression": 1,
+      "isolated PostgreSQL required for actual score precision": 4,
+      "Requires POSIX ownership and modes": 1,
+      "PATHLAB_POSTGRES_TEST_URL is required for the isolated PostgreSQL test": 4,
+      "isolated PostgreSQL required": 10,
+      "isolated PostgreSQL URL required": 21,
+      "PATHLAB_POSTGRES_TEST_URL required for disposable PostgreSQL": 19,
+      "PostgreSQL advisory lock timeout probe": 1,
+      "Linux production maintenance": 13,
+      "PATHLAB_POSTGRES_TEST_URL required for isolated PostgreSQL checks": 8,
+      "Symlinks unavailable": 3,
+      "Linux deployment shell probe": 4
+    }
+  },
+  "coverage": {
+    "branchCoverageMeasured": false,
+    "lineCoverageFraction": 0.8535,
+    "linesCovered": 17827,
+    "linesValid": 20888
+  },
+  "artifacts": {
+    "coverageXmlSha256": "64bbc5e2550c575fa0fbabfcbd9d846bfcc79586cd28c2b90260d6208f2bfcca",
+    "junitSha256": "aaa42dae4679c12d81c49c8bac872dfa168a9180c682c409e00afcc3fb8b7714",
+    "pytestLogSha256": "61b06abf8114d8de1fa319a3ebfa9d4fc0aec2c19ef9c31676299f62ee14dc49",
+    "runtimeAfterSha256": "afa2d7017ecac47c7c47219e7e3f195998c3a125f4f5ab6d67044d62543e2c6e",
+    "runtimeBeforeSha256": "495ae816543bf2f71134cf4925a638dbccb32ccec67a117305486d922e35b09f"
+  },
+  "qualification": {
+    "accurate": null,
+    "anatomicalAccuracy": null,
+    "fast": null,
+    "qualified": false
+  }
+}

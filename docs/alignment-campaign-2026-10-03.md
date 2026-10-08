@@ -1,15 +1,8 @@
 # Alignment recipe campaign: 2026-10-03
 
-Status: frozen public screening and isolated four-browser application measurements
-are complete. Immutable development preparation and the frozen expanded cold
-campaign are complete. Post-campaign preview, Reset and evaluator regression
-repairs are in progress; their checks and any warm-process trials have separate
-provenance and do not replace the frozen campaign receipts.
-No recipe qualified as a Fast or Accurate winner.
-Prior screening receipts are
-exploratory because frontend verification ran concurrently. They do not establish
-fair runtime comparisons or qualified winners.
+Current consolidated evidence is in [the October8 implementation report](alignment-results/implementation-2026-10-08/README.md). The fixed screen completed 144 cold plus 144 fresh-process repeats (not warm), expanded development completed 488 attempts, and source-bound 16 guided journeys/36 own Preview and Restore observations completed. Published assisted correction retains 67/68 non-fitting denominators with no measured error improvement. Windows76 recorded 2106 passes/118 skips; CI76 recorded six successful/two failed checks, 35 passes/one skip across all 36 partitioned journeys, and actual seven emulated ARM session-helper cases. Follow-up4327 full frontend passed 759 tests/93 files with TypeScript/ESLint; scanner repair passed 32 regressions and the introduced-history CLI audit. Fresh final CI and 288 warm invocations remain pending. No anatomical qualification, Fast/Accurate winner, deployment or production activation is claimed. Historical sources, failures, runtime versions and JSON below remain immutable evidence for their own freezes.
 
+## Historical source-bound record
 The public campaign reached terminal outcomes for 144 cold attempts and 144
 fresh-process repeats. A repeat launches a fresh process; it does not measure a
 warm worker. Fresh immutable development capture maps all 134 requested

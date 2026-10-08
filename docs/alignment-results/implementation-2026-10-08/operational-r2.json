@@ -1,0 +1,1181 @@
+{
+  "accurate": null,
+  "anatomicalAccuracy": null,
+  "apiRows": [
+    {
+      "apiStatus": 202,
+      "candidateDigest": "8d352108d91886b6e4c8699e4b0b1ba3c44a62c91208788c158ba7ad88a0a6cc",
+      "candidateFetchSeconds": 0.21899999999732245,
+      "candidateStatus": "approximate",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.536599,
+        1.796985
+      ],
+      "queueSeconds": null,
+      "recipe": "native-overview-v6",
+      "requestAckSeconds": 0.014999999999417923,
+      "terminalObservationSeconds": 3.8589999999967404
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "bcfb34b5c054af8ee6273a87e5600852121019983fdf7d1e1d665e7bc7bada09",
+      "candidateFetchSeconds": 0.3119999999908032,
+      "candidateStatus": "ready",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.532103,
+        1.7922
+      ],
+      "queueSeconds": null,
+      "recipe": "valis-1.2.0",
+      "requestAckSeconds": 0.04700000000593718,
+      "terminalObservationSeconds": 211.4380000000092
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "3d41570f6ba418921daec67180a5bb85f5d2634a18d1785dfddc6c962c9d44c8",
+      "candidateFetchSeconds": 0.9069999999919673,
+      "candidateStatus": "approximate",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.290531,
+        1.549022
+      ],
+      "queueSeconds": null,
+      "recipe": "wsireg-0.3.10",
+      "requestAckSeconds": 0.014999999999417923,
+      "terminalObservationSeconds": 40.88999999999942
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "470fb3d97e02e22314dc1f917334f39f9fc423a064c1e2fde1a19b3ee072f85f",
+      "candidateFetchSeconds": 0.6409999999887077,
+      "candidateStatus": "approximate",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        0.791917,
+        1.054402
+      ],
+      "queueSeconds": null,
+      "recipe": "hisalign-0.2.1",
+      "requestAckSeconds": 0.04700000000593718,
+      "terminalObservationSeconds": 17.469000000011874
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "93f381506c884416e5143f2daf2f053214569036915539d15d5135720a067546",
+      "candidateFetchSeconds": 0.48399999999674037,
+      "candidateStatus": "approximate",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.04365,
+        1.345967
+      ],
+      "queueSeconds": null,
+      "recipe": "deeperhistreg-classical",
+      "requestAckSeconds": 0.01600000000325963,
+      "terminalObservationSeconds": 13.406000000002678
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "c4aadb34fc29ee2a1e07911ee7bda8e4eb0adbff4c273c7c2c2749602a3092d9",
+      "candidateFetchSeconds": 0.4840000000112923,
+      "candidateStatus": "approximate",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.2857,
+        1.550909
+      ],
+      "queueSeconds": null,
+      "recipe": "deeperhistreg-learned",
+      "requestAckSeconds": 0.06300000000919681,
+      "terminalObservationSeconds": 21.485000000000582
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "e9f157ac524b070168c5048779b3223e8b9d5f5d36c59d9bd1f8668c99ec3233",
+      "candidateFetchSeconds": 0.6719999999913853,
+      "candidateStatus": "approximate",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.282531,
+        1.543396
+      ],
+      "queueSeconds": null,
+      "recipe": "native-wsireg",
+      "requestAckSeconds": 0.01600000000325963,
+      "terminalObservationSeconds": 49.92200000000594
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "8a67b6c7bcd3f1a2db8923e0e7bb68ba5fe1152e08e2fb6ebfae775e2d328651",
+      "candidateFetchSeconds": 0.7339999999967404,
+      "candidateStatus": "approximate",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.057857,
+        1.334388
+      ],
+      "queueSeconds": null,
+      "recipe": "valis-rigid-wsireg",
+      "requestAckSeconds": 0.062000000005355105,
+      "terminalObservationSeconds": 264.17200000000594
+    },
+    {
+      "apiStatus": 202,
+      "candidateDigest": "6c4ee203291a72bdbeb49f44f47dd9a16dbdf046580585b742000fdc50237dc8",
+      "candidateFetchSeconds": 0.8899999999994179,
+      "candidateStatus": "ready",
+      "outcome": "succeeded",
+      "queueObservationIntervalSeconds": [
+        1.035265,
+        1.295156
+      ],
+      "queueSeconds": null,
+      "recipe": "native-valis",
+      "requestAckSeconds": 0.04700000000593718,
+      "terminalObservationSeconds": 201.68799999999464
+    }
+  ],
+  "browserApplications": {
+    "ordinaryPanPassed": 30,
+    "planned": 36,
+    "previewClickAdmitted": 0
+  },
+  "browserReceiptSha256": "5ded1020f20cb8e77f5d7ee62cdabf3641acef3b3b8625733a1641066de27bdd",
+  "browsers": [
+    {
+      "browserClosed": true,
+      "browserVersion": "151.0.7922.34",
+      "budgetSeconds": 240,
+      "deadlineTriggered": true,
+      "observedSeconds": 240.2222417,
+      "profile": "chromium",
+      "rows": [
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8d352108d91886b6e4c8699e4b0b1ba3c44a62c91208788c158ba7ad88a0a6cc",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-overview-v6",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.3305,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.5465,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.06679999999701977
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "bcfb34b5c054af8ee6273a87e5600852121019983fdf7d1e1d665e7bc7bada09",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 12,
+          "pointerPanActionsStarted": 12,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-1.2.0",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.24930000001192093,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.4215,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.05790000000596046
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "3d41570f6ba418921daec67180a5bb85f5d2634a18d1785dfddc6c962c9d44c8",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "wsireg-0.3.10",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.3555,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.7115,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.0553999999910593
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "470fb3d97e02e22314dc1f917334f39f9fc423a064c1e2fde1a19b3ee072f85f",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 12,
+          "pointerPanActionsStarted": 12,
+          "previewClickApplicationSeconds": null,
+          "recipe": "hisalign-0.2.1",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.2476000000089407,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.681,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.04720000000298023
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "93f381506c884416e5143f2daf2f053214569036915539d15d5135720a067546",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 14,
+          "pointerPanActionsStarted": 14,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-classical",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.27920000000298023,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.615,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.05130000001192093
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "c4aadb34fc29ee2a1e07911ee7bda8e4eb0adbff4c273c7c2c2749602a3092d9",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-learned",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.2936000000089407,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.4392000000029803,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.047599999994039535
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "e9f157ac524b070168c5048779b3223e8b9d5f5d36c59d9bd1f8668c99ec3233",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 10,
+          "pointerPanActionsStarted": 10,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-wsireg",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.24179999999701976,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.2965999999940396,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.06540000000596047
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8a67b6c7bcd3f1a2db8923e0e7bb68ba5fe1152e08e2fb6ebfae775e2d328651",
+          "outcome": "no-application",
+          "pointerPanActionsCompleted": 1,
+          "pointerPanActionsStarted": 2,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-rigid-wsireg",
+          "scriptedCorrections": [],
+          "setterAndCanvasObservationSeconds": null
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "6c4ee203291a72bdbeb49f44f47dd9a16dbdf046580585b742000fdc50237dc8",
+          "outcome": "no-application",
+          "pointerPanActionsCompleted": 0,
+          "pointerPanActionsStarted": 0,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-valis",
+          "scriptedCorrections": [],
+          "setterAndCanvasObservationSeconds": null
+        }
+      ]
+    },
+    {
+      "browserClosed": true,
+      "browserVersion": "153.0",
+      "budgetSeconds": 240,
+      "deadlineTriggered": false,
+      "observedSeconds": 219.66919360000003,
+      "profile": "firefox",
+      "rows": [
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8d352108d91886b6e4c8699e4b0b1ba3c44a62c91208788c158ba7ad88a0a6cc",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-overview-v6",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.295,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.058,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.03
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "bcfb34b5c054af8ee6273a87e5600852121019983fdf7d1e1d665e7bc7bada09",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 13,
+          "pointerPanActionsStarted": 13,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-1.2.0",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.302,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.147,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.025
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "3d41570f6ba418921daec67180a5bb85f5d2634a18d1785dfddc6c962c9d44c8",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "wsireg-0.3.10",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.304,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.174,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.031
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "470fb3d97e02e22314dc1f917334f39f9fc423a064c1e2fde1a19b3ee072f85f",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 12,
+          "pointerPanActionsStarted": 12,
+          "previewClickApplicationSeconds": null,
+          "recipe": "hisalign-0.2.1",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.284,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.096,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.029
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "93f381506c884416e5143f2daf2f053214569036915539d15d5135720a067546",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 14,
+          "pointerPanActionsStarted": 14,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-classical",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.283,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.247,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.028
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "c4aadb34fc29ee2a1e07911ee7bda8e4eb0adbff4c273c7c2c2749602a3092d9",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-learned",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.377,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.234,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.034
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "e9f157ac524b070168c5048779b3223e8b9d5f5d36c59d9bd1f8668c99ec3233",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-wsireg",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.311,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.292,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.033
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8a67b6c7bcd3f1a2db8923e0e7bb68ba5fe1152e08e2fb6ebfae775e2d328651",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-rigid-wsireg",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.27,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.146,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.025
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "6c4ee203291a72bdbeb49f44f47dd9a16dbdf046580585b742000fdc50237dc8",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 10,
+          "pointerPanActionsStarted": 10,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-valis",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.374,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.241,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.041
+        }
+      ]
+    },
+    {
+      "browserClosed": true,
+      "browserVersion": "26.5",
+      "budgetSeconds": 240,
+      "deadlineTriggered": false,
+      "observedSeconds": 208.14980099999997,
+      "profile": "webkit",
+      "rows": [
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8d352108d91886b6e4c8699e4b0b1ba3c44a62c91208788c158ba7ad88a0a6cc",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-overview-v6",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.516,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.433,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.062
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "bcfb34b5c054af8ee6273a87e5600852121019983fdf7d1e1d665e7bc7bada09",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 13,
+          "pointerPanActionsStarted": 13,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-1.2.0",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.397,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.369,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.062
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "3d41570f6ba418921daec67180a5bb85f5d2634a18d1785dfddc6c962c9d44c8",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "wsireg-0.3.10",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.476,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.431,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.062
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "470fb3d97e02e22314dc1f917334f39f9fc423a064c1e2fde1a19b3ee072f85f",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 12,
+          "pointerPanActionsStarted": 12,
+          "previewClickApplicationSeconds": null,
+          "recipe": "hisalign-0.2.1",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.42,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.447,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.061
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "93f381506c884416e5143f2daf2f053214569036915539d15d5135720a067546",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 14,
+          "pointerPanActionsStarted": 14,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-classical",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.429,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.405,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.06
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "c4aadb34fc29ee2a1e07911ee7bda8e4eb0adbff4c273c7c2c2749602a3092d9",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-learned",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.405,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.548,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.058
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "e9f157ac524b070168c5048779b3223e8b9d5f5d36c59d9bd1f8668c99ec3233",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-wsireg",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.491,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.455,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.061
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8a67b6c7bcd3f1a2db8923e0e7bb68ba5fe1152e08e2fb6ebfae775e2d328651",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-rigid-wsireg",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.47,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.401,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.06
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "6c4ee203291a72bdbeb49f44f47dd9a16dbdf046580585b742000fdc50237dc8",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 10,
+          "pointerPanActionsStarted": 10,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-valis",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.44,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 1.444,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.061
+        }
+      ]
+    },
+    {
+      "browserClosed": true,
+      "browserVersion": "151.0.7922.34",
+      "budgetSeconds": 240,
+      "deadlineTriggered": true,
+      "observedSeconds": 240.01776749999996,
+      "profile": "mobile-chromium",
+      "rows": [
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8d352108d91886b6e4c8699e4b0b1ba3c44a62c91208788c158ba7ad88a0a6cc",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-overview-v6",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.21559999999403953,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 2.3418999999910595,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.088
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "bcfb34b5c054af8ee6273a87e5600852121019983fdf7d1e1d665e7bc7bada09",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 12,
+          "pointerPanActionsStarted": 12,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-1.2.0",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.18080000001192092,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 2.3860999999940393,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.08090000000596047
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "3d41570f6ba418921daec67180a5bb85f5d2634a18d1785dfddc6c962c9d44c8",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 11,
+          "pointerPanActionsStarted": 11,
+          "previewClickApplicationSeconds": null,
+          "recipe": "wsireg-0.3.10",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.16840000000596048,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 2.313,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.1143999999910593
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "470fb3d97e02e22314dc1f917334f39f9fc423a064c1e2fde1a19b3ee072f85f",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 12,
+          "pointerPanActionsStarted": 12,
+          "previewClickApplicationSeconds": null,
+          "recipe": "hisalign-0.2.1",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.19369999998807907,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 2.0925,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.08279999999701977
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "93f381506c884416e5143f2daf2f053214569036915539d15d5135720a067546",
+          "outcome": "applied",
+          "pointerPanActionsCompleted": 14,
+          "pointerPanActionsStarted": 14,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-classical",
+          "scriptedCorrections": [
+            {
+              "controlActionCount": 4,
+              "logicalPanTargets": 0,
+              "observedSeconds": 0.2371000000089407,
+              "pointerPans": 0,
+              "previewObserved": false,
+              "recordedPointPairs": 1,
+              "responseStatus": 422
+            },
+            {
+              "controlActionCount": 5,
+              "logicalPanTargets": 2,
+              "observedSeconds": 2.246399999991059,
+              "pointerPans": 2,
+              "previewObserved": false,
+              "recordedPointPairs": 2,
+              "responseStatus": 422
+            }
+          ],
+          "setterAndCanvasObservationSeconds": 0.10379999999701976
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "c4aadb34fc29ee2a1e07911ee7bda8e4eb0adbff4c273c7c2c2749602a3092d9",
+          "outcome": "no-application",
+          "pointerPanActionsCompleted": 6,
+          "pointerPanActionsStarted": 7,
+          "previewClickApplicationSeconds": null,
+          "recipe": "deeperhistreg-learned",
+          "scriptedCorrections": [],
+          "setterAndCanvasObservationSeconds": null
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "e9f157ac524b070168c5048779b3223e8b9d5f5d36c59d9bd1f8668c99ec3233",
+          "outcome": "no-application",
+          "pointerPanActionsCompleted": 0,
+          "pointerPanActionsStarted": 0,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-wsireg",
+          "scriptedCorrections": [],
+          "setterAndCanvasObservationSeconds": null
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "8a67b6c7bcd3f1a2db8923e0e7bb68ba5fe1152e08e2fb6ebfae775e2d328651",
+          "outcome": "no-application",
+          "pointerPanActionsCompleted": 0,
+          "pointerPanActionsStarted": 0,
+          "previewClickApplicationSeconds": null,
+          "recipe": "valis-rigid-wsireg",
+          "scriptedCorrections": [],
+          "setterAndCanvasObservationSeconds": null
+        },
+        {
+          "browserApplicationSeconds": null,
+          "candidateDigest": "6c4ee203291a72bdbeb49f44f47dd9a16dbdf046580585b742000fdc50237dc8",
+          "outcome": "no-application",
+          "pointerPanActionsCompleted": 0,
+          "pointerPanActionsStarted": 0,
+          "previewClickApplicationSeconds": null,
+          "recipe": "native-valis",
+          "scriptedCorrections": [],
+          "setterAndCanvasObservationSeconds": null
+        }
+      ]
+    }
+  ],
+  "cleanup": {
+    "actualTotalWallSeconds": 1776.2809999999881,
+    "cleanupCompleted": true,
+    "hardDeadlineSeconds": 7800,
+    "outerJobClosed": true,
+    "temporaryRemoved": true,
+    "withinDeclaredBound": true
+  },
+  "comparisonPairCount": 1,
+  "completedApiRecipes": 9,
+  "fast": null,
+  "humanCorrectionEffort": null,
+  "plannedRecipes": 9,
+  "qualified": false,
+  "schema": "alignment.operational-observation/1",
+  "scope": "POST-to-terminal observation includes preparation/queue/compute/polling; ordinary-pan setter/render and Preview-click clocks are separate; no anatomical qualification; HTTP422 exact historical causes unavailable.",
+  "scriptedCorrectionAttempts": {
+    "historicalRequestErrorBodiesRetained": false,
+    "http422": 60,
+    "observed": 60,
+    "previewAccepted": 0
+  },
+  "sourceAndRuntimeUnchangedIndependentPostFailure": true,
+  "sourceHead": "83c36ca3b77904f095a2762bf15acfcb7e8a6951",
+  "sourceReceiptSha256": "c01f724d7964d394873a2876de7d2c95b91c33178a093e9cbef255505f7ab4da",
+  "wrapperExitCode": 1
+}

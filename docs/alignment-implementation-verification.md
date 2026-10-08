@@ -1,5 +1,9 @@
 # Alignment repair and workflow verification
 
+Current consolidated evidence is in [the October8 implementation report](alignment-results/implementation-2026-10-08/README.md). The fixed screen completed 144 cold plus 144 fresh-process repeats (not warm), expanded development completed 488 attempts, and source-bound 16 guided journeys/36 own Preview and Restore observations completed. Published assisted correction retains 67/68 non-fitting denominators with no measured error improvement. Windows76 recorded 2106 passes/118 skips; CI76 recorded six successful/two failed checks, 35 passes/one skip across all 36 partitioned journeys, and actual seven emulated ARM session-helper cases. Follow-up4327 full frontend passed 759 tests/93 files with TypeScript/ESLint; scanner repair passed 32 regressions and the introduced-history CLI audit. Fresh final CI and 288 warm invocations remain pending. No anatomical qualification, Fast/Accurate winner, deployment or production activation is claimed. Historical sources, failures, runtime versions and JSON below remain immutable evidence for their own freezes.
+
+## Historical source-bound record
+
 Integration reconciliation: maintained main
 `316d6fc997a2243166e6b43d6e4f11c0e4ed5f7e` was merged locally through
 `9c677e8fc3306a454f66916d4f5bf691d66d36b3`. The merged inputs retain maintained

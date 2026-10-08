@@ -1,0 +1,27 @@
+{
+  "schema": "pathlab.frontend-followup-public-observations/1",
+  "sourceHead": "4327d9f70e744cebdb6f5b7697f43671fd44cb0e",
+  "scope": "Full frontend suite at source4327; frontend tracked bytes match preparation. Disjoint scanner/inventory edits do not relabel Windows76 or CI76 executions.",
+  "frontendBytesMatchPreparation": true,
+  "testFilesPassed": 93,
+  "testsPassed": 759,
+  "testsFailed": 0,
+  "testsErrors": 0,
+  "testsSkipped": 0,
+  "observedWallSeconds": 475.11,
+  "junitSummedTestSeconds": 141.5752268,
+  "typecheckExitCode": 0,
+  "eslintExitCode": 0,
+  "focusedSortTestsPassed": 71,
+  "sortRepairEvidence": "Deterministic committed-control/native-change regression reproduced stale saved-view passive-effect replay; guard requires latest URL still selects that saved view.",
+  "sortRepairProofSha256": "dfd8a8742d8fb7120e1cad7aed8fb807a40f138e11550a1866d0bfe25b7f4d96",
+  "artifacts": {
+    "junitSha256": "c6b61bd14c1e879e28968164e49357510d9724aec6b97d91a96aad6fc1a43022",
+    "logSha256": "f84ac4e7772b393cabb694bafe7df972465b5c69955d50d287a0fae2ca230c1c",
+    "typecheckLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "eslintLogSha256": "9f55fa4f442193f038d9ed374e8109193ef8f404f0e87c8a57c77a8f64a3aa40"
+  },
+  "servicesStarted": false,
+  "registrationJobs": 0,
+  "anatomicalQualification": false
+}

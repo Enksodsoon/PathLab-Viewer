@@ -38,3 +38,21 @@ Benchmark evaluator measures approximate/ready maps as observations separate fro
 
 ### Task4: Integration, real benchmarking and qualification
 Root: provision pinned local workspace runtime; sync interfaces; acquire public landmarks within licenses and retain private manifests outside repo; assemble/freeze12positive4negative screening without tuning test landmarks. Run methods, then finalist ordered development pairs, real browser UI/navigation suite and bounded resource checks. Regenerate supply-chain inventories after new optional dependencies. Separate runtime-unavailable versus failed registrations. Leave no qualified winner if fresh reviewed gates or relevant latency evidence missing. Fresh broad review, resolve findings, run appropriate full checks. Retain docs/benchmark receipts without private identities/paths. Update ledger tasks with actual scope/evidence. Commit reviewable batches; no production merge/deploy.
+
+#### Task4 actual scope ledger - October8 source-bound observations
+
+- [x] Frozen public screen:144 cold +144 fresh-process repeats,12 positives/four negatives,947 landmarks; original and posthoc JSON preserved.
+- [x] Immutable expanded cold development:122 ordered pairs x four recipes =488 attempts,90 accepted engineering maps,398 retained rejections; no independent GT.
+- [x] Actual source68a16 guided browser journeys and corrected36 own Preview/36 Restore observations; first failed replay retained.
+- [x] Actual source544 published assisted protocols: frozen0/10 two-point with67 non-fitting landmarks; separate post-diagnosis GT10 one-point with68; no measured error improvement or human-effort claim.
+- [x] Actual maintained Windows76 full backend:2106 passes/118 skips/zero failures or errors,85.35% line coverage; unchanged source/runtime and zero owned active processes.
+- [x] Actual CI76 emulated ARM native/round-trip plus separate stdlib memory rejection and seven session-helper cases. Helper timeout/cancel closure is not worker heartbeat cancellation; Windows/native ARM and default heavy-child cold startup remain unverified.
+- [x] Exact CI76 accounted for all36 partitioned journeys (35 passes/one skip); browser289 passes/three skips. Overall CI is six successful/two failed checks, not fully green.
+- [x] Follow-up4327 full frontend:759 tests/93 files/zero failures or skips, TypeScript/ESLint pass; deterministic stale saved-view sort guard RED/GREEN preserved.
+- [x] Scanner repair:32 regressions and completed full introduced-history CLI audit; metadata commits overlapped the read-only audit, so this does not qualify a later final head.
+- [ ] Fresh exact-source final CI after the classifier/saved-view restoration repairs and final metadata changes.
+- [ ] Actual same-process warm campaign:144 attempts/288 invocation ordinals, shared600s/7GiB; retained model/decoded-cache warmth remains UNVERIFIED.
+- [ ] Disjoint admitted held-out specimens, physical calibration and independent anatomical/wrong-structure review are unavailable; no qualification or Fast/Accurate preset may be marked complete from engineering acceptance.
+- [ ] Final source-bound publication/privacy review after feasible pending gates finish; no merge/deploy/production activation.
+
+The [consolidated report](../../alignment-results/implementation-2026-10-08/README.md) separates completion of implemented behavior and executed engineering checks from unmeasured scientific qualification. Failed/partial attempts and unsupported denominators remain visible. Unmeasured human effort, micrometer errors, anatomical accuracy and qualified winners stay NULL.

@@ -1,5 +1,9 @@
 # Post-screening geometry and resource repair
 
+Current consolidated evidence is in [the October8 implementation report](alignment-results/implementation-2026-10-08/README.md). The fixed screen completed 144 cold plus 144 fresh-process repeats (not warm), expanded development completed 488 attempts, and source-bound 16 guided journeys/36 own Preview and Restore observations completed. Published assisted correction retains 67/68 non-fitting denominators with no measured error improvement. Windows76 recorded 2106 passes/118 skips; CI76 recorded six successful/two failed checks, 35 passes/one skip across all 36 partitioned journeys, and actual seven emulated ARM session-helper cases. Follow-up4327 full frontend passed 759 tests/93 files with TypeScript/ESLint; scanner repair passed 32 regressions and the introduced-history CLI audit. Fresh final CI and 288 warm invocations remain pending. No anatomical qualification, Fast/Accurate winner, deployment or production activation is claimed. Historical sources, failures, runtime versions and JSON below remain immutable evidence for their own freezes.
+
+## Historical source-bound record
+
 The public screening at source `b35d3be3b2ef8933eed969dbf123746042c57640`
 remains frozen. The observations, input manifest, maps and qualification gates
 are unchanged. The following findings are post-run diagnostics and development

@@ -1,0 +1,64 @@
+{
+  "artifacts": {
+    "coverageXmlSha256": "7c0cd1ad738200a994f009d4afdd9a751f1778f71efddd7571668a10bdd4b898",
+    "junitSha256": "a1f0e4b7f271e1617185b5a7bbd85d3c3b4f68726e53b7a144e4e46e779eac2d",
+    "pytestLogSha256": "94473658518e665575505b73b2c6488d111146224dc5d38d00e45ae4d1535265",
+    "runtimeAfterSha256": "c380cf869ccd75fad26c4964a106687a22c06e23036eca4b4f0a62b32ed3c64d",
+    "runtimeBeforeSha256": "a5af5ce52777eacb5c5225d63d796c5972b76e1ae6f60e27a80753412cdfebee"
+  },
+  "counts": {
+    "errors": 0,
+    "failed": 0,
+    "measurementAvailable": true,
+    "passed": 2081,
+    "recordedCases": 2198,
+    "skipReasons": {
+      "Exercises the Ubuntu Actions shell": 8,
+      "Host lacks permission to create symbolic links; Linux CI exercises this case": 1,
+      "Linux PID-fd containment": 5,
+      "Linux deployment shell probe": 4,
+      "Linux production maintenance": 13,
+      "PATHLAB_POSTGRES_TEST_URL is required for isolated PostgreSQL": 3,
+      "PATHLAB_POSTGRES_TEST_URL is required for the PostgreSQL lock test": 1,
+      "PATHLAB_POSTGRES_TEST_URL is required for the isolated PostgreSQL test": 4,
+      "PATHLAB_POSTGRES_TEST_URL required for disposable PostgreSQL": 19,
+      "PATHLAB_POSTGRES_TEST_URL required for isolated PostgreSQL checks": 8,
+      "POSIX process group escalation": 1,
+      "POSIX process-group signals are required": 2,
+      "PostgreSQL advisory lock timeout probe": 1,
+      "Requires POSIX ownership and modes": 1,
+      "Root ownership and O_NOFOLLOW are Linux controls": 1,
+      "Symlinks unavailable": 3,
+      "could not import 'wsireg': No module named 'wsireg'": 1,
+      "isolated PostgreSQL URL required": 21,
+      "isolated PostgreSQL is required for actual draft revision admission": 4,
+      "isolated PostgreSQL required": 10,
+      "isolated PostgreSQL required for actual score precision": 4,
+      "requires Linux flock": 1,
+      "set PATHLAB_REAL_FORGE_OME to run the optional real-file regression": 1
+    },
+    "skipped": 117
+  },
+  "coverage": {
+    "branchCoverageMeasured": false,
+    "lineCoverageFraction": 0.8536,
+    "linesCovered": 17831,
+    "linesValid": 20889
+  },
+  "privateReceiptSha256": "93e54d67bcb36a2a30d21a9ae2c256f2ad8aa3248456f6d2f958201d6a60d005",
+  "pytestSeconds": 1012.25,
+  "qualification": {
+    "accurate": null,
+    "anatomicalAccuracy": null,
+    "fast": null,
+    "qualified": false
+  },
+  "runtimeUnchanged": true,
+  "schema": "pathlab.maintained-backend-public-observations/1",
+  "scope": "Entire backend suite on maintained Windows x64 QA; platform/optional skips remain separate from Linux and ARM execution",
+  "sourceHead": "8c9bf6948d9d893238528a76cb847a5938c1cd9f",
+  "sourceUnchanged": true,
+  "supervisedWallSeconds": 1031.7810000000027,
+  "terminalContainmentVerified": true,
+  "terminalOwnedProcesses": 0
+}

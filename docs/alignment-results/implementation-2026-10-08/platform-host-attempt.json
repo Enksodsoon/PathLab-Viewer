@@ -1,0 +1,116 @@
+{
+  "cleanup": {
+    "heldOwnedIdentityCount": 45,
+    "heldOwnedSurvivorCount": 0,
+    "observedWindowsTreeTerminalProof": true,
+    "terminalExactIdentityAliveCount": 0,
+    "terminalUnreadableIdentityCount": 0,
+    "unknownProcessesTerminated": false,
+    "unprovedObservedChildCount": 0,
+    "unrelatedSubsystemOrWslCleanupClaimed": false
+  },
+  "daemonReadinessObtained": false,
+  "desktopStartupAttempts": 1,
+  "executionCounts": {
+    "amd64WorkerExecutions": 0,
+    "arm64WorkerExecutions": 0,
+    "buildersCreated": 0,
+    "builds": 0,
+    "containersCreated": 0,
+    "containmentFixturesExecuted": 0,
+    "imagesBuilt": 0
+  },
+  "guard": {
+    "atFailure": {
+      "commitBytes": 37170855936,
+      "commitLimitBytes": 57732935680,
+      "physicalAvailableBytes": 8588890112
+    },
+    "before": {
+      "commitBytes": 35046088704,
+      "commitLimitBytes": 57732935680,
+      "physicalAvailableBytes": 11103289344
+    },
+    "immediatelyAfterCleanup": {
+      "commitBytes": 36822118400,
+      "commitLimitBytes": 57732935680,
+      "physicalAvailableBytes": 8883818496
+    },
+    "maximumSystemCommitFraction": 0.85,
+    "minimumPhysicalAvailableBytes": 8589934592,
+    "reason": "physical-available-below-8GiB",
+    "terminalPostcheck": {
+      "commitBytes": 35839094784,
+      "commitLimitBytes": 57732935680,
+      "physicalAvailableBytes": 9452441600
+    }
+  },
+  "hostConfiguration": {
+    "after": [
+      {
+        "bytes": 76,
+        "jsonValid": true,
+        "name": "settings-store.json",
+        "sha256": "8b8d052801ad926cd7e9e9865287a409810274af1fbf86247b8efd749257b19a"
+      },
+      {
+        "bytes": 124,
+        "jsonValid": true,
+        "name": "daemon.json",
+        "sha256": "27369c832f1be7d067b379f3236a203993e7bec45135e58829a9273c3209f53c"
+      }
+    ],
+    "before": [
+      {
+        "bytes": 76,
+        "name": "settings-store.json",
+        "sha256": "8b8d052801ad926cd7e9e9865287a409810274af1fbf86247b8efd749257b19a"
+      },
+      {
+        "bytes": 124,
+        "name": "daemon.json",
+        "sha256": "27369c832f1be7d067b379f3236a203993e7bec45135e58829a9273c3209f53c"
+      }
+    ],
+    "globalContextOrPagefileChanged": false,
+    "manualWritesOrRepairsPerformed": false
+  },
+  "hostControllerInvoked": false,
+  "platformExecutionQualified": false,
+  "platforms": [
+    {
+      "platform": "linux/amd64",
+      "status": "not-executed-host-guard"
+    },
+    {
+      "plannedMode": "emulated, not native ARM hardware",
+      "platform": "linux/arm64",
+      "status": "not-executed-host-guard"
+    }
+  ],
+  "preparedHelperSha256": "840f658c4ed3db92648751d09db92e548a078cc635e0967137008ff41eee8232",
+  "privateArtifacts": {
+    "firstDaemonQuerySha256": "c958512630ccd75bd7b0986eade3fa068f2e695d0741ff97fbc9573adc5e391b",
+    "launchLogSha256": "95a3882b3a223b858956c4883e3dd72749ff674851e53113cdbfccf98814f1cf",
+    "startupReceiptSha256": "228dfd60f9ef87e3b4b8f174289a1f7e0a9750ad2f970ab5f9abae0efb595823",
+    "terminalPostcheckSha256": "78202484c5db2726d59427f6227d832f31879848e252a2767ce3092fc563169c"
+  },
+  "schema": "pathlab.core-docker-host-capacity-attempt/1",
+  "scope": "One normal hidden startup of the existing app. The approved host guard rejected before daemon readiness/build; no compatibility result or anatomical qualification is claimed.",
+  "sourceCleanAtTerminal": true,
+  "sourceHead": "b384d5a72cee01d8928c2845f5018173cbd55e3a",
+  "status": "host-capacity-guard-rejected-before-platform-build",
+  "timestampsUtc": {
+    "guardFailure": "2026-10-08T10:51:21.339814+00:00",
+    "ownedCleanupTerminal": "2026-10-08T10:51:21.554538+00:00",
+    "postcheck": "2026-10-08T10:53:45.933353+00:00",
+    "startup": "2026-10-08T10:50:12.966564+00:00"
+  },
+  "timings": {
+    "cleanupReserveSeconds": 10,
+    "cleanupSeconds": 0.21899999999732245,
+    "startupSeconds": 68.375,
+    "startupWallCeilingSeconds": 180
+  },
+  "windowsArm64Execution": "not-executed; separately captured target-wheel metadata has unresolved/missing admissions"
+}
