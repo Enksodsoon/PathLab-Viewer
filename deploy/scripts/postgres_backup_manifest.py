@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import sys
 import tarfile
 from datetime import UTC, datetime
@@ -25,10 +26,26 @@ RELEASE_PATTERN = re.compile(r"[0-9a-f]{40}")
 REVISION_PATTERN = re.compile(r"[0-9A-Za-z_]{1,128}")
 DATABASE_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,62}")
 CHUNK_BYTES = 1024 * 1024
+MAX_MANIFEST_BYTES = 64 * 1024
 
 
 class BackupManifestError(RuntimeError):
     pass
+
+
+def _read_metadata(path: Path, limit: int) -> bytes:
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        with os.fdopen(os.open(path, flags), "rb") as source:
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+                raise BackupManifestError("backup metadata must be a bounded regular file")
+            content = source.read(limit + 1)
+            if len(content) > limit:
+                raise BackupManifestError("backup metadata exceeds its size limit")
+            return content
+    except OSError as error:
+        raise BackupManifestError("backup metadata is unavailable or unsafe") from error
 
 
 def _sha256_file(path: Path) -> str:
@@ -168,11 +185,13 @@ def create_manifest(
     }
 
 
-def verify_manifest(backup: Path, *, signing_key: str) -> dict[str, Any]:
+def verify_manifest(
+    backup: Path, *, signing_key: str, check_archive: bool = True,
+) -> dict[str, Any]:
     backup = backup.resolve(strict=True)
     try:
-        manifest = json.loads((backup / "manifest.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+        manifest = json.loads(_read_metadata(backup / "manifest.json", MAX_MANIFEST_BYTES))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise BackupManifestError("backup manifest is missing or invalid") from error
     if not isinstance(manifest, dict) or manifest.get("schema") != SCHEMA:
         raise BackupManifestError("backup manifest schema is unsupported")
@@ -237,9 +256,55 @@ def verify_manifest(backup: Path, *, signing_key: str) -> dict[str, Any]:
         raise BackupManifestError("database backup checksum mismatch")
     if private_files.get("sha256") != _sha256_file(backup / EXPECTED_FILES[1]):
         raise BackupManifestError("private-file backup checksum mismatch")
-    if private_files.get("roots") != _archive_roots(backup / EXPECTED_FILES[1]):
+    if check_archive and private_files.get("roots") != _archive_roots(backup / EXPECTED_FILES[1]):
         raise BackupManifestError("private-file archive roots do not match the manifest")
     return {**manifest, "signature": signature}
+
+
+def verify_retention(backup: Path, *, signing_key: str) -> dict[str, Any]:
+    # Signing already validated archive layout; unchanged signed bytes need one hash pass.
+    manifest = verify_manifest(backup, signing_key=signing_key, check_archive=False)
+    expected = [
+        f"{manifest['database']['sha256']}  database/pathlab.dump",
+        f"{manifest['privateFiles']['sha256']}  files.tar.gz",
+        f"{_sha256_file(backup / 'manifest.json')}  manifest.json",
+    ]
+    try:
+        actual = _read_metadata(backup / "SHA256SUMS", 1024).decode("utf-8").splitlines()
+    except UnicodeDecodeError as error:
+        raise BackupManifestError("backup checksum manifest is unavailable") from error
+    if actual != expected:
+        raise BackupManifestError("backup checksum manifest does not match signed payloads")
+    return manifest
+
+
+def prune_backups(root: Path, *, keep: int, signing_key: str) -> None:
+    root = root.resolve(strict=True)
+    verified = []
+    candidates = 0
+    for path in root.iterdir():
+        if not re.fullmatch(r"pathlab-postgres-[0-9]{8}T[0-9]{6}Z", path.name):
+            continue
+        if path.is_symlink() or not path.is_dir():
+            continue
+        candidates += 1
+        try:
+            manifest = verify_retention(path, signing_key=signing_key)
+        except BackupManifestError as error:
+            print(f"Preserved unverifiable backup: {path.name}: {error}", file=sys.stderr)
+            continue
+        created = datetime.fromisoformat(manifest["createdAt"].replace("Z", "+00:00"))
+        verified.append((created, path.name, manifest["signature"]["value"], path))
+    if candidates and not verified:
+        raise BackupManifestError("no matching backup could be verified")
+    retained: set[str] = set()
+    for _created, _name, signature, path in sorted(verified, reverse=True):
+        if signature not in retained and len(retained) < keep:
+            retained.add(signature)
+            print(f"Retained verified backup: {path.name}", file=sys.stderr)
+        else:
+            shutil.rmtree(path)
+            print(f"Pruned verified backup: {path.name}", file=sys.stderr)
 
 
 def _signing_key() -> str:
@@ -259,6 +324,11 @@ def main() -> int:
     create.add_argument("--database-name", required=True)
     verify = subparsers.add_parser("verify")
     verify.add_argument("backup", type=Path)
+    retention = subparsers.add_parser("verify-retention")
+    retention.add_argument("backup", type=Path)
+    prune = subparsers.add_parser("prune")
+    prune.add_argument("backup", type=Path)
+    prune.add_argument("--keep", type=int, required=True)
     restore = subparsers.add_parser("restore-files")
     restore.add_argument("backup", type=Path)
     restore.add_argument("destination", type=Path)
@@ -275,8 +345,15 @@ def main() -> int:
             destination = args.backup / "manifest.json"
             destination.write_bytes(_canonical_json(manifest) + b"\n")
             os.chmod(destination, 0o600)
+        elif args.command == "prune":
+            if args.keep < 1:
+                raise BackupManifestError("backup retention count must be positive")
+            prune_backups(args.backup, keep=args.keep, signing_key=_signing_key())
+            return 0
         elif args.command == "restore-files":
             manifest = restore_files(args.backup, args.destination, signing_key=_signing_key())
+        elif args.command == "verify-retention":
+            manifest = verify_retention(args.backup, signing_key=_signing_key())
         else:
             manifest = verify_manifest(args.backup, signing_key=_signing_key())
     except (OSError, BackupManifestError) as error:
