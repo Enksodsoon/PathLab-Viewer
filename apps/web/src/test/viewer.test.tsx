@@ -396,6 +396,25 @@ it('clears transient tile failures after a tile loads successfully', async () =>
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
+it('reports image close and reopen using current callbacks without recreating its viewer', () => {
+  const firstClose = vi.fn(), currentClose = vi.fn(), onOpen = vi.fn(), onReady = vi.fn(), onDispose = vi.fn()
+  const view = render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} onOpen={onOpen} onClose={firstClose} onDispose={onDispose} />)
+  emitViewerEvent('open')
+  expect(onOpen).toHaveBeenCalledOnce()
+  const instanceCount = osdMock.factory.mock.calls.length
+  view.rerender(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} onOpen={onOpen} onClose={currentClose} onDispose={onDispose} />)
+  act(() => osdMock.handlers.get('close')?.())
+  expect(currentClose).toHaveBeenCalledOnce()
+  expect(firstClose).not.toHaveBeenCalled()
+  expect(onDispose).not.toHaveBeenCalled()
+  expect(osdMock.factory).toHaveBeenCalledTimes(instanceCount)
+  emitViewerEvent('open')
+  expect(onOpen).toHaveBeenCalledTimes(2)
+  expect(onReady).toHaveBeenCalledOnce()
+  view.unmount()
+  expect(osdMock.viewer.removeAllHandlers).toHaveBeenCalledWith('close')
+})
+
 it('retries the tile source and clears the loading error', async () => {
   vi.useFakeTimers()
   renderViewer()
@@ -477,7 +496,7 @@ it('removes handlers, pending errors, and the viewer during cleanup', () => {
   view.unmount()
   expect(clearInterval).toHaveBeenCalled()
   expect(osdMock.viewer.removeAllHandlers.mock.calls.map(([name]) => name)).toEqual([
-    'open', 'tile-loaded', 'animation-finish', 'pan', 'zoom', 'rotate', 'after-resize', 'open-failed', 'tile-load-failed',
+    'close', 'open', 'tile-loaded', 'animation-finish', 'pan', 'zoom', 'rotate', 'after-resize', 'open-failed', 'tile-load-failed',
   ])
   expect(osdMock.viewer.destroy).toHaveBeenCalledOnce()
 })

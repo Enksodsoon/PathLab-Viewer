@@ -234,6 +234,7 @@ export function ComparisonPage() {
   const handles = useRef(new Map<string, ViewerHandle>())
   const savedViewports = useRef(new Map<string, ImageViewport>())
   const openedSlides = useRef(new Set<string>())
+  const [, refreshOpenedSlides] = useState(0)
   const initializedPanes = useRef('')
   const drivingPane = useRef<string | null>(null)
   const hasInitialField = useRef(false)
@@ -759,7 +760,7 @@ export function ComparisonPage() {
       : comparison.referenceSlideId
     const viewport = handles.current.get(movingId)?.getImageViewport() ?? savedViewports.current.get(movingId)
     const radius = viewport?.visibleRadiusPixels ?? (viewport ? Math.min(1024, 400 / viewport.imageZoom) : 0)
-    if (regional && (!viewport || !moving?.metadata || !Number.isFinite(radius) || radius <= 0)) {
+    if (regional && (![movingId, referenceId].every(id => openedSlides.current.has(id) && handles.current.has(id)) || !viewport || !moving?.metadata || !Number.isFinite(radius) || radius <= 0)) {
       setNotice('Open both slide images before capturing a region.'); return
     }
     const bounds = viewport?.visibleBounds
@@ -813,6 +814,7 @@ export function ComparisonPage() {
   const hasMatchedMap = comparison.members.some((member) => member.registration?.status === 'ready' && hasLocalEvidence(member.registration))
   const hasApproximateMap = comparison.members.some((member) => (member.registration?.overviewTriangles?.length ?? 0) > 0) || !!comparison.regionalCorrections?.length
   const hasPendingLandmarkValidation = comparison.members.some((member) => member.registration?.status === 'ready' && member.registration.evidence?.withheldCheck === 'pending-independent-landmarks')
+  const correctionPanesReady = !!correction && [correction.referenceId, correction.movingId].every(id => openedSlides.current.has(id) && handles.current.has(id))
   const registrationPending = ['queued', 'running'].includes(comparison.status)
   const activeBenchmarkJobs = jobs
     .filter((job) => job.kind === 'align_benchmark'
@@ -910,7 +912,9 @@ export function ComparisonPage() {
       <p>{correction.regional ? 'Pan each slide until the same tissue structure is under both crosshairs. Record one pair for an offset, or two separated pairs for rotation and scale. This approximate correction applies only inside the captured region.' : 'Left pane is the reference. Record at least three corresponding points spread across the tissue. Avoid blank glass.'}</p>
       {correction.regional ? <><label>Align to<select aria-label="Correction reference slide" disabled={correctionBusy || correction.preview} value={correction.referenceId} onChange={event => { const referenceId = event.target.value; setCorrection({ ...correction, referenceId, points: [], preview: false, regionId: undefined, previewVersion: undefined, sourceVersion: undefined, targetVersion: undefined, basisVersion: undefined, previewNeedsRefresh: false }); setPanes([referenceId, correction.movingId]) }}>{comparison.members.filter(member => member.slideId !== correction.movingId && member.tileSource && (correction.originalPanes.includes(member.slideId) || member.slideId === comparison.referenceSlideId)).map(member => <option key={member.slideId} value={member.slideId}>{member.displayName}</option>)}</select></label><span className="comparison-region-bounds">Captured region (pixels): {correction.sourceBounds?.map(value => Math.round(value)).join(', ')}</span></> : null}
       <span>{correction.points.length} point pairs</span>
-      <button type="button" disabled={correctionBusy || correction.preview || correction.points.length >= (correction.regional ? 2 : 20)} onClick={() => {
+      {!correctionPanesReady ? <p role="status">Opening slide images. Record points when both panes are ready.</p> : null}
+      <button type="button" disabled={correctionBusy || correction.preview || !correctionPanesReady || correction.points.length >= (correction.regional ? 2 : 20)} onClick={() => {
+        if (![correction.referenceId, correction.movingId].every(id => openedSlides.current.has(id) && handles.current.has(id))) return
         const reference = handles.current.get(correction.referenceId)?.getImageViewport(); const moving = handles.current.get(correction.movingId)?.getImageViewport()
         if (reference && moving) {
           const [x, y, width, height] = correction.sourceBounds ?? [0, 0, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]
@@ -962,8 +966,9 @@ export function ComparisonPage() {
             }
             setUnlinkedPanes((current) => { const next = new Set(current); if (paneLinked) next.add(slideId); else next.delete(slideId); return next })
           }}><span aria-hidden="true">{paneLinked ? 'On' : 'Off'}</span></button><button type="button" title="Reset this pane view" disabled={!!correction} aria-label={`Reset ${member.displayName} view`} onClick={() => resetView(slideId)}><ArrowCounterClockwise weight="bold" aria-hidden="true" /></button><button type="button" title={maximizedPane === paneIndex ? 'Restore all panes' : 'Maximize this pane'} disabled={!!correction} aria-label={`${maximizedPane === paneIndex ? 'Restore' : 'Maximize'} ${member.displayName} pane`} onClick={() => setMaximizedPane((current) => current === paneIndex ? null : paneIndex)}>{maximizedPane === paneIndex ? <CornersIn weight="bold" aria-hidden="true" /> : <CornersOut weight="bold" aria-hidden="true" />}</button>{panes.length > 2 ? <button type="button" title="Close this pane" aria-label={`Close ${member.displayName} pane`} onClick={() => { setActivePane(0); setMaximizedPane(null); setPanes((current) => current.filter((_, index) => index !== paneIndex)) }}><X /></button> : null}</header>
-          <OpenSeadragonViewer tileSource={member.tileSource!} showLoadingMode={false} loadingMode={loadingModes[slideId]} displayAdjustments={adjustments} onReady={(handle) => handles.current.set(slideId, handle)} onDispose={() => { handles.current.delete(slideId); openedSlides.current.delete(slideId) }} onOpen={() => {
+          <OpenSeadragonViewer tileSource={member.tileSource!} showLoadingMode={false} loadingMode={loadingModes[slideId]} displayAdjustments={adjustments} onReady={(handle) => handles.current.set(slideId, handle)} onClose={() => { openedSlides.current.delete(slideId); refreshOpenedSlides(revision => revision + 1) }} onDispose={() => { handles.current.delete(slideId); openedSlides.current.delete(slideId); refreshOpenedSlides(revision => revision + 1) }} onOpen={() => {
             openedSlides.current.add(slideId)
+            refreshOpenedSlides(revision => revision + 1)
             const saved = savedViewports.current.get(slideId)
             if (saved) handles.current.get(slideId)?.setImageViewport(saved, 'restore-field')
             initializeOpenedPanes()

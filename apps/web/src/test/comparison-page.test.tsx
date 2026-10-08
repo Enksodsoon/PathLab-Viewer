@@ -10,19 +10,21 @@ import type { ComparisonSet, RegistrationCandidateManifest } from '../types'
 const currentPairProof = { currentPair: true, currentSettings: true, anchorSlideId: 'slide-1', sourceSnapshotVersion: 'snapshot-moving', anchorSnapshotVersion: 'snapshot-reference' }
 const candidateInspectionMap = { coordinateReferenceId: 'slide-1', anchorSlideId: 'slide-1', status: 'ready', provenance: 'automatic-candidate', movingToReference: [[1, 0, 0], [0, 1, 0]], triangles: [{ moving: [[0, 0], [100, 0], [0, 100]], reference: [[0, 0], [100, 0], [0, 100]] }] }
 
-const viewportHarness = vi.hoisted(() => ({ enabled: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), homed: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
+const viewportHarness = vi.hoisted(() => ({ enabled: false, deferOpen: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), homed: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
-  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onDispose, onViewportChange, loadingMode, showLoadingMode, micronsPerPixel }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onDispose?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean, micronsPerPixel?: number | null }) => <button
+  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onClose, onDispose, onViewportChange, loadingMode, showLoadingMode, micronsPerPixel }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onClose?: () => void, onDispose?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean, micronsPerPixel?: number | null }) => <button
     type="button"
     aria-label={`Viewer ${tileSource}`}
     data-mpp={micronsPerPixel ?? "relative"}
     data-loading-mode={loadingMode}
     data-loading-control={showLoadingMode === false ? 'hidden' : 'shown'}
     onContextMenu={() => onDispose?.()}
+    onDoubleClick={() => onOpen?.()}
+    onKeyDown={event => { if (event.key === 'Escape') onClose?.() }}
     onClick={() => {
       if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current, ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: () => viewportHarness.homed(tileSource) })
-      onOpen?.()
+      if (!viewportHarness.deferOpen) onOpen?.()
       onViewportChange?.(viewportHarness.enabled ? { ...viewportHarness.current } : { centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
     }}
   />,
@@ -30,6 +32,7 @@ vi.mock('../components/OpenSeadragonViewer', () => ({
 
 beforeEach(() => {
   viewportHarness.enabled = false
+  viewportHarness.deferOpen = false
   viewportHarness.bounds = null
   viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 }
   viewportHarness.applied.mockClear()
@@ -80,9 +83,11 @@ it('resets the chosen linked pane directly and keeps independent reset local wit
 })
 
 it('keeps Advanced controlled when native toggle delivery is delayed during navigation', async () => {
+  viewportHarness.enabled = true
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
   const summary = screen.getByText('Advanced'), disclosure = summary.closest('details')!
   // Native details toggle notifications are queued separately from the click.
   const holdQueuedNotification = (event: Event) => {
@@ -375,6 +380,83 @@ it('allows bounded region adjustment during refinement and keeps the displayed p
   await user.click(screen.getByRole('button', { name: 'Record point pair' }))
   expect(screen.getByRole('button', { name: 'Record point pair' })).toBeDisabled()
   expect(screen.getByText('2 point pairs')).toBeVisible()
+})
+
+it('does not capture a regional field from a handle whose image has not opened', async () => {
+  viewportHarness.enabled = true
+  viewportHarness.deferOpen = true
+  viewportHarness.current = { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  expect(screen.getByText('Open both slide images before capturing a region.')).toBeVisible()
+  expect(screen.queryByRole('region', { name: 'Landmark correction' })).not.toBeInTheDocument()
+  viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 0 }
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) fireEvent.doubleClick(viewer)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  expect(screen.getByRole('region', { name: 'Landmark correction' })).toBeVisible()
+})
+
+it('waits for both correction images to open before accepting landmark pairs', async () => {
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1', JSON.stringify(['slide-2', 'slide-3']))
+  viewportHarness.enabled = true
+  viewportHarness.bounds = [100, 100, 500, 500]
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  // Reordered correction panes dispose their old images. The real viewer
+  // installs its handle before the replacement DZI metadata has opened.
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) fireEvent.contextMenu(viewer)
+  viewportHarness.deferOpen = true
+  viewportHarness.current = { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  const record = screen.getByRole('button', { name: 'Record point pair' })
+  expect(record).toBeDisabled()
+  expect(screen.getByText('Opening slide images. Record points when both panes are ready.')).toBeVisible()
+  await user.click(record)
+  expect(screen.getByText('0 point pairs')).toBeVisible()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 0 }
+  fireEvent.doubleClick(screen.getByLabelText('Viewer /tiles/3.dzi'))
+  expect(record).toBeDisabled()
+  fireEvent.doubleClick(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(record).toBeEnabled()
+  expect(screen.queryByText('Opening slide images. Record points when both panes are ready.')).not.toBeInTheDocument()
+  await user.click(record)
+  expect(screen.getByText('1 point pairs')).toBeVisible()
+  viewportHarness.current = { ...viewportHarness.current, centerX: 250, centerY: 350 }
+  await user.click(record)
+  expect(screen.getByText('2 point pairs')).toBeVisible()
+  expect(record).toBeDisabled()
+})
+
+it('suspends landmark recording when an existing image closes and restores it on reopen', async () => {
+  viewportHarness.enabled = true
+  viewportHarness.bounds = [100, 100, 500, 500]
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  const record = screen.getByRole('button', { name: 'Record point pair' })
+  expect(record).toBeEnabled()
+  const movingViewer = screen.getByLabelText('Viewer /tiles/1.dzi')
+  fireEvent.keyDown(movingViewer, { key: 'Escape' })
+  viewportHarness.current = { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
+  expect(record).toBeDisabled()
+  await user.click(record)
+  expect(screen.getByText('0 point pairs')).toBeVisible()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  // Reopen the same handle without another onReady callback.
+  viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 0 }
+  fireEvent.doubleClick(movingViewer)
+  expect(record).toBeEnabled()
+  await user.click(record)
+  expect(screen.getByText('1 point pairs')).toBeVisible()
 })
 
 it('freezes the region preview through polling and saves using its returned version and identity', async () => {

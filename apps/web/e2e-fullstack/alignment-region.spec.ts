@@ -4,6 +4,9 @@ import { expect, test } from './qa-test'
 import { signIn } from '../e2e-live/capacity-helpers'
 import { mapStackPoint, type Point } from '../src/alignment'
 import type { ComparisonSet } from '../src/types'
+import { boundedPanStroke } from '../scripts/measure-alignment-operational-ui.mjs'
+
+type PointerRelease = { x: number; y: number; captured: boolean }
 
 type Application = { sourceSlideId: string; slideId: string; regional: boolean; approximate: boolean; sourceViewport: { centerX: number; centerY: number; imageZoom: number; rotation: number }; viewport: { centerX: number; centerY: number; imageZoom: number; rotation: number } }
 
@@ -11,8 +14,12 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   let loadedTiles = 0
   page.on('response', response => { if (response.ok() && response.url().includes('/preview/slide_files/')) loadedTiles += 1 })
   await page.addInitScript(() => {
-    Object.assign(window, { alignmentApplications: [] })
+    Object.assign(window, { alignmentApplications: [], alignmentPointerReleases: [] })
     window.addEventListener('pathlab:alignment-applied', event => (window as unknown as { alignmentApplications: unknown[] }).alignmentApplications.push((event as CustomEvent).detail))
+    window.addEventListener('pointerup', event => {
+      if (!(event.target instanceof Element) || !event.target.closest('.openseadragon-canvas')) return
+      requestAnimationFrame(() => (window as unknown as { alignmentPointerReleases: PointerRelease[] }).alignmentPointerReleases.push({ x: event.clientX, y: event.clientY, captured: (event.target as Element).hasPointerCapture(event.pointerId) }))
+    }, true)
   })
   await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
   const { slideIds } = JSON.parse(execFileSync(process.env.PATHLAB_E2E_PYTHON!, [path.resolve('../../scripts/seed_frontend_qa.py'), 'alignment'], { encoding: 'utf8' })) as { slideIds: string[] }
@@ -56,26 +63,32 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   expect(last.sourceViewport.centerX).toBeLessThan(570)
   await expect.poll(() => loadedTiles).toBeGreaterThan(0)
   await expect(page.getByText('Slide tiles could not be loaded.', { exact: true })).toHaveCount(0)
+  const pointerReleases = () => page.evaluate(() => (window as unknown as { alignmentPointerReleases: PointerRelease[] }).alignmentPointerReleases)
+  const panReceipts: unknown[] = []
+  const viewFor = async (sourceId: string) => {
+    const row = (await applications()).findLast(row => row.sourceSlideId === sourceId || row.slideId === sourceId)
+    expect(row).toBeDefined()
+    return row!.sourceSlideId === sourceId ? row!.sourceViewport : row!.viewport
+  }
+  const releaseStroke = async (canvas: ReturnType<typeof page.locator>, stroke: { start: number[]; end: number[]; visibleBounds: number[] }) => {
+    const releasesBefore = (await pointerReleases()).length
+    await page.mouse.move(stroke.start[0], stroke.start[1]); await page.mouse.down()
+    await page.mouse.move(stroke.end[0], stroke.end[1], { steps: 10 })
+    await page.waitForTimeout(250); await page.mouse.up(); await page.waitForTimeout(350)
+    await expect.poll(async () => (await pointerReleases()).length).toBeGreaterThan(releasesBefore)
+    const release = (await pointerReleases()).at(-1)!, [left, top, right, bottom] = stroke.visibleBounds
+    expect(release.captured).toBe(false)
+    expect(release.x).toBeGreaterThan(left); expect(release.x).toBeLessThan(right)
+    expect(release.y).toBeGreaterThan(top); expect(release.y).toBeLessThan(bottom)
+    expect(await canvas.evaluate(node => node.hasPointerCapture(1))).toBe(false)
+    panReceipts.push({ stroke, release })
+  }
   const driveToInterior = async () => {
-    const current = (await applications()).at(-1)!.sourceViewport
-    const before = (await applications()).length
-    const canvas = page.locator('.comparison-pane').first().locator('.openseadragon-canvas').first()
-    await canvas.scrollIntoViewIfNeeded()
-    const bounds = (await canvas.boundingBox())!
-    const x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2
-    await page.mouse.move(x, y)
-    await page.mouse.down()
-    await page.mouse.move(x + (current.centerX - 250) * current.imageZoom, y + (current.centerY - 200) * current.imageZoom, { steps: 5 })
-    // End a deliberate pan without an inertial flick across the tissue edge.
-    await page.waitForTimeout(250)
-    await page.mouse.up()
-    await expect.poll(async () => (await applications()).length).toBeGreaterThan(before)
-    await page.waitForTimeout(350)
-    const field = (await applications()).at(-1)!.sourceViewport
-    expect(field.centerX).toBeGreaterThan(180)
-    expect(field.centerX).toBeLessThan(330)
-    expect(field.centerY).toBeGreaterThan(120)
-    expect(field.centerY).toBeLessThan(300)
+    const sourceId = await page.getByLabel('Slide shown in pane 1').inputValue()
+    await panSourceTo(sourceId, [250, 200])
+    const field = await viewFor(sourceId)
+    expect(field.centerX).toBeGreaterThan(180); expect(field.centerX).toBeLessThan(330)
+    expect(field.centerY).toBeGreaterThan(120); expect(field.centerY).toBeLessThan(300)
   }
   const manualPathReceipts: unknown[] = []
   const assertManualPath = async (set: ComparisonSet, phase: string, minimumApplications = 0) => {
@@ -105,18 +118,20 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
     manualPathReceipts.push({ phase, applied, expected, residual, supportedCapturedRegion: true, bothManualLabelsVisible: true, labelsClearOfControls: true })
   }
   const panSourceTo = async (sourceId: string, point: Point) => {
-    const rows = await applications(), last = rows.findLast(row => row.sourceSlideId === sourceId || row.slideId === sourceId)!
-    const view = last.sourceSlideId === sourceId ? last.sourceViewport : last.viewport
     const selects = await page.getByLabel(/Slide shown in pane/).all(), paneIndex = (await Promise.all(selects.map(select => select.inputValue()))).indexOf(sourceId)
     expect(paneIndex).toBeGreaterThanOrEqual(0)
     const canvas = page.locator('.comparison-pane').nth(paneIndex).locator('.openseadragon-canvas').first()
     await canvas.scrollIntoViewIfNeeded()
-    const bounds = (await canvas.boundingBox())!, x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2
-    const radians = view.rotation * Math.PI / 180, dx = (view.centerX - point[0]) * view.imageZoom, dy = (view.centerY - point[1]) * view.imageZoom
-    await page.mouse.move(x, y); await page.mouse.down()
-    await page.mouse.move(x + dx * Math.cos(radians) - dy * Math.sin(radians), y + dx * Math.sin(radians) + dy * Math.cos(radians), { steps: 8 })
-    await page.waitForTimeout(250); await page.mouse.up(); await page.waitForTimeout(350)
-    await expect.poll(async () => (await applications()).length).toBeGreaterThan(rows.length)
+    for (let index = 0; index < 12; index++) {
+      const view = await viewFor(sourceId)
+      if (Math.hypot(view.centerX - point[0], view.centerY - point[1]) < 1) return
+      const before = (await applications()).length
+      const stroke = boundedPanStroke({ canvas: (await canvas.boundingBox())!, viewport: page.viewportSize()!, view, point })!
+      await releaseStroke(canvas, stroke)
+      await expect.poll(async () => (await applications()).length).toBeGreaterThan(before)
+    }
+    const view = await viewFor(sourceId)
+    expect(Math.hypot(view.centerX - point[0], view.centerY - point[1]), 'Bounded strokes reach the selected source point').toBeLessThan(1)
   }
   await driveToInterior()
   // Assert rendered original pixels as well as successful tile responses.
@@ -138,9 +153,35 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
     const bounds = (await control.boundingBox())!
     expect(bounds.height).toBeGreaterThanOrEqual(44)
   }
-  await page.getByRole('button', { name: 'Adjust region' }).click()
+  // Reordering the displayed pair remounts both viewers. Hold their actual
+  // DZI metadata to verify that an unopened handle cannot record a landmark.
+  const heldMetadata: Array<() => void> = []
+  const holdMetadata = async (route: import('@playwright/test').Route) => {
+    await new Promise<void>(resolve => heldMetadata.push(resolve))
+    await route.continue()
+  }
+  await page.route('**/slide.dzi**', holdMetadata)
+  try {
+    await page.getByRole('button', { name: 'Adjust region' }).click()
+    await expect.poll(() => heldMetadata.length).toBe(2)
+    await expect(page.getByRole('button', { name: 'Record point pair' })).toBeDisabled()
+    await expect(page.getByText('Opening slide images. Record points when both panes are ready.')).toBeVisible()
+    await expect(page.getByText('0 point pairs', { exact: true })).toBeVisible()
+    await expect(page.locator('.comparison-correction [role="alert"]')).toHaveCount(0)
+    const firstMetadata = page.waitForResponse(response => response.url().includes('/slide.dzi') && response.ok())
+    heldMetadata[0]()
+    await firstMetadata; await page.waitForTimeout(350)
+    await expect(page.getByRole('button', { name: 'Record point pair' })).toBeDisabled()
+    heldMetadata[1]()
+    await expect(page.getByRole('button', { name: 'Record point pair' })).toBeEnabled()
+    await expect(page.getByText('Opening slide images. Record points when both panes are ready.')).toHaveCount(0)
+  } finally {
+    heldMetadata.forEach(release => release())
+    await page.unroute('**/slide.dzi**', holdMetadata)
+  }
   await expect(page.getByLabel('Correction reference slide')).toHaveValue(slideIds[2])
   await page.getByRole('button', { name: 'Record point pair' }).click()
+  await expect(page.getByText('1 point pairs', { exact: true })).toBeVisible()
   let previewFailureInjected = false
   await page.route(`**${endpoint}/region-corrections`, async route => {
     if (!previewFailureInjected && route.request().method() === 'POST' && route.request().postDataJSON().operation === 'preview') {
@@ -181,20 +222,20 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await driveToInterior()
   await page.getByRole('button', { name: 'Adjust region' }).click()
   const recordTwoPoints = async () => {
-  await page.getByRole('button', { name: 'Record point pair' }).click()
-  for (const pane of await page.locator('.comparison-pane').all()) {
-    const canvas = pane.locator('.openseadragon-canvas').first()
-    await canvas.scrollIntoViewIfNeeded()
-    const bounds = (await canvas.boundingBox())!
-    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(bounds.x + bounds.width / 2 - 40, bounds.y + bounds.height / 2 - 25, { steps: 5 })
-    await page.waitForTimeout(250)
-    await page.mouse.up()
-    await page.waitForTimeout(350)
-  }
-  await page.getByRole('button', { name: 'Record point pair' }).click()
-  await expect(page.getByRole('button', { name: 'Record point pair' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Record point pair' })).toBeEnabled()
+    await page.getByRole('button', { name: 'Record point pair' }).click()
+    await expect(page.getByText('1 point pairs', { exact: true })).toBeVisible()
+    for (const pane of await page.locator('.comparison-pane').all()) {
+      const canvas = pane.locator('.openseadragon-canvas').first()
+      await canvas.scrollIntoViewIfNeeded()
+      // A small relative screen pan separates the second pair in independent
+      // correction mode; the real recorded API points remain the later oracle.
+      const stroke = boundedPanStroke({ canvas: (await canvas.boundingBox())!, viewport: page.viewportSize()!, view: { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }, point: [40, 25] })!
+      await releaseStroke(canvas, stroke)
+    }
+    await page.getByRole('button', { name: 'Record point pair' }).click()
+    await expect(page.getByText('2 point pairs', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Record point pair' })).toBeDisabled()
   }
   await recordTwoPoints()
   const twoPointResponse = page.waitForResponse(response => response.url().endsWith('/region-corrections') && response.request().method() === 'POST')
@@ -252,7 +293,8 @@ test('alignment region correction uses real tissue, hidden-reference panes, revi
   await panSourceTo(sourceId, [movingCell.reduce((sum, point) => sum + point[0], 0) / 3, movingCell.reduce((sum, point) => sum + point[1], 0) / 3])
   await assertManualPath(reloadedSet, 'returned-to-supported-region')
   await testInfo.attach('manual-path-receipt', { body: JSON.stringify({ scope: 'Actual regional API affine and independent forward/inverse affine oracle against real OSD readback; synthetic navigation only.', coordinateTolerancePixels: 0.01, observations: manualPathReceipts }), contentType: 'application/json' })
-  await testInfo.attach('guided-correction-receipt' , { body: JSON.stringify({ scope: 'Disposable synthetic tissue derivative, actual OSD and backend region API; no anatomical qualification.', loadedTiles, hiddenReference: true, slidesKeyboardSelection: true, syncKeyboardRoundtrip: true, advancedOpenedDuringGuidedCorrection: false, onePointSavedReloaded: true, twoPointPreviewCancelled: true, twoPointSavedReloaded: true, injectedTransientPreviewFailureRetainedPoints: previewFailureInjected, assertionRetries: testInfo.retry }), contentType: 'application/json' })
+  await testInfo.attach('bounded-pan-receipt', { body: JSON.stringify({ scope: 'Actual pointer releases inside visible canvas/browser intersection; supported source targets converge within1pixel. Independent correction pans are relative screen displacements, not anatomy.', strokes: panReceipts }), contentType: 'application/json' })
+  await testInfo.attach('guided-correction-receipt' , { body: JSON.stringify({ scope: 'Disposable synthetic tissue derivative, actual OSD and backend region API; no anatomical qualification.', loadedTiles, delayedDziBothImagesRequired: true, hiddenReference: true, slidesKeyboardSelection: true, syncKeyboardRoundtrip: true, advancedOpenedDuringGuidedCorrection: false, onePointSavedReloaded: true, twoPointPreviewCancelled: true, twoPointSavedReloaded: true, injectedTransientPreviewFailureRetainedPoints: previewFailureInjected, assertionRetries: testInfo.retry }), contentType: 'application/json' })
   await page.getByText('Advanced', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Active pane inspector' })).toBeVisible()
   await page.getByText('Display', { exact: true }).click()

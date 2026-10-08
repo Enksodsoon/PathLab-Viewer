@@ -53,6 +53,7 @@ interface Props {
   loadingMode?: ViewerLoadingMode
   onViewportChange?: (snapshot: ImageViewport, transactionId?: string) => void
   onOpen?: () => void
+  onClose?: () => void
   onDispose?: () => void
   displayAdjustments?: { brightness: number; contrast: number; gamma: number }
 }
@@ -89,6 +90,7 @@ export function OpenSeadragonViewer({
   loadingMode,
   onViewportChange,
   onOpen,
+  onClose,
   onDispose,
   displayAdjustments = { brightness: 1, contrast: 1, gamma: 1 },
 }: Props) {
@@ -106,6 +108,7 @@ export function OpenSeadragonViewer({
   const networkProfileRef = useRef(networkProfile)
   const viewportChangeRef = useRef(onViewportChange)
   const onOpenRef = useRef(onOpen)
+  const onCloseRef = useRef(onClose)
   const navigationTransaction = useRef<string | undefined>(undefined)
   const applyingViewport = useRef(false)
   const userNavigation = useRef(false)
@@ -203,6 +206,7 @@ export function OpenSeadragonViewer({
     onScaleChangeRef.current = onScaleChange
     viewportChangeRef.current = onViewportChange
     onOpenRef.current = onOpen
+    onCloseRef.current = onClose
     onDisposeRef.current = onDispose
     if (viewerRef.current && openedSourceRef.current !== tileSource) {
       openedSourceRef.current = tileSource
@@ -232,6 +236,7 @@ export function OpenSeadragonViewer({
     onScaleChange,
     onViewportChange,
     onOpen,
+    onClose,
     onDispose,
     posterUrl,
     tileSource,
@@ -465,6 +470,7 @@ export function OpenSeadragonViewer({
         tileFailures.current += 1
         if (tileFailures.current === TILE_FAILURE_LIMIT) reportLoadingError()
       }
+      viewer.addHandler('close', () => onCloseRef.current?.())
       viewer.addHandler('open', handleOpen)
       viewer.addHandler('tile-loaded', handleTileLoaded)
       viewer.addHandler('animation-finish', () => { updateScale(); reportViewport() })
@@ -524,6 +530,7 @@ export function OpenSeadragonViewer({
       performanceObserver?.disconnect()
       window.removeEventListener('offline', handleOffline)
       window.removeEventListener('online', handleOnline)
+      viewer?.removeAllHandlers('close')
       viewer?.removeAllHandlers('open')
       viewer?.removeAllHandlers('tile-loaded')
       viewer?.removeAllHandlers('animation-finish')
