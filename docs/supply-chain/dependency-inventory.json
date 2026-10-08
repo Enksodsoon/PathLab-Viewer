@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T15:58:44.249010Z",
+  "generatedAt": "2026-10-08T01:12:26.225146Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -12852,7 +12852,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "2a6218c11b9f47a5a71e682ce41f0915afd20c0960a3f8679a6455929ef5496f",
+      "metadataSha256": "7acaab0b6391afb5c670cc103179baed55d7b413b28313d8c94caf560f045465",
       "name": "aiohttp",
       "noticeFiles": [
         {
@@ -13908,7 +13908,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "8bc190aa9c6b4d79ed3e73f9019a4064169343b1a7831ce80f58744182ebc807",
+      "metadataSha256": "39e889f4c313fd7bc1cbeae03e09ba307ed2cf695ba7a08bf187d72dcf864722",
       "name": "fastapi",
       "noticeFiles": [
         {
@@ -14994,7 +14994,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "446b1f8767eb6096fe88bd4fd42e6d7a4fdaf91f2c6964f24f0f374c9852bbde",
+      "metadataSha256": "bc08a111a4ab4ac189e0e5312283c803525a00228144689168540187211c4eb9",
       "name": "multidict",
       "noticeFiles": [
         {
@@ -15140,7 +15140,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "85d60b351e801963d1216e33539a550a34f06fb1e9002a58936a2d790448cb9f",
+      "metadataSha256": "fc4a069081946bbc852a9679def67be88545f372e4d8707489dac61f02ff9f35",
       "name": "oci-cli",
       "noticeFiles": [
         {
@@ -15171,7 +15171,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "02a428e393a21f7442884dc4179c4ea3db7202e7abd00d72142f804e80ac6e5e",
+      "metadataSha256": "e905e1a842e9f6383ae30a032ad77d04e707729a2fedfaac9bf861a2790b09ec",
       "name": "oci",
       "noticeFiles": [
         {
@@ -15291,7 +15291,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "997377fe036918b729c445f8256d340e64fabda5ff00b7d1f52d4e485090ced3",
+      "metadataSha256": "b123eaf1e55d65e518f96a426b4df91a8d2b6e7184927530ea706b2c16e36a65",
       "name": "opentelemetry-api",
       "noticeFiles": [
         {
@@ -16493,7 +16493,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "123991aec4e326543ef649c4568a7013a6ace573172013b5e977a38b32d87bc8",
+      "metadataSha256": "a6cb85962a81a03231645a01c4ff487af47c1eee58544f67fc4d66e964fd9d2d",
       "name": "sqlalchemy",
       "noticeFiles": [
         {
@@ -17028,7 +17028,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "549bbafc96419edaab816c7bccc1973a331e71cf2784a9600d04469e5627a354",
+      "metadataSha256": "2178141e27b6ff27ee91046f0e0017c6fae25e962bfc15e67f9a544a21343476",
       "name": "wcwidth",
       "noticeFiles": [
         {
@@ -18209,9 +18209,9 @@
       "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
-      "gitBlob": "22d6c23d63e755751c44640c31a7ce1840bc3307",
+      "gitBlob": "3e445bb3d79e2efbbe647fdaf9929f8866a534e9",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "235c43221977bec4ce2aa4211cdc9f42fcbb40f39addbd4e03c19acbe949ca83"
+      "sha256": "661187219e8a3f790df1ea545a5012855942d86fc797d8e23fd55e386a58432f"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19229,6 +19229,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "7fc351aa84b1d6aaa49ff180bfab4c4395995ac0",
-  "subjectTree": "30e7bbca0a0f38bd7df5a265a967303089d599d8"
+  "subjectCommit": "5722cc3e6ddae4742ab53e69f17f3cd9ac5cee17",
+  "subjectTree": "c2dd14bad18b1b1a6776b67a4b6588d03f4044b1"
 }
