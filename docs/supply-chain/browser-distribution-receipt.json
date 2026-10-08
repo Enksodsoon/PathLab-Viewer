@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "49a3858a7fcb7751bd12af698a00106056950da5",
-  "subjectTree": "80dfd73ea4c79baea536d7ea7bbf20a9743a7fc6",
+  "subjectCommit": "ef742cf0a91240d71679eb647fc1c2e8818d2c24",
+  "subjectTree": "b6ed11f65312d8f401cba3bff1c4d053bbb48e0b",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -1297,11 +1297,11 @@
     },
     {
       "path": "pnpm-lock.yaml",
-      "gitBlob": "58a780cce56476840fa7e0b76379d7f4d1aca146"
+      "gitBlob": "de613bf10f01fc2033f8ce403ff841d139f69366"
     },
     {
       "path": "pnpm-workspace.yaml",
-      "gitBlob": "c608134156c905f30ab81cecff9452b2afecfd8d"
+      "gitBlob": "504f7a88f2ea03b433381fbaa48aeb7952f1b0c8"
     },
     {
       "path": "scripts/browser_distribution.py",
@@ -1312,7 +1312,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "f91524c400f1e6ccb247ed3e8e0a8f8a548ced707b79302403e940f7e35c1a34",
+  "sourceInputSetSha256": "74917b8bedb523e1a4e1121e2f19869daf1144bc16a843a8f900c8a867f00b65",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
