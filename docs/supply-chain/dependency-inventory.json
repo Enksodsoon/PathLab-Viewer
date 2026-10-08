@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T12:08:51.504558Z",
+  "generatedAt": "2026-10-08T12:35:48.940041Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -13921,7 +13921,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "fe896f743d5719b0392d44098ba739e24c991e6543d65d700ddb3b21a10fc760",
+      "metadataSha256": "1fe1768dd8d75757a5fdd2ac676cfbb440d3b700b2b827b1a258d963790292e6",
       "name": "fastapi",
       "noticeFiles": [
         {
@@ -15733,7 +15733,7 @@
         "deploy/backend-requirements.txt",
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "116983f7de9bda289946d08200ba1bd7b832547f151165c12bd87d6b8e59b015",
+      "metadataSha256": "0bf63b485d42a7e4a3b4eb7232c24bfb3e1e6cbbe47ee803f6b4c3f8b242d669",
       "name": "pycparser",
       "noticeFiles": [
         {
@@ -18209,9 +18209,9 @@
       "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
-      "gitBlob": "3cc13d00e8f8c7eaf0430888c5bd95a3e77e59af",
+      "gitBlob": "68f36cda81065d04d54627f6e42656308a2b84a7",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "59dffa9c25dd744e40b608ee9fded8e91a8e65f01f83597ccc511978cf669703"
+      "sha256": "125d5fa131c8fa9983240cdc4a872f2100b92e4354002ca112d9e6445807877c"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19239,6 +19239,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "4f7481ed954bb1338cc512f1bb102f892b02b144",
-  "subjectTree": "a19f1f2afe7186733e8dbaf5216a0a1043cf7bce"
+  "subjectCommit": "0f04a5cac8b82d40b21ec1d5ed83962f1ef49e28",
+  "subjectTree": "15873acbd4671b780ede190a54c077eaf92a90c6"
 }
