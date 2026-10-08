@@ -7,6 +7,7 @@ import sqlite3
 import threading
 import time
 from collections.abc import AsyncGenerator, Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -16,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
-from sqlalchemy import select, text
+from sqlalchemy import event, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session as OrmSession
 from starlette.concurrency import run_in_threadpool
@@ -367,6 +368,67 @@ def test_classroom_pool_saturation_maps_to_busy_with_retry_after(tmp_path: Path)
     assert response.status_code == 503
     assert response.json() == {"detail": {"code": "CLASSROOM_BUSY"}}
     assert response.headers["retry-after"] == "1"
+
+
+def test_parallel_authenticated_classroom_reads_use_one_checkout_per_request(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as general_client:
+        headers = _admin_headers(general_client)
+        cookies = dict(general_client.cookies)
+        settings = cast(FastAPI, general_client.app).state.settings
+
+    settings = settings.model_copy(update={"service_role": "classroom"})
+    with TestClient(create_app(settings), raise_server_exceptions=False) as client:
+        client.cookies.update(cookies)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert created.status_code == 201, created.text
+        session_id = created.json()["id"]
+        paths = [
+            "/api/v1/admin/classroom/sessions",
+            "/api/v1/admin/classroom/setup/folders?limit=20",
+            f"/api/v1/admin/classroom/sessions/{session_id}/participants?limit=100",
+            f"/api/v1/admin/classroom/sessions/{session_id}/participants?limit=100&requested=true",
+        ]
+        engine = engine_for(settings)
+        barrier = threading.Barrier(len(paths), timeout=5)
+        lock = threading.Lock()
+        checkouts = 0
+
+        def synchronize_initial_checkouts(*_: Any) -> None:
+            nonlocal checkouts
+            with lock:
+                checkouts += 1
+                initial = checkouts <= len(paths)
+            if initial:
+                barrier.wait()
+
+        event.listen(engine, "checkout", synchronize_initial_checkouts)
+        try:
+            with ThreadPoolExecutor(max_workers=len(paths)) as executor:
+                responses = list(executor.map(client.get, paths))
+        finally:
+            event.remove(engine, "checkout", synchronize_initial_checkouts)
+
+        concurrent_checkouts = checkouts
+        metrics = client.get("/api/v1/admin/classroom/metrics")
+        assert metrics.status_code == 200
+        pressure = metrics.json()
+        observed = {
+            "statuses": [response.status_code for response in responses],
+            "checkouts": concurrent_checkouts,
+            "poolTimeouts": pressure["poolTimeouts"],
+            "sqliteLockErrors": pressure["sqliteLockErrors"],
+        }
+        print(json.dumps(observed, sort_keys=True))
+        assert observed["statuses"] == [200] * len(paths), observed
+        assert concurrent_checkouts == len(paths), observed
+        assert pressure["poolTimeouts"] == 0, observed
+        assert pressure["sqliteLockErrors"] == 0, observed
 
 
 def test_cross_process_sqlite_writer_lock_maps_to_bounded_classroom_busy(

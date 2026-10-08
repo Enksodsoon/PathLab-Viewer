@@ -429,17 +429,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with factory() as session:
             yield session
 
-    def classroom_database() -> Iterator[OrmSession]:
-        with factory() as session:
-            started = time.monotonic()
-            session.connection()
-            classroom_pool_waits_ms.append((time.monotonic() - started) * 1000)
-            ordered = sorted(classroom_pool_waits_ms)
-            index = max(0, min(len(ordered) - 1, int(len(ordered) * 0.95)))
-            classroom_pressure["poolWaitP95Ms"] = round(ordered[index], 3)
-            yield session
-
     Database = Annotated[OrmSession, Depends(database)]
+
+    def classroom_database(db: Database) -> Iterator[OrmSession]:
+        started = time.monotonic()
+        db.connection()
+        classroom_pool_waits_ms.append((time.monotonic() - started) * 1000)
+        ordered = sorted(classroom_pool_waits_ms)
+        index = max(0, min(len(ordered) - 1, int(len(ordered) * 0.95)))
+        classroom_pressure["poolWaitP95Ms"] = round(ordered[index], 3)
+        yield db
 
     def authenticated_session(
         db: Database, pathlab_session: Annotated[str | None, Cookie()] = None
