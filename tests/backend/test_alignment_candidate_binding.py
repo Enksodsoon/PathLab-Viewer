@@ -84,7 +84,8 @@ def test_old_manifest_tokens_reject_real_case_change_without_comparison_revision
     with _client(tmp_path, enabled=True) as client:
         headers = _headers(client)
         response = client.post(
-            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            "/api/v2/admin/slides/batch-metadata",
+            headers=headers,
             json={"slideIds": ["slide-1", "slide-2"], "caseId": "case-A"},
         )
         assert response.status_code == 200, response.text
@@ -106,7 +107,8 @@ def test_old_manifest_tokens_reject_real_case_change_without_comparison_revision
         assert old_members["slide-2"]["nativeOverviewFallback"] is not None
         changed_id = "slide-2" if side == "source" else "slide-1"
         response = client.post(
-            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            "/api/v2/admin/slides/batch-metadata",
+            headers=headers,
             json={"slideIds": [changed_id], "caseId": "case-B"},
         )
         assert response.status_code == 200, response.text
@@ -168,7 +170,8 @@ def test_preview_snapshot_normalizes_case_and_preserves_sha_bound_cosmetic_chang
     with _client(tmp_path, enabled=True) as client:
         headers = _headers(client)
         response = client.post(
-            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            "/api/v2/admin/slides/batch-metadata",
+            headers=headers,
             json={"slideIds": ["slide-1", "slide-2"], "caseId": " Case-A "},
         )
         assert response.status_code == 200
@@ -176,7 +179,8 @@ def test_preview_snapshot_normalizes_case_and_preserves_sha_bound_cosmetic_chang
         _bound_candidate(client, stack)
         before = _manifest(client, url)
         response = client.post(
-            "/api/v2/admin/slides/batch-metadata", headers=headers,
+            "/api/v2/admin/slides/batch-metadata",
+            headers=headers,
             json={"slideIds": ["slide-2"], "caseId": "case-a", "displayName": "Renamed"},
         )
         assert response.status_code == 200
@@ -285,6 +289,18 @@ def test_null_sha_candidate_requires_current_explicit_snapshots(tmp_path, change
         stack, url = _stack(client, headers)
         candidate_id, _, _ = _bound_candidate(client, stack, null_sha=True)
         with session_factory(client.app.state.settings)() as database:
+            row = database.get(ComparisonRegistrationCandidate, candidate_id)
+            # Re-read persisted bindings before simulating staleness. A failure
+            # identifies flush/timestamp/frame drift without weakening admission.
+            for name, side in (("slide-2", "source"), ("slide-1", "anchor")):
+                slide = database.get(Slide, name)
+                assert getattr(row, f"{side}_version") == slide.sha256 is None, side
+                assert row.registration[f"{side}SnapshotVersion"] == slide_version(slide), (
+                    f"persisted {side} snapshot drifted after fixture commit"
+                )
+                assert row.registration[f"{side}FrameVersion"] == metadata_frame_digest(
+                    slide.slide_metadata
+                ), f"persisted {side} frame drifted after fixture commit"
             if change in {"source-update", "anchor-update"}:
                 slide = database.get(Slide, "slide-2" if change.startswith("source") else "slide-1")
                 slide.updated_at += timedelta(seconds=1)
@@ -295,6 +311,11 @@ def test_null_sha_candidate_requires_current_explicit_snapshots(tmp_path, change
                 row.registration = registration
             database.commit()
         candidate = _manifest(client, url)
+        assert candidate.get("currentSettings") is (change == "unchanged"), {
+            "change": change,
+            "currentSettings": candidate.get("currentSettings"),
+            "currentPair": candidate.get("currentPair"),
+        }
         assert candidate.get("currentPair") is (change == "unchanged")
 
 

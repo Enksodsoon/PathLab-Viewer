@@ -36,6 +36,13 @@ def test_changed_bytes_during_fingerprint_are_refused(producer, tmp_path, monkey
 
 
 def test_loaded_cv2_binary_and_four_distributions_are_bound(producer, tmp_path, monkeypatch):
+    # Runtime identity binds regular interpreter fixtures, independent of a
+    # platform's real launcher symlink/provider layout.
+    launcher, base = tmp_path / "python.exe", tmp_path / "base.exe"
+    launcher.write_bytes(b"fixture-launcher")
+    base.write_bytes(b"fixture-base")
+    monkeypatch.setattr(sys, "executable", str(launcher))
+    monkeypatch.setattr(sys, "_base_executable", str(base))
     binary = tmp_path / "cv2.pyd"
     binary.write_bytes(b"loaded49")
     fake = SimpleNamespace(__version__="4.9.0", _native=SimpleNamespace(__file__=str(binary)))

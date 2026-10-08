@@ -79,7 +79,7 @@ def test_dzi_optional_recipe_uses_exact_pyramid_frame_before_thumbnailing(
     monkeypatch.setattr(worker, "component_bounds", lambda *_: [])
     output = Output()
     settings = {"referenceMicronsPerPixel": [0.25, 0.5], "movingMicronsPerPixel": [0.5, 1]}
-    worker._alignment_child(
+    worker._alignment_invocation(
         str(ref), str(mov), (21912, 19876), (11003, 9013), recipe, settings, None, output
     )
     assert captured and captured[0]["reference"].size == (2739, 2485)
@@ -113,7 +113,7 @@ def test_jpg_recipe_keeps_declared_geometry_and_settings_exactly(tmp_path, monke
 
     monkeypatch.setattr(worker, "run_engine", register)
     output = Output()
-    worker._alignment_child(
+    worker._alignment_invocation(
         str(ref), str(mov), (400, 300), (800, 600), recipe, settings, None, output
     )
     assert captured[0]["reference_full_size"] == (400, 300)

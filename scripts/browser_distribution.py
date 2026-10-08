@@ -253,11 +253,15 @@ def validate_emitted_assets(
         path = actual[relative]
         if path.is_symlink() or not path.resolve().is_relative_to(output.resolve()):
             raise ValueError("browser distribution asset must be a confined regular file")
-        if (
-            path.stat().st_size != item["bytes"]
-            or hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]
-        ):
-            raise ValueError("browser distribution emitted bytes changed")
+        actual_size = path.stat().st_size
+        with path.open("rb") as source:
+            actual_sha256 = hashlib.file_digest(source, "sha256").hexdigest()
+        if actual_size != item["bytes"] or actual_sha256 != item["sha256"]:
+            raise ValueError(
+                f"browser distribution emitted bytes changed: {relative!r}; "
+                f"expected bytes={item['bytes']} sha256={item['sha256']}; "
+                f"actual bytes={actual_size} sha256={actual_sha256}"
+            )
     if legal_sources is not None:
         if set(legal_sources) != legal:
             raise ValueError("browser distribution legal source boundary mismatch")

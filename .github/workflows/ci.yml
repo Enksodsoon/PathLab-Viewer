@@ -277,6 +277,7 @@ jobs:
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
       - name: Verify qualified browser distribution against actual emitted bytes
+        id: verify_browser_distribution
         run: |
           if [[ -f docs/supply-chain/browser-distribution-receipt.json ]]; then
             BROWSER_SUBJECT="$(python -c 'import json; print(json.load(open("docs/supply-chain/browser-distribution-receipt.json"))["subjectCommit"])')"
@@ -287,6 +288,17 @@ jobs:
             python scripts/browser_distribution.py verify \
               --dist apps/web/dist --packaged-legal-files
           fi
+      - name: Retain emitted browser identity files after verification failure
+        if: ${{ failure() && steps.verify_browser_distribution.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-distribution-mismatch-identity
+          path: |
+            apps/web/dist/.vite/manifest.json
+            apps/web/dist/index.html
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - name: Verify web distribution license files
         run: |
           cmp LICENSE apps/web/dist/LICENSE
@@ -378,9 +390,11 @@ jobs:
       matrix:
         include:
           - journey: workflows
-            grep: '^(?!.*every declared route renders).*'
+            grep: '^(?!.*(?:every declared route renders|edge blocks internal routes and rejects oversized JSON before authentication|forged forwarding headers cannot evade shared login admission through Caddy)).*'
           - journey: route-explorer
             grep: 'every declared route renders'
+          - journey: security
+            grep: '^.* (?:edge blocks internal routes and rejects oversized JSON before authentication|forged forwarding headers cannot evade shared login admission through Caddy)$'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -13,12 +13,18 @@ from scripts import generate_dependency_inventory as generator
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "4f7481ed954bb1338cc512f1bb102f892b02b144"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
-    inventory = validate(DEFAULT_INVENTORY, SUBJECT)
+    inventory = validate(DEFAULT_INVENTORY)
     assert len(inventory["records"]) >= 490
+
+
+def test_inventory_rejects_an_explicit_different_requested_subject() -> None:
+    inventory = json.loads(DEFAULT_INVENTORY.read_text())
+    different = "0" * 40 if inventory["subjectCommit"] != "0" * 40 else "1" * 40
+    with pytest.raises(ValueError, match="subject does not match requested commit"):
+        validate(DEFAULT_INVENTORY, different)
 
 
 def test_inventory_preserves_fail_closed_production_boundaries() -> None:
@@ -39,9 +45,9 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
 
 def test_inventory_subject_is_current_implementation_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
-    assert inventory["subjectCommit"] == SUBJECT
+    subject = inventory["subjectCommit"]
     tree = subprocess.check_output(
-        ["git", "rev-parse", f"{SUBJECT}^{{tree}}"], cwd=ROOT, text=True
+        ["git", "rev-parse", f"{subject}^{{tree}}"], cwd=ROOT, text=True
     ).strip()
     assert inventory["subjectTree"] == tree
 
