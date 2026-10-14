@@ -31,9 +31,9 @@ artifacts against checked-in hashes, and hashed license/notice files contained i
 The checked-in inventory does not treat registry metadata alone as final legal approval:
 `RECORDED_UNREVIEWED` means mechanically captured and still subject to P0-T05A/P0-T06 review.
 
-On 2026-10-14, the inventory was refreshed for the responsive login artwork and mobile contrast fix.
-The browser qualification receipt covers source commit `dae05aa566b7c782f1301913d1fa82c09186ceac`.
-This inventory is bound to receipt commit `bcbb67bcaa46d33a9c75e9ed9877f4d0c052fb28`. It retains
+On 2026-10-15, the inventory was refreshed for the responsive login artwork and 52px input-height fix.
+The browser qualification receipt covers source commit `d35d6f1002767ad3408c1ce030f934092a08c745`.
+This inventory is bound to receipt commit `0afa000a2eef052b77e95e83d1dc5753ed3efb11`. It retains
 the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
 `RECORDED_UNREVIEWED`.
 
@@ -80,13 +80,13 @@ patched tus snapshot and patch digest.
 Regenerate only when network retrieval is intentionally allowed:
 
 ```text
-python scripts/generate_dependency_inventory.py --subject bcbb67bcaa46d33a9c75e9ed9877f4d0c052fb28
+python scripts/generate_dependency_inventory.py --subject 0afa000a2eef052b77e95e83d1dc5753ed3efb11
 ```
 
 Validate offline on every candidate head:
 
 ```text
-python scripts/validate_dependency_inventory.py --subject bcbb67bcaa46d33a9c75e9ed9877f4d0c052fb28
+python scripts/validate_dependency_inventory.py --subject 0afa000a2eef052b77e95e83d1dc5753ed3efb11
 python scripts/validate_combine_errors_removal.py
 python -m pytest -q tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
 ```
