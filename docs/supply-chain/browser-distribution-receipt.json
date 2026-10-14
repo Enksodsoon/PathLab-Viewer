@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "3bb349c0d9221f60f925bf02e27bbac469a3a558",
-  "subjectTree": "71e11bcd8c917f3bb10f136683a73f24fb6d1c99",
+  "subjectCommit": "3cc778968aab6e9e4eb8206caa05fbd3fc0d9c19",
+  "subjectTree": "d4174fa4d5aaedb1a046bcf4824b313535376d34",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -205,7 +205,7 @@
     },
     {
       "path": "apps/web/e2e/classroom-disabled.spec.ts",
-      "gitBlob": "40d7f31698f69d6d8c95f6d890dc9e241868dad3"
+      "gitBlob": "1353fbe6c1e90d525a3a7575b9c947fe2addda2a"
     },
     {
       "path": "apps/web/e2e/classroom-invite-modal.spec.ts",
@@ -1348,7 +1348,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "779f4e78f47f8584ff94f936140b1b7b1646e59ed9a3f858839b6208e0de8259",
+  "sourceInputSetSha256": "37b00ebc107fe1cfbf404f91c85a696ca91c7864a7c9f1e6ba24d88ca425a0f8",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
