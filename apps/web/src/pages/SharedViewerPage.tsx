@@ -155,6 +155,9 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
     const media = window.matchMedia('(max-width: 760px)')
     const updateLayout = (event: MediaQueryListEvent) => {
       setNarrowLayout(event.matches)
+      if (event.matches && slideRail.current?.contains(document.activeElement)) {
+        window.requestAnimationFrame(() => navigatorTrigger.current?.focus())
+      }
       if (!event.matches && drawerOpenRef.current) {
         drawerOpenRef.current = false
         setDrawerOpen(false)

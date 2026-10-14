@@ -178,10 +178,8 @@ body {
   input:not([type='checkbox']):not([type='radio']),
   textarea,
   select,
-  summary,
-  [role='dialog'],
-  [aria-modal='true'] {
-    border-color: ButtonText;
+  summary {
+    border: 1px solid ButtonText !important;
   }
 
   input:not([type='checkbox']):not([type='radio']),

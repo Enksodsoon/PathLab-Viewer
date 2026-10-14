@@ -347,6 +347,17 @@ test('keeps the mobile slide drawer modal, keyboard-contained, and restores focu
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
+test('moves focus to the navigator trigger when a focused desktop rail is hidden', async ({ page }) => {
+  await page.setViewportSize({ width: 761, height: 480 })
+  const search = page.getByRole('searchbox', { name: 'Search shared slides' })
+  await search.focus()
+  await expect(search).toBeFocused()
+
+  await page.setViewportSize({ width: 760, height: 480 })
+  await expect(page.locator('#shared-slide-rail')).toHaveAttribute('inert', '')
+  await expect(page.getByRole('button', { name: 'Open slide navigator' })).toBeFocused()
+})
+
 test('keeps shared slide selection and drawer focus visible in forced colors', async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ forcedColors: 'active' })
@@ -367,6 +378,17 @@ test('keeps shared slide selection and drawer focus visible in forced colors', a
     borderWidth: getComputedStyle(element).borderTopWidth,
   }))
   expect(Number.parseFloat(dialog.borderWidth)).toBeGreaterThanOrEqual(2)
+  const controlBorders = await page.locator('.shared-viewer-tools button, .share-menu, .share-rail-heading button').evaluateAll((elements) =>
+    elements.map((element) => {
+      const style = getComputedStyle(element)
+      return { borderStyle: style.borderTopStyle, borderWidth: style.borderTopWidth }
+    }),
+  )
+  expect(controlBorders.length).toBeGreaterThan(0)
+  for (const border of controlBorders) {
+    expect(border.borderStyle).not.toBe('none')
+    expect(Number.parseFloat(border.borderWidth)).toBeGreaterThanOrEqual(1)
+  }
   await expect(page.getByRole('button', { name: /Colon adenocarcinoma/ })).toHaveAttribute('aria-current', 'page')
   await info.attach('forced-colors-shared-viewer', { body: JSON.stringify({ focus, dialog }), contentType: 'application/json' })
 })
