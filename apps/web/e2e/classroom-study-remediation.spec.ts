@@ -290,6 +290,15 @@ test('Study actual invitation, denied storage, spatial target, keyboard confiden
   await page.getByRole('radio', { name: 'Synthetic A', exact: true }).check()
   await expect(page.getByLabel('3: Probable')).toBeChecked()
   const forcedFocus = await expectForcedColorsFocus(page, page.getByRole('button', { name: 'Check answer' }))
+  const activeTask = page.locator('[aria-current="step"]')
+  await expect(activeTask).toBeVisible()
+  const activeTaskOutline = await activeTask.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { color: style.outlineColor, style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) }
+  })
+  expect(activeTaskOutline.style).not.toBe('none')
+  expect(activeTaskOutline.width).toBeGreaterThanOrEqual(2)
+  expect(activeTaskOutline.color).not.toBe('rgba(0, 0, 0, 0)')
   await expect(page.getByRole('radio', { name: 'Synthetic A', exact: true })).toBeChecked()
   await info.attach('forced-colors-study', { body: JSON.stringify({ forcedFocus }), contentType: 'application/json' })
 })

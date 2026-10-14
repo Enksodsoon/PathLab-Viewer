@@ -189,7 +189,7 @@ body {
     color: FieldText;
   }
 
-  :where([aria-pressed='true'], [aria-selected='true'], [aria-current='page'], [data-state='checked']) {
+  :where([aria-pressed='true'], [aria-selected='true'], [aria-current]:not([aria-current='false']), [data-state='checked']) {
     outline: 2px solid Highlight;
     outline-offset: -1px;
   }
