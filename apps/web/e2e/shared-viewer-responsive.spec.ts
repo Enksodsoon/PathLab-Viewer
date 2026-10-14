@@ -378,6 +378,12 @@ test('keeps shared slide selection and drawer focus visible in forced colors', a
     borderWidth: getComputedStyle(element).borderTopWidth,
   }))
   expect(Number.parseFloat(dialog.borderWidth)).toBeGreaterThanOrEqual(2)
+  const selectedTheme = await page.locator('.shared-theme-control .theme-control__option:has(input:checked)').evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth }
+  })
+  expect(selectedTheme.outlineStyle).toBe('solid')
+  expect(Number.parseFloat(selectedTheme.outlineWidth)).toBeGreaterThanOrEqual(2)
   const controlBorders = await page.locator('.shared-viewer-tools button, .share-menu, .share-rail-heading button').evaluateAll((elements) =>
     elements.map((element) => {
       const style = getComputedStyle(element)
@@ -390,7 +396,7 @@ test('keeps shared slide selection and drawer focus visible in forced colors', a
     expect(Number.parseFloat(border.borderWidth)).toBeGreaterThanOrEqual(1)
   }
   await expect(page.getByRole('button', { name: /Colon adenocarcinoma/ })).toHaveAttribute('aria-current', 'page')
-  await info.attach('forced-colors-shared-viewer', { body: JSON.stringify({ focus, dialog }), contentType: 'application/json' })
+  await info.attach('forced-colors-shared-viewer', { body: JSON.stringify({ focus, dialog, selectedTheme }), contentType: 'application/json' })
 })
 
 test('keeps one viewer, stable handlers and bounded caches through 20 viewport cycles', async ({ page }, info) => {

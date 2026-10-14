@@ -296,8 +296,10 @@ test('metadata, filters, folder share rotation, trash and restore persist', asyn
     await navigatorTrigger.click()
     await expect(navigatorTrigger).toHaveAttribute('aria-expanded', 'true')
     const sharedSearch = collectionViewer.getByRole('searchbox', { name: 'Search shared slides', exact: true })
-    const sharedSlides = collectionViewer.getByRole('dialog', { name: 'Shared slides', exact: true })
+    const sharedSlides = collectionViewer.locator('#shared-slide-rail')
     await expect(sharedSearch).toBeVisible()
+    await expect(sharedSlides).toHaveAttribute('role', 'dialog')
+    await expect(sharedSlides).toHaveAttribute('aria-modal', 'true')
     await expect.poll(() => sharedSlides.evaluate((element) => Math.round(element.getBoundingClientRect().left))).toBe(0)
     await testInfo.attach('collection-viewer-mobile-navigator-open.png', {
       contentType: 'image/png', body: await collectionViewer.screenshot(),
