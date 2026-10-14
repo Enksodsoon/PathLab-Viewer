@@ -41,9 +41,9 @@ for (const target of ['folder', 'collection'] as const) {
       await expect(exit).toBeFocused()
       await page.keyboard.press('Enter')
       await expect(page).toHaveURL(/\/admin$/)
-      await expect(page.getByRole('heading', { name: 'Administrator sign in' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
       await page.reload()
-      await expect(page.getByRole('heading', { name: 'Administrator sign in' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
     })
   }
 }

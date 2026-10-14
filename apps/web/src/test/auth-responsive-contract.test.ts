@@ -19,9 +19,12 @@ describe('mobile authentication control contract', () => {
     )
   })
 
-  it('collapses the split authentication layout without hiding the theme control', () => {
+  it('keeps the phone layout fluid and the theme control available', () => {
     expect(authCss).toMatch(
-      /@media \(max-width:940px\)\s*\{[\s\S]*?\.auth-layout\s*\{[^}]*grid-template-columns:1fr/,
+      /@media \(max-width:767px\)\s*\{[\s\S]*?\.auth-layout\s*\{[^}]*padding-inline:24px/,
+    )
+    expect(authCss).toMatch(
+      /@media \(max-width:767px\)\s*\{[\s\S]*?\.auth-form-wrap\s*\{[^}]*width:min\(460px,100%\)/,
     )
     expect(authCss).toMatch(
       /@media \(max-width:520px\)\s*\{[\s\S]*?\.auth-panel-header\s*\{[^}]*padding:18px/,

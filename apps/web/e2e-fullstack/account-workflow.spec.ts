@@ -46,7 +46,7 @@ test('synthetic account validates, changes password, signs out and signs back in
   const code = execFileSync(process.env.PATHLAB_E2E_PYTHON!, ['-c',
     'from wsi_viewer.cli import main; main()', 'issue-recovery-code', '--username', username],
   { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
-  await page.getByRole('button', { name: 'Recover administrator access', exact: true }).click()
+  await page.getByRole('button', { name: 'Forgot password?', exact: true }).click()
   await page.getByLabel('Username', { exact: true }).fill(username)
   await page.getByLabel('Recovery code', { exact: true }).fill(code)
   await page.getByLabel('New password', { exact: true }).fill(original)
