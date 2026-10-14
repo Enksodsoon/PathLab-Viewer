@@ -28278,7 +28278,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-landscape-v2.png",
         "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-portrait-v2.png"
       ],
-      "ref": "pathlab:source:54204d0ba6708c1715d73d1db874c5d5b6127e2a"
+      "ref": "pathlab:source:bfe467d16767a67fdaf03a1afc469374f7d46afd"
     },
     {
       "dependsOn": [],
@@ -30779,15 +30779,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:54204d0ba6708c1715d73d1db874c5d5b6127e2a",
+      "bom-ref": "pathlab:source:bfe467d16767a67fdaf03a1afc469374f7d46afd",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/54204d0ba6708c1715d73d1db874c5d5b6127e2a"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/bfe467d16767a67fdaf03a1afc469374f7d46afd"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/54204d0ba6708c1715d73d1db874c5d5b6127e2a"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/bfe467d16767a67fdaf03a1afc469374f7d46afd"
         }
       ],
       "licenses": [
@@ -30818,13 +30818,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@54204d0ba6708c1715d73d1db874c5d5b6127e2a",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@bfe467d16767a67fdaf03a1afc469374f7d46afd",
       "type": "application",
-      "version": "54204d0ba6708c1715d73d1db874c5d5b6127e2a"
+      "version": "bfe467d16767a67fdaf03a1afc469374f7d46afd"
     },
-    "timestamp": "2026-10-14T15:39:44Z"
+    "timestamp": "2026-10-14T16:55:00Z"
   },
-  "serialNumber": "urn:uuid:54204d0b-a670-4c17-a5d7-3d1db874c5d5",
+  "serialNumber": "urn:uuid:bfe467d1-6767-467f-aaf0-3a1afc469374",
   "specVersion": "1.6",
   "version": 1
 }
