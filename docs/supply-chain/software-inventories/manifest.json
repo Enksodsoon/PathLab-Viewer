@@ -2,38 +2,38 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "d3c0a74db48e7123022880d69333d3ea3a424a81db79787628990a011945a0da",
-      "sizeBytes": 1462532
+      "sha256": "812c3eaf0b6856f3fc0f56f9af2d8a44c180566705d00747f5b2224dc24d927e",
+      "sizeBytes": 1465796
     },
     {
       "path": "build.cdx.json",
-      "sha256": "86a65f66f1c1bf8d38e0110a329dbb4ca9be2e8b72f969a3ee7853af140a6092",
-      "sizeBytes": 733369
+      "sha256": "fc97fd316b4952fdfcef8ad9d81ef977a9af15cf8df824f732dcb438a963d53e",
+      "sizeBytes": 743973
     },
     {
       "path": "build.spdx.json",
-      "sha256": "005f102021e586ac4b6728898ff8ec5d0cb91f925ea84a0989312b30e92269bd",
-      "sizeBytes": 592872
+      "sha256": "bdb5aaf46181e95d63486aa460b53175553871cf133d3f97acfb6b21daaa0f46",
+      "sizeBytes": 601056
     },
     {
       "path": "source.cdx.json",
-      "sha256": "fb9ca82d5b92f942315b6f97d2de89c02929749ca6a54cc7411483ebac39c43f",
-      "sizeBytes": 775923
+      "sha256": "aad98f57bb991d2aadad0fcde45d916b0ae727e6a4fc66f50accb64fe2b67360",
+      "sizeBytes": 786527
     },
     {
       "path": "source.spdx.json",
-      "sha256": "efc2524e76da6d866c4016dc065860472b371e6d1708b71b264160bb8303060c",
-      "sizeBytes": 626522
+      "sha256": "70a148dc128cd92d3936358bf59de3a8314592aad62535a5c1d6a862c819bad7",
+      "sizeBytes": 634706
     }
   ],
   "coverage": {
-    "assetRecordIdsSha256": "7f883f9fd96259e5f10c472db1b3e885dc8935d193a294c35e3b4379678a6923",
-    "assetRecords": 16,
-    "buildComponents": 578,
+    "assetRecordIdsSha256": "f2969745010df79f53185238e3624b11e9865a8c6a194e4d59bddcfdd420a0da",
+    "assetRecords": 24,
+    "buildComponents": 586,
     "currentShippedInputs": 177,
     "dependencyRecordIdsSha256": "5c4ff4d13c00c9c0bcb5bda924e0df1d716c910bb73477bd4b0a0747554f9fa9",
     "dependencyRecords": 586,
-    "sourceComponents": 616,
+    "sourceComponents": 624,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
     "toolchainRecords": 14
   },
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-08T05:44:16Z",
+  "generatedAt": "2026-10-14T15:39:44Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -117,9 +117,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "1b1d6bbc5a83c9134c3ceadbd836755a2e567ad1",
+      "gitBlob": "10c999ffc84a14322c52e00f888b7f4efa859ea0",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "9b7b477f5e10b358be5b6b793d2a924d3a8605ca6aadcf8d36caec557f601000",
+      "sha256": "382b27bef0b909450de3f0bec8312b18b4813297dfff06e595229270b89b2a98",
       "sizeBytes": 828490
     },
     {
@@ -141,16 +141,16 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "5cf29321d9f52002b80a8a97d617cbcffc95437b",
+      "gitBlob": "8b2fe49e7a329073a576d316350e6a6b71396386",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "4d8432ee184c950ea9ccfa734e87f07e55f95c3f1cafae3f8e3423b83cd3c7bd",
-      "sizeBytes": 39897
+      "sha256": "07e2a261f634cf6fa1fea61f0c71d69c6040f0964020944ce457e794cff4c9c2",
+      "sizeBytes": 47961
     },
     {
-      "gitBlob": "15db60aa4b9cc31865d5f3f41c7e9778356fddfe",
+      "gitBlob": "b6ec98a893c5309b8d6cd9d6da8e6819d3a3a765",
       "path": "docs/supply-chain/asset-rights-policy.json",
-      "sha256": "8ceb3d5bcd367e82f7d548249c2603aae642724c6e8b7f53299744bd019763a1",
-      "sizeBytes": 22180
+      "sha256": "4eca609f148895515d34d035fb7d49d5801e8b23ea8fb1f0aa0af1ac0c15c614",
+      "sizeBytes": 29680
     },
     {
       "gitBlob": "af30697f5a3e349216d314b321e8b1e77fc0faf9",
@@ -171,10 +171,10 @@
       "sizeBytes": 37287
     },
     {
-      "gitBlob": "2462116837508e5b7b318cc2e42b5cb594f88ffe",
+      "gitBlob": "9d0f0990a7163788be58b23a792e3cb51ff71926",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "eb37ac1ca2eed96db78e9e99c7f602de7c57acce8c47a3051ad96754f63ad67d",
-      "sizeBytes": 873277
+      "sha256": "43fedb33bdb8aeaaa6e327fde2febf55a7126f3b3418759918fc797d9fe0d4ab",
+      "sizeBytes": 876545
     },
     {
       "gitBlob": "6c7192807d6a2acc031d812cf3807ed758eb49d7",
@@ -1572,6 +1572,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "7ce9f0617a6708893cc4964b4501538dd35d8269",
-  "subjectTree": "651439eb00dc3e631f748aaaa49a1769e03dc18a"
+  "subjectCommit": "54204d0ba6708c1715d73d1db874c5d5b6127e2a",
+  "subjectTree": "d55fce6a8f9dadb460e65e046a5ac9006fa9f2cf"
 }

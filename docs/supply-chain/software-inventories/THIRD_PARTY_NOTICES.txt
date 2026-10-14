@@ -30696,3 +30696,75 @@ Admission: ADMITTED
 Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_tdDaJBLLM4J0WkMqb6sxvmlJ, source-to-WebP reproduction verified byte-for-byte.
 Blockers: NONE
 Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-dark-desktop-v2.png
+Name: apps/web/src/assets/auth-login-dark-desktop-v2.png
+Version: fa9c00d499374ac6
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-dark-mobile-v2.png
+Name: apps/web/src/assets/auth-login-dark-mobile-v2.png
+Version: 5a7c3464ddbcd0e5
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png
+Name: apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png
+Version: 2fadd8040f2db9d6
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png
+Name: apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png
+Version: 49f0bbf30da77979
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-light-desktop-v2.png
+Name: apps/web/src/assets/auth-login-light-desktop-v2.png
+Version: 60066497285db614
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-light-mobile-v2.png
+Name: apps/web/src/assets/auth-login-light-mobile-v2.png
+Version: 4043f54f61f81169
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-light-tablet-landscape-v2.png
+Name: apps/web/src/assets/auth-login-light-tablet-landscape-v2.png
+Version: 98d8e2a284d190c7
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-login-light-tablet-portrait-v2.png
+Name: apps/web/src/assets/auth-login-light-tablet-portrait-v2.png
+Version: ef36a95f8d72a937
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json and apps/web/src/assets/auth-login-README.md; exact output SHA-256 recorded.
+Blockers: NONE
+Notice files: NONE RECORDED
