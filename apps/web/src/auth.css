@@ -584,7 +584,7 @@
   }
 
   .auth-visual::after {
-    background:linear-gradient(180deg,var(--solace-canvas),color-mix(in srgb,var(--solace-canvas) 98%,transparent) 56%,transparent 85%);
+    background:linear-gradient(180deg,var(--solace-canvas) 0%,var(--solace-canvas) 82%,color-mix(in srgb,var(--solace-canvas) 98%,transparent) 94%,transparent 100%);
   }
 
   .recovery-mode .auth-visual::after {
