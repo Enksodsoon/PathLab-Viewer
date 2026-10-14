@@ -155,7 +155,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
     } else {
       expect(new URL(page.url()).pathname, `Route did not resolve: ${item.route}`).toBe(new URL(item.route, page.url()).pathname)
     }
-    await expect(page.getByRole('heading', { name: 'Administrator sign in' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toHaveCount(0)
     const marker = item.redirect
       ? page.getByRole('tab', { name: item.marker, exact: true })
       : item.heading === false
@@ -227,7 +227,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
     const item = routes[routeIndex]
     const target = item?.route ?? '/pathlab-qa-unmatched-route'
     await page.goto(target, { waitUntil: 'domcontentloaded' })
-    if (await page.getByRole('heading', { name: 'Administrator sign in', exact: true }).count()) {
+    if (await page.getByRole('heading', { name: 'Welcome back', exact: true }).count()) {
       await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
       await page.goto(target, { waitUntil: 'domcontentloaded' })
     }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-08T05:43:28.945077Z",
+  "generatedAt": "2026-10-14T19:10:58.994140Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -12852,7 +12852,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "7acaab0b6391afb5c670cc103179baed55d7b413b28313d8c94caf560f045465",
+      "metadataSha256": "eded414070d21ac11a97b69fa129dd7d5d80b9713020a451748efafbe83c773d",
       "name": "aiohttp",
       "noticeFiles": [
         {
@@ -13921,7 +13921,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "fe896f743d5719b0392d44098ba739e24c991e6543d65d700ddb3b21a10fc760",
+      "metadataSha256": "aa073e64c72187f4b6466efc3541c266c59760d6a56baf1cf7bb461c831c9a9e",
       "name": "fastapi",
       "noticeFiles": [
         {
@@ -14333,7 +14333,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "97560d8be02630233207e675069a575cfb84fc10aa03c1bceb7c69c19b2cbeae",
+      "metadataSha256": "e698f95358eb28b7cf1d1c0d33362c65e7aca3ca4613fecfc997362b7a8e6b78",
       "name": "httptools",
       "noticeFiles": [
         {
@@ -15062,7 +15062,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "19b3cc3ace93ce2c0c093fe7fa83f6873716773326ce1520438de133b6c13224",
+      "metadataSha256": "35dfa27a368babee3240617789a038e8071315872c1dc0d5972988f7c8d947d1",
       "name": "multidict",
       "noticeFiles": [
         {
@@ -15157,7 +15157,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "497ade587d7c2cad83a918ca79b9776dbde9eddf4c0abddbfb637b27160e87a9",
+      "metadataSha256": "266743e285c53adfd706a3850b9fecd125c8cab8cb0bb6a006f98ce5869e7804",
       "name": "numpy",
       "noticeFiles": [
         {
@@ -15208,7 +15208,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "fc4a069081946bbc852a9679def67be88545f372e4d8707489dac61f02ff9f35",
+      "metadataSha256": "28828d2fac1d3672707f6cde362a1a6c229f115ea4d4184744d42149cc4bb394",
       "name": "oci-cli",
       "noticeFiles": [
         {
@@ -15239,7 +15239,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "e905e1a842e9f6383ae30a032ad77d04e707729a2fedfaac9bf861a2790b09ec",
+      "metadataSha256": "4e7983121245cc9a25a2ce630ecdc716496daaa27d16ee19b328e4bf4fc058c2",
       "name": "oci",
       "noticeFiles": [
         {
@@ -15675,7 +15675,7 @@
         "deploy/backend-requirements.txt",
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "116983f7de9bda289946d08200ba1bd7b832547f151165c12bd87d6b8e59b015",
+      "metadataSha256": "5eb63b17852f6bec41e2ea542377ae6ad61185467916bf9947eb24f86c0fd132",
       "name": "pycparser",
       "noticeFiles": [
         {
@@ -15824,7 +15824,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "5b5b7b259b0b98f2594f92cb9255a1ce3ec978608a81def66193e77f65212a1c",
+      "metadataSha256": "6cbd39a49f9c7e2dfc8b96f6955d9b9b275ba6f36cacab0e9a863937e99fd8ac",
       "name": "pydantic-core",
       "noticeFiles": [
         {
@@ -15886,7 +15886,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "646b7fd5cf2763825e26b0fbb35835d33c4218cedb611efb9106f06109960608",
+      "metadataSha256": "ee8d7b120e2fe3936f379f69e2cee481d0122c1a0df4bcfbf3220e3b01add065",
       "name": "pydantic-settings",
       "noticeFiles": [
         {
@@ -15917,7 +15917,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "201fdebc5da596df2df23805e8f2b6386888fad4c396dadc48c1c297a61431a5",
+      "metadataSha256": "20a994795e3341324a7da30ae19b815669c2bf1722c5077089cfdc379215009d",
       "name": "pydantic",
       "noticeFiles": [
         {
@@ -16548,7 +16548,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "3c8a35b55ca178a7db904e8b69b155fd1146e56bd958623642cf533c78491e5c",
+      "metadataSha256": "0528a21dcf5ccfb3e12a9972f051a950ec41fecd58f8136c795f089c3610b533",
       "name": "starlette",
       "noticeFiles": [
         {
@@ -18150,9 +18150,9 @@
       "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
     },
     {
-      "gitBlob": "2462116837508e5b7b318cc2e42b5cb594f88ffe",
+      "gitBlob": "29fde3347b68d89690a7ec12bb03d9c0b43f5f3a",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "eb37ac1ca2eed96db78e9e99c7f602de7c57acce8c47a3051ad96754f63ad67d"
+      "sha256": "eda974b319de396c143cbb3b0dc08663ad74a7b976013b8f89b18f98e4baacca"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19150,6 +19150,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "e21a322b0f19a497e144a2bf3bdffed763631976",
-  "subjectTree": "b186d37141d28f5e216bd077c605b7f878357708"
+  "subjectCommit": "e5a0e85d531e8c87fb74b88e59ee3869cad46375",
+  "subjectTree": "7e103e1a9d01fa49132ac23138dc01b290ed03c3"
 }

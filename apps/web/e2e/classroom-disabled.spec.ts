@@ -10,7 +10,7 @@ test('disabled ordinary admin entry loads no classroom request or page bundle', 
   }))
 
   await page.goto('/admin')
-  await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
 
   const resources = await page.evaluate(() => performance.getEntriesByType('resource')
     .map((entry) => entry.name))

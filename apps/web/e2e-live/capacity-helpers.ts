@@ -139,7 +139,7 @@ export async function signIn(
   password: string,
 ): Promise<void> {
   await page.goto('/admin')
-  const heading = page.getByRole('heading', { name: 'Administrator sign in' })
+  const heading = page.getByRole('heading', { name: 'Welcome back' })
   await expect(heading).toBeVisible({ timeout: 30_000 })
   await page.getByLabel('Username', { exact: true }).fill(username)
   await page.getByLabel('Password', { exact: true }).fill(password)

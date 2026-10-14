@@ -78,6 +78,108 @@
       },
       "reproductionVerified": "BYTE_FOR_BYTE",
       "privacyReview": "Synthetic generation; dark prompt used no input image; light input was the generated dark image. Both original outputs visually inspected; no names, labels, or patient source material."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-dark-desktop-v2.png",
+      "contentSha256": "fa9c00d499374ac61ce08547e7ef2703559f475cb17b72a49e85c111a9895d86",
+      "sizeBytes": 2083182,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Generated for widescreen login layouts from the approved PathLab login art direction.",
+      "inputImages": [],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png",
+      "contentSha256": "2fadd8040f2db9d698af6111350aa674bae4e8273ed746ec8a01020f09b841d1",
+      "sizeBytes": 1913075,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Regenerated from the corresponding supplied tablet-landscape concept artwork.",
+      "inputImages": [
+        {
+          "source": "PathLab_Login_Asset_Pack_v1/assets/hero/hero-dark-tablet-landscape-1366x1024.png",
+          "sha256": "3c809d24863b40ad310af0511d8ebf4d3ffd67cd4bd1e3ec8faa5fbee93c2b7a"
+        }
+      ],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-dark-mobile-v2.png",
+      "contentSha256": "5a7c3464ddbcd0e5c918a8640ad0d388a97895f761e24385d2712eaddf4d4662",
+      "sizeBytes": 1888606,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Generated from the corresponding tablet-landscape v2 artwork.",
+      "inputImages": [
+        {
+          "source": "auth-login-dark-tablet-landscape-v2.png",
+          "sha256": "2fadd8040f2db9d698af6111350aa674bae4e8273ed746ec8a01020f09b841d1"
+        }
+      ],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png",
+      "contentSha256": "49f0bbf30da7797952eca7a8e09419b73364239bb55bcea90bb8f0ae900eb0a7",
+      "sizeBytes": 1883433,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Generated from the corresponding mobile v2 artwork.",
+      "inputImages": [
+        {
+          "source": "auth-login-dark-mobile-v2.png",
+          "sha256": "5a7c3464ddbcd0e5c918a8640ad0d388a97895f761e24385d2712eaddf4d4662"
+        }
+      ],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-light-desktop-v2.png",
+      "contentSha256": "60066497285db614bfa9bb9c3d0d67a61a3637fdba0953170e74b6ecc21ece64",
+      "sizeBytes": 2067436,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Generated for widescreen login layouts from the approved PathLab login art direction.",
+      "inputImages": [],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-light-tablet-landscape-v2.png",
+      "contentSha256": "98d8e2a284d190c7d72c122a95acc7a9ac2176e4baed743c0cfcf666f5b8c2e6",
+      "sizeBytes": 2113281,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Regenerated from the corresponding supplied tablet-landscape concept artwork.",
+      "inputImages": [
+        {
+          "source": "PathLab_Login_Asset_Pack_v1/assets/hero/hero-light-tablet-landscape-1366x1024.png",
+          "sha256": "578cd9360fc8bb75ca4f37dcf27c1d4600b8c33fdcd3b3c7f4a431aff7ca909a"
+        }
+      ],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-light-mobile-v2.png",
+      "contentSha256": "4043f54f61f8116963fb5d05c7553a97de36541d328b0468c2b5af94868ee20a",
+      "sizeBytes": 2007628,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Generated from the corresponding tablet-landscape v2 artwork.",
+      "inputImages": [
+        {
+          "source": "auth-login-light-tablet-landscape-v2.png",
+          "sha256": "98d8e2a284d190c7d72c122a95acc7a9ac2176e4baed743c0cfcf666f5b8c2e6"
+        }
+      ],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-login-light-tablet-portrait-v2.png",
+      "contentSha256": "ef36a95f8d72a937b101aced982a205217a37140f62a9a47ae5c4689576dfd0e",
+      "sizeBytes": 1995482,
+      "tool": "OpenAI imagegen",
+      "sourceDescription": "Generated from the corresponding mobile v2 artwork.",
+      "inputImages": [
+        {
+          "source": "auth-login-light-mobile-v2.png",
+          "sha256": "4043f54f61f8116963fb5d05c7553a97de36541d328b0468c2b5af94868ee20a"
+        }
+      ],
+      "privacyReview": "Decorative synthetic concept art; no patient images, identifiers, clinical labels, or UI text."
     }
   ],
   "inlineArtwork": [
@@ -92,6 +194,15 @@
       "contentSha256": "1e1b9a7762e2ac81f927d69e83ddb48e0079f1f3d33835db95c2013220cd78d4",
       "auditedSourceBlob": "2bd6c0e1948950c54da81ea2d2111675c73fc74a",
       "ownershipBasis": "Exact source blob covered by the verified signed source-ownership receipt; not an excluded binary image."
+    }
+  ],
+  "additionalOwnerApprovals": [
+    {
+      "date": "2026-10-14",
+      "channel": "Codex conversation after review of the local PathLab Viewer preview",
+      "statement": "it is good enough now. I want you to make sure it is good enough and open PR and merge and deploy",
+      "scope": "Use and distribution in the public PathLab Viewer repository and shipped Viewer runtime of the eight exact regenerated responsive v2 login images listed in this receipt. The images are decorative concept artwork derived from the user-supplied PathLab Login Asset Pack v1; no approval for unrelated artwork or clinical use is implied.",
+      "recordType": "Recorded conversational approval; not a cryptographic signature"
     }
   ]
 }

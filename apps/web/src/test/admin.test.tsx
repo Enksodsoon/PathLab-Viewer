@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -49,14 +49,21 @@ function renderAuthPanel(props: { onSuccess: () => void; notice?: string }) {
 describe('PathLab brand', () => {
   it('uses an original tissue-layer mark while retaining the accessible product name', () => {
     const view = render(<Brand variant="library" />)
-    const brand = screen.getByLabelText('PathLab Viewer')
+    const brand = screen.getByRole('img', { name: 'PathLab Viewer' })
     const mark = within(brand).getByTestId('pathlab-tissue-mark')
 
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
+    expect(brand.querySelector('.brand-name')).toHaveTextContent('PathLab')
+    expect(brand.querySelector('.brand-product')).toHaveTextContent('Viewer')
     expect(mark.tagName).toBe('svg')
     expect(mark).toHaveAttribute('aria-hidden', 'true')
     expect(mark.querySelectorAll('[data-tissue-layer]')).toHaveLength(3)
     expect(mark).not.toHaveAttribute('aria-label')
+  })
+
+  it('uses the selected product name in the accessible brand label', () => {
+    render(<Brand product="Study" />)
+    expect(screen.getByRole('img', { name: 'PathLab Study' })).toBeInTheDocument()
   })
 })
 
@@ -64,14 +71,44 @@ describe('administrator authentication', () => {
   it('presents the redesigned PathLab landing experience', () => {
     const view = renderAuthPanel({ onSuccess: vi.fn() })
 
-    expect(screen.getByRole('heading', { name: /see the whole picture/i })).toBeVisible()
-    expect(screen.getByRole('heading', { name: /administrator sign in/i })).toBeVisible()
-    expect(screen.getByText(/built for detail\. designed for focus\./i)).toBeVisible()
+    expect(screen.getByRole('heading', { name: /a closer perspective/i })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
+    expect(view.container.querySelector('.auth-footnote')).not.toBeInTheDocument()
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Theme preference' })).toBeVisible()
     expect(screen.getAllByTestId('pathlab-tissue-mark')).toHaveLength(1)
     expect(screen.getByRole('button', { name: /enter workspace/i })).toBeVisible()
-    expect(screen.getByRole('button', { name: /recover administrator access/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Forgot password?' })).toBeVisible()
+    expect(screen.getByLabelText(/^username$/i)).toHaveValue('')
+    expect(screen.getByLabelText(/^username$/i)).toHaveAttribute('placeholder', 'admin')
+    expect(screen.getByLabelText(/^password$/i)).toHaveValue('')
+    expect(screen.getByLabelText(/^password$/i)).toHaveAttribute('placeholder', '••••••••')
+  })
+
+  it('submits once on Enter, calls success, and clears the password', async () => {
+    let finishLogin: ((response: Response) => void) | undefined
+    const request = vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise((resolve) => {
+      finishLogin = resolve
+    }))
+    const onSuccess = vi.fn()
+    renderAuthPanel({ onSuccess })
+    await userEvent.type(screen.getByLabelText(/^username$/i), 'admin')
+    const password = screen.getByLabelText(/^password$/i)
+    await userEvent.type(password, 'test-password')
+    await userEvent.keyboard('{Enter}')
+
+    await waitFor(() => expect(request).toHaveBeenCalledOnce())
+    fireEvent.submit(password.closest('form')!)
+    expect(request).toHaveBeenCalledOnce()
+    expect(password).toHaveValue('test-password')
+    finishLogin?.(jsonResponse({ csrfToken: 'test-csrf' }))
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce())
+    expect(password).toHaveValue('')
+    const [input, init] = request.mock.calls[0] ?? []
+    expect(urlOf(input as RequestInfo)).toBe('/api/v1/auth/session')
+    expect(init?.credentials).toBe('same-origin')
+    expect(JSON.parse(String(init?.body))).toEqual({ username: 'admin', password: 'test-password' })
   })
 
   it('uses a generic sign-in error and clears the password', async () => {
@@ -102,7 +139,7 @@ describe('administrator authentication', () => {
   it('validates recovery confirmation locally and clears secrets', async () => {
     const request = vi.spyOn(globalThis, 'fetch')
     renderAuthPanel({ onSuccess: vi.fn() })
-    await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot password?' }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')
     await userEvent.type(screen.getByLabelText(/confirm new password/i), 'different password')
@@ -112,10 +149,57 @@ describe('administrator authentication', () => {
     expect(request).not.toHaveBeenCalled()
   })
 
+  it('validates Unicode password length by code point and accepts the 12-character boundary', async () => {
+    const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
+    renderAuthPanel({ onSuccess: vi.fn() })
+    await userEvent.type(screen.getByLabelText(/^username$/i), 'admin')
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot password?' }))
+    const code = screen.getByLabelText(/recovery code/i)
+    const password = screen.getByLabelText(/^new password$/i)
+    const confirmation = screen.getByLabelText(/confirm new password/i)
+    const astralPassword = '𐐀'.repeat(11)
+    fireEvent.change(code, { target: { value: 'one-time-secret' } })
+    fireEvent.change(password, { target: { value: astralPassword } })
+    fireEvent.change(confirmation, { target: { value: astralPassword } })
+    fireEvent.submit(password.closest('form')!)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('12–128')
+    expect(request).not.toHaveBeenCalled()
+    fireEvent.change(password, { target: { value: '𐐀'.repeat(12) } })
+    fireEvent.change(confirmation, { target: { value: '𐐀'.repeat(12) } })
+    fireEvent.submit(password.closest('form')!)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Forgot password?' })).toBeVisible())
+    const [input, init] = request.mock.calls[0] ?? []
+    expect(urlOf(input as RequestInfo)).toBe('/api/v1/auth/password/recover')
+    expect(JSON.parse(String(init?.body)).newPassword).toBe('𐐀'.repeat(12))
+  })
+
+  it.each([
+    [429, 'RECOVERY_RATE_LIMITED', 'Too many attempts. Try again later.'],
+    [400, 'INVALID_PASSWORD', 'Use a password between 12 and 128 characters.'],
+    [400, 'INVALID_RECOVERY_CODE', 'Invalid or expired recovery code.'],
+  ])('reports recovery failure safely for status %i and code %s', async (status, code, message) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ detail: { code } }, status))
+    renderAuthPanel({ onSuccess: vi.fn() })
+    await userEvent.type(screen.getByLabelText(/^username$/i), 'admin')
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot password?' }))
+    await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
+    await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')
+    await userEvent.type(screen.getByLabelText(/confirm new password/i), 'correct horse battery')
+    await userEvent.click(screen.getByRole('button', { name: /reset password/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(screen.getByLabelText(/recovery code/i)).toHaveValue('')
+    expect(screen.getByLabelText(/^new password$/i)).toHaveValue('')
+    expect(screen.getByLabelText(/confirm new password/i)).toHaveValue('')
+  })
+
   it('sends only the public recovery contract and returns to sign in', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
     renderAuthPanel({ onSuccess: vi.fn() })
-    await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
+    await userEvent.type(screen.getByLabelText(/^username$/i), 'admin')
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot password?' }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')
     await userEvent.type(screen.getByLabelText(/confirm new password/i), 'correct horse battery')

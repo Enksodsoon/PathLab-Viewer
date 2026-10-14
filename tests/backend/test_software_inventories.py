@@ -32,12 +32,12 @@ def test_checked_in_software_inventories_reconcile_and_repeat() -> None:
 
     assert manifest["coverage"] == {
         "assetRecordIdsSha256": manifest["coverage"]["assetRecordIdsSha256"],
-        "assetRecords": 16,
+        "assetRecords": 24,
         "buildComponents": manifest["coverage"]["buildComponents"],
         "currentShippedInputs": manifest["coverage"]["currentShippedInputs"],
         "dependencyRecordIdsSha256": manifest["coverage"]["dependencyRecordIdsSha256"],
         "dependencyRecords": 586,
-        "sourceComponents": 616,
+        "sourceComponents": 624,
         "toolchainRecordIdsSha256": manifest["coverage"]["toolchainRecordIdsSha256"],
         "toolchainRecords": 14,
     }

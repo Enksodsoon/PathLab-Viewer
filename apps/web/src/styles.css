@@ -16,7 +16,7 @@ html, body, #root { min-height: 100%; margin: 0; }
 button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 h1,h2,h3,p { margin: 0; }
-h1,h2,h3,.brand { font-family:var(--font-ui); }
+h1,h2,h3 { font-family:var(--font-ui); }
 .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .pathlab-status-message {
   --status-color: var(--primary);
@@ -68,10 +68,11 @@ h1,h2,h3,.brand { font-family:var(--font-ui); }
     border-radius: 12px;
   }
 }
-.brand { display:flex; align-items:center; gap:8px; color:var(--ink); font-weight:700; letter-spacing:-.02em; }
-.brand-mark { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; color:var(--primary); background:var(--surface); }
-.brand-mark svg { width:20px; height:20px; }
-.brand-product { color:var(--muted); font-weight:600; }
+.brand { --brand-mark-width:32px; --brand-mark-height:32px; --brand-gap:8px; --brand-name-size:20px; --brand-product-size:9px; width:max-content; display:grid; grid-template-columns:var(--brand-mark-width) auto; align-items:center; column-gap:var(--brand-gap); row-gap:2px; color:var(--ink); }
+.brand-mark { grid-row:1 / span 2; width:var(--brand-mark-width); height:var(--brand-mark-height); display:grid; place-items:center; border-radius:9px; color:var(--primary); background:var(--surface); }
+.brand-mark svg { width:75%; height:75%; }
+.brand-name { grid-column:2; align-self:end; color:inherit; font:600 var(--brand-name-size)/.86 var(--font-display); letter-spacing:-.02em; white-space:nowrap; }
+.brand-product { grid-column:2; align-self:start; color:var(--muted); font:400 var(--brand-product-size)/1.2 var(--font-ui); letter-spacing:.3em; text-transform:uppercase; white-space:nowrap; }
 .topbar,.viewer-header { height:68px; background:white; border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 clamp(20px,4vw,64px); }
 .topbar { justify-content:space-between; }
 .topbar-actions,.secure-dot { display:flex; align-items:center; gap:10px; }
@@ -340,9 +341,11 @@ button .pathlab-loader__label { color:currentColor; }
 }
 
 .viewer-header .brand-library {
-  gap:7px;
-  font:600 16px/1 var(--font-ui);
-  letter-spacing:-.025em;
+  --brand-mark-width:40px;
+  --brand-mark-height:40px;
+  --brand-gap:7px;
+  --brand-name-size:16px;
+  --brand-product-size:8px;
 }
 
 .viewer-header .brand-library .brand-mark {
@@ -352,10 +355,6 @@ button .pathlab-loader__label { color:currentColor; }
   border-radius:12px;
   color:var(--primary);
   background:var(--surface);
-}
-
-.viewer-header .brand-library .brand-product {
-  font-weight:500;
 }
 
 .viewer-theme-control {
@@ -479,10 +478,12 @@ button .pathlab-loader__label { color:currentColor; }
 }
 
 .auth-story .brand-library {
-  gap:12px;
+  --brand-mark-width:52px;
+  --brand-mark-height:52px;
+  --brand-gap:12px;
+  --brand-name-size:clamp(22px,2vw,30px);
+  --brand-product-size:10px;
   color:#f2eadc;
-  font:600 clamp(22px,2vw,30px)/1 var(--font-ui);
-  letter-spacing:-.025em;
 }
 
 .auth-story .brand-library .brand-mark {
@@ -494,18 +495,12 @@ button .pathlab-loader__label { color:currentColor; }
   background:#0c0b0acc;
 }
 
-.auth-story .brand-library .brand-mark svg {
-  width:28px;
-  height:28px;
-}
-
-.auth-story .brand-library > span:nth-child(2) {
+.auth-story .brand-library .brand-name {
   color:#f2eadc;
 }
 
 .auth-story .brand-library .brand-product {
   color:#f2eadc;
-  font-weight:500;
 }
 
 .auth-story-copy {
@@ -723,25 +718,6 @@ button .pathlab-loader__label { color:currentColor; }
   height:18px;
 }
 
-.auth-footnote {
-  width:min(480px,100%);
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-top:54px;
-  padding-top:28px;
-  border-top:1px solid var(--border);
-  color:var(--muted);
-  font-size:13px;
-  line-height:1.45;
-}
-
-.auth-footnote svg {
-  width:26px;
-  height:26px;
-  flex:0 0 auto;
-}
-
 .recovery-mode {
   overflow:auto;
 }
@@ -768,10 +744,6 @@ button .pathlab-loader__label { color:currentColor; }
 
 .recovery-mode .login-card {
   gap:14px;
-}
-
-.recovery-mode .auth-footnote {
-  margin-top:26px;
 }
 
 @media (max-width:820px) {
@@ -802,19 +774,14 @@ button .pathlab-loader__label { color:currentColor; }
   }
 
   .auth-story .brand-library {
-    gap:10px;
-    font-size:23px;
+    --brand-mark-width:50px;
+    --brand-mark-height:50px;
+    --brand-gap:10px;
+    --brand-name-size:23px;
   }
 
   .auth-story .brand-library .brand-mark {
-    width:50px;
-    height:50px;
     border-radius:12px;
-  }
-
-  .auth-story .brand-library .brand-mark svg {
-    width:24px;
-    height:24px;
   }
 
   .auth-story-copy {
@@ -880,10 +847,6 @@ button .pathlab-loader__label { color:currentColor; }
     min-height:44px;
   }
 
-  .auth-footnote {
-    margin-top:24px;
-    padding-top:20px;
-  }
 }
 
 @media (max-width:420px) {

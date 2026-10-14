@@ -14,12 +14,12 @@ the current receipt is bound to implementation commit
 `3598ea7359bdbe57c57c9e59f945d233aa12145a`.
 
 The authoritative machine-readable record is
-[`dependency-inventory.json`](dependency-inventory.json). It contains 582 unique records:
+[`dependency-inventory.json`](dependency-inventory.json). It contains 586 unique records:
 
 - 451 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
   packages;
-- 73 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
-- 58 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
+- 78 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
+- 57 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
   tools, planned production inputs, models and model runtimes, and standards artifacts. The exact
   bundled font, icon, and WASM runtime packages are among the npm records and are required by the
   offline validator.
@@ -31,9 +31,15 @@ artifacts against checked-in hashes, and hashed license/notice files contained i
 The checked-in inventory does not treat registry metadata alone as final legal approval:
 `RECORDED_UNREVIEWED` means mechanically captured and still subject to P0-T05A/P0-T06 review.
 
+On 2026-10-15, the inventory was refreshed for the responsive login artwork and 52px input-height fix.
+The browser qualification receipt covers source commit `d35d6f1002767ad3408c1ce030f934092a08c745`.
+This inventory is bound to receipt commit `8620ab7a68a87d7efcb8a314725ab2efc56556bf`. It retains
+the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
+`RECORDED_UNREVIEWED`.
+
 ## Fail-closed findings
 
-119 records are `BLOCKED`. The material blockers are:
+118 records are `BLOCKED`. The material blockers are:
 
 - P0-T04 removed `combine-errors@3.0.3` and its now-unused transitive path. The current lock and
   inventory reject its reintroduction; `tus-js-client@4.3.1` remains exact, MIT-licensed, and
@@ -74,16 +80,16 @@ patched tus snapshot and patch digest.
 Regenerate only when network retrieval is intentionally allowed:
 
 ```text
-python scripts/generate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
+python scripts/generate_dependency_inventory.py --subject 8620ab7a68a87d7efcb8a314725ab2efc56556bf
 ```
 
 Validate offline on every candidate head:
 
 ```text
-python scripts/validate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
+python scripts/validate_dependency_inventory.py --subject 8620ab7a68a87d7efcb8a314725ab2efc56556bf
 python scripts/validate_combine_errors_removal.py
 python -m pytest -q tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
 ```
 
-The current inventory subject is the exact implementation commit immediately before receipt
+The current inventory subject is the exact commit that contains the browser receipt before inventory
 generation. Later tasks must create new evidence rather than silently rebinding this receipt.
