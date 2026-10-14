@@ -4,15 +4,13 @@
 
 The implementation generates deterministic SPDX 2.3 and CycloneDX 1.6 source/build inventories,
 a human-readable third-party notice bundle, and a hash-bound manifest from the existing dependency,
-toolchain, and asset-rights ledgers. The reference inventory subject is implementation commit
-`9d567726f0c7206fe67e7e1273072eda423dc99a` with tree
-`6e2d0a450563fd20faa6568a30f51c4ed23fd4d7`.
+toolchain, and asset-rights ledgers. The current reference inventory subject is implementation commit
+`adeaf3ba033d4a99dfefcaa53a802e6fdf8fedd1` with tree
+`bd9eb0d5108ac7283aa08c73a6cde5d458bcdd38`.
 
-This is an inventory result, not release admission. The reference manifest reports `BLOCKED`:
-all 91 current shipped inputs are either `RECORDED_UNREVIEWED` or explicitly `BLOCKED`. The five
-explicit evidence failures are `guid-typescript@1.0.9`, `onnxruntime-common@1.27.0`,
-`onnxruntime-web@1.27.0`, `splaytree@3.2.3`, and `pillow@12.3.0`. The generator preserves their
-upstream blocker codes. It never promotes them from their authoritative P0-T03 state.
+This is an inventory result, not release admission. The current reference manifest reports
+`BLOCKED`: all 177 current shipped inputs are `RECORDED_UNREVIEWED`. The authoritative dependency
+and rights ledgers retain their own admission states; this generator never promotes them.
 
 The generated Offline Release Kit entry is deliberately
 `CONTRACT_ONLY_NOT_ASSEMBLED`. P1-T22A owns the assembler and must consume a current, admitted
@@ -28,14 +26,14 @@ blockers, the unassembled-kit state, and these generated artifacts:
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `source.spdx.json` | 532890 | `64a447f783c5c1cad38d6175c6466d9572881f71da075c122170d73708391738` |
-| `source.cdx.json` | 660700 | `e815995f8f09fc52ef74345213bd69ef79f53417cfc7c7c0938c1c379a0c581c` |
-| `build.spdx.json` | 506121 | `2b51a2eedad3f9dde0eaf57c6093d0f31f777657089aa6c4f60df1dd89a048fe` |
-| `build.cdx.json` | 626640 | `78a3b63d51c50c87db33796e766920ae0b3fb1b66668d1bd4502617f1c7a5015` |
-| `THIRD_PARTY_NOTICES.txt` | 157432 | `4ca7ec50663e379406cfd7c3845e180dc6b926e0c8342134e70cd68dcd3ef1c5` |
+| `source.spdx.json` | 634706 | `c318cad2ae79c5b64a926642a882d2c245459b553ecd9456fc89400c4169e7ec` |
+| `source.cdx.json` | 786527 | `eb3ff134018c99a824dc363de467d89d28e3e2b47c74efb36d2fafc876d43ba7` |
+| `build.spdx.json` | 601056 | `ae34c8177f22a29f8a5e4a5a38028028fd03bcb867c6efd2ffffedd438965c16` |
+| `build.cdx.json` | 743973 | `f210114e3eb98acbfbfee6532913588a6b9eb6a1abd23e0c24f6e8d917e6887e` |
+| `THIRD_PARTY_NOTICES.txt` | 1465796 | `812c3eaf0b6856f3fc0f56f9af2d8a44c180566705d00747f5b2224dc24d927e` |
 
-The source documents cover 498 dependency records, 14 admitted verification-toolchain records,
-and 8 admitted asset records: 520 components in total. The build documents cover 489 components
+The source documents cover 586 dependency records, 14 admitted verification-toolchain records,
+and 24 admitted asset records: 624 components in total. The build documents cover 586 components
 selected by the recorded build, test, deployment, current-development, and runtime roles. SPDX and
 CycloneDX retain each record's license string, exact version, source/artifact reference, checksum
 when representable, role, distribution, admission state, and blocker list. The notice bundle lists
@@ -71,7 +69,7 @@ From an exact checkout containing the immutable subject:
 
 ```text
 python scripts/generate_software_inventories.py \
-  --subject 9d567726f0c7206fe67e7e1273072eda423dc99a \
+  --subject adeaf3ba033d4a99dfefcaa53a802e6fdf8fedd1 \
   --output <temporary-output>
 python scripts/validate_software_inventories.py
 python -m pytest -q tests/backend/test_software_inventories.py
