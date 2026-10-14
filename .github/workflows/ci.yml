@@ -323,8 +323,8 @@ jobs:
 
   browser:
     runs-on: ubuntu-24.04
-    # The complete 240-case matrix takes about 13 minutes before setup/cleanup.
-    timeout-minutes: 20
+    # The browser matrix takes about 16 minutes on GitHub runners before setup/cleanup.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -339,7 +339,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium firefox webkit
       - name: Run authentication, library, Classroom and viewer browser matrix
-        timeout-minutes: 16
+        timeout-minutes: 20
         env:
           PLAYWRIGHT_PORT: "5217"
         run: >-
