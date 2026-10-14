@@ -6,6 +6,16 @@ const themeCss = readFileSync('src/theme/theme.css', 'utf8')
 const authCss = readFileSync('src/auth.css', 'utf8')
 
 describe('mobile authentication control contract', () => {
+  it('keeps login and recovery inputs at least 50 pixels high', () => {
+    const loginInput = authCss.match(
+      /\.auth-solace-card \.auth-input input\s*\{([^}]*)\}/,
+    )?.[1]
+
+    expect(loginInput).toBeDefined()
+    expect(Number.parseFloat(loginInput?.match(/min-height:\s*([\d.]+)px/)?.[1] ?? '0'))
+      .toBeGreaterThanOrEqual(50)
+  })
+
   it('keeps compact theme choices at least 44 by 44 pixels', () => {
     const compactControl = themeCss.match(
       /\.theme-control--compact \.theme-control__option\s*\{([^}]*)\}/,

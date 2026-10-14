@@ -246,7 +246,7 @@
 .auth-solace-card .auth-input input {
   width:100%;
   min-width:0;
-  min-height:44px;
+  min-height:52px;
   flex:1;
   padding:8px 0;
   border:0;
