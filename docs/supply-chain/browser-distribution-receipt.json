@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "d35d6f1002767ad3408c1ce030f934092a08c745",
-  "subjectTree": "42fe7389b26c8608846b9b664722cae0ffcd54cf",
+  "subjectCommit": "3bb349c0d9221f60f925bf02e27bbac469a3a558",
+  "subjectTree": "71e11bcd8c917f3bb10f136683a73f24fb6d1c99",
   "sourceScopes": [
     "apps/web",
     "packages",
