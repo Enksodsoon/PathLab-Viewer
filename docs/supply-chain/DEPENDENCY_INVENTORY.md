@@ -31,9 +31,10 @@ artifacts against checked-in hashes, and hashed license/notice files contained i
 The checked-in inventory does not treat registry metadata alone as final legal approval:
 `RECORDED_UNREVIEWED` means mechanically captured and still subject to P0-T05A/P0-T06 review.
 
-On 2026-10-14, the inventory was refreshed against browser qualification subject
-`a01f20dbe593885eb2c60c8b23e2fc266450c8a5` after the responsive login assets changed the compiled
-browser. It retains the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
+On 2026-10-14, the inventory was refreshed for the responsive login artwork and mobile contrast fix.
+The browser qualification receipt covers source commit `dae05aa566b7c782f1301913d1fa82c09186ceac`.
+This inventory is bound to receipt commit `bcbb67bcaa46d33a9c75e9ed9877f4d0c052fb28`. It retains
+the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
 `RECORDED_UNREVIEWED`.
 
 ## Fail-closed findings
@@ -79,16 +80,16 @@ patched tus snapshot and patch digest.
 Regenerate only when network retrieval is intentionally allowed:
 
 ```text
-python scripts/generate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
+python scripts/generate_dependency_inventory.py --subject bcbb67bcaa46d33a9c75e9ed9877f4d0c052fb28
 ```
 
 Validate offline on every candidate head:
 
 ```text
-python scripts/validate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
+python scripts/validate_dependency_inventory.py --subject bcbb67bcaa46d33a9c75e9ed9877f4d0c052fb28
 python scripts/validate_combine_errors_removal.py
 python -m pytest -q tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
 ```
 
-The current inventory subject is the exact implementation commit immediately before receipt
+The current inventory subject is the exact commit that contains the browser receipt before inventory
 generation. Later tasks must create new evidence rather than silently rebinding this receipt.
