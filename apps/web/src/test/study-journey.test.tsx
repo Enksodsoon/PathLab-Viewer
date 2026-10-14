@@ -1,13 +1,46 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { clearLocalStudy } from '../study/localStore'
 import { StudyPage } from '../pages/StudyPage'
 
 const api = vi.hoisted(() => ({ getStudySession: vi.fn(), redeemStudyInvitation: vi.fn(), submitStudyTask: vi.fn() }))
+const viewerDouble = vi.hoisted(() => {
+  let item: { viewportToImageCoordinates: () => { x: number; y: number }; getContentSize: () => { x: number; y: number } } | null = null
+  const handlers = new Map<string, () => void>()
+  const viewer = {
+    world: { getItemAt: vi.fn(() => item) },
+    viewport: {
+      getCenter: vi.fn(() => ({ x: 0.25, y: 0.5 })),
+      pointFromPixel: vi.fn((point: { x: number; y: number }) => point),
+    },
+    addHandler: vi.fn((name: string, handler: () => void) => { handlers.set(name, handler) }),
+    removeHandler: vi.fn((name: string, handler: () => void) => { if (handlers.get(name) === handler) handlers.delete(name) }),
+  }
+  return {
+    handlers,
+    viewer,
+    setItem: (next: typeof item) => { item = next },
+    close: () => { item = null; handlers.get('close')?.() },
+  }
+})
 vi.mock('../study/api', async (original) => ({ ...await original<typeof import('../study/api')>(), ...api }))
 vi.mock('../theme/ThemeControl', () => ({ ThemeControl: () => null }))
 vi.mock('../components/Brand', () => ({ Brand: () => null }))
-vi.mock('../components/OpenSeadragonViewer', () => ({ OpenSeadragonViewer: () => <div /> }))
+vi.mock('../components/OpenSeadragonViewer', async () => {
+  const React = await import('react')
+  return { OpenSeadragonViewer: ({ onViewerAttach, tileSource }: { onViewerAttach: (viewer: unknown) => (() => void) | void; tileSource: string }) => {
+    const currentSource = React.useRef(tileSource)
+    React.useEffect(() => {
+      if (currentSource.current !== tileSource) {
+        currentSource.current = tileSource
+        viewerDouble.setItem(null)
+      }
+      return onViewerAttach(viewerDouble.viewer)
+    }, [onViewerAttach, tileSource])
+    return React.createElement('div')
+  } }
+})
+vi.mock('../classroom/ClassroomPinOverlays', () => ({ ClassroomPinOverlays: () => null }))
 vi.mock('../study/localStore', () => ({ loadLocalStudy: async () => ({ records: [] }), appendLocalRecord: async () => [], clearLocalStudy: vi.fn(), verifyCachePersistence: vi.fn() }))
 const session = {
   pseudonym: 'Learner', course: { id: 'course', title: 'Course', status: 'active', endsAt: null },
@@ -16,7 +49,12 @@ const session = {
     { id: 'two', type: 'multiple-choice', slideId: 'slide', prompt: 'Second task', options: ['A', 'B'], hints: [] },
   ] }, progress: [], ai: { eligible: false },
 }
-beforeEach(() => { api.getStudySession.mockResolvedValue(session); vi.stubGlobal('Worker', class { terminate() {} }) })
+beforeEach(() => {
+  viewerDouble.handlers.clear()
+  viewerDouble.setItem(null)
+  api.getStudySession.mockResolvedValue(session)
+  vi.stubGlobal('Worker', class { terminate() {} })
+})
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 it('remains usable when language storage is denied', async () => {
   vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Denied') })
@@ -34,6 +72,60 @@ it('jumps tasks on the same slide and clears the previous answer and hints', asy
   expect((screen.getByLabelText('A') as HTMLInputElement).checked).toBe(false)
   expect(screen.queryByText('First hint')).toBeNull()
   expect(screen.getByLabelText('3: Probable')).toBeTruthy()
+})
+it('waits for image dimensions before capturing the visible center and submits the existing coordinates', async () => {
+  const spatialSession = {
+    ...session,
+    pack: {
+      ...session.pack,
+      slides: [...session.pack.slides, { viewerSlideId: 'slide-2', tileSource: '/second-slide.dzi' }],
+      tasks: [
+        { id: 'spatial', type: 'spatial', slideId: 'slide', prompt: 'Select a region', hints: [] },
+        { id: 'spatial-2', type: 'spatial', slideId: 'slide-2', prompt: 'Select another region', hints: [] },
+      ],
+    },
+  }
+  api.getStudySession.mockResolvedValue(spatialSession)
+  api.submitStudyTask.mockResolvedValue({ status: 'completed', correct: true, attemptCount: 1, explanation: 'Faculty feedback', sources: [] })
+  render(<StudyPage />)
+  await screen.findByText('Select a region')
+
+  const capture = screen.getByRole('button', { name: 'Select centre of visible field' })
+  expect(capture).toBeDisabled()
+  act(() => viewerDouble.handlers.get('open')?.())
+  expect(capture).toBeDisabled()
+  fireEvent.click(capture)
+  expect(screen.queryByText(/Region selected at/)).toBeNull()
+
+  viewerDouble.setItem({
+    viewportToImageCoordinates: () => ({ x: 200, y: 100 }),
+    getContentSize: () => ({ x: 800, y: 400 }),
+  })
+  act(() => viewerDouble.handlers.get('open')?.())
+  expect(await screen.findByRole('button', { name: 'Select centre of visible field' })).toBeEnabled()
+  fireEvent.click(capture)
+  expect(screen.getByText('Region selected at 0.250, 0.250')).toBeVisible()
+
+  act(() => viewerDouble.close())
+  expect(capture).toBeDisabled()
+  fireEvent.click(capture)
+  expect(screen.getByText('Region selected at 0.250, 0.250')).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Check answer' }))
+  await screen.findByText('Faculty feedback')
+  expect(api.submitStudyTask).toHaveBeenCalledWith('spatial', { x: 0.25, y: 0.25 })
+
+  fireEvent.click(screen.getByRole('button', { name: /Task 2.*Pending/ }))
+  await screen.findByText('Select another region')
+  expect(screen.getByRole('button', { name: 'Select centre of visible field' })).toBeDisabled()
+  act(() => viewerDouble.handlers.get('open')?.())
+  expect(screen.getByRole('button', { name: 'Select centre of visible field' })).toBeDisabled()
+  viewerDouble.setItem({
+    viewportToImageCoordinates: () => ({ x: 400, y: 100 }),
+    getContentSize: () => ({ x: 800, y: 400 }),
+  })
+  act(() => viewerDouble.handlers.get('open')?.())
+  expect(screen.getByRole('button', { name: 'Select centre of visible field' })).toBeEnabled()
 })
 it('accepts a pasted issued invitation without inventing a code format', async () => {
   api.getStudySession.mockRejectedValue(new Error('No session'))

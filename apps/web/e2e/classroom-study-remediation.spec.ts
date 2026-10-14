@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
+import { serveSyntheticDzi, visibleSyntheticLandmark } from './fixtures/syntheticDzi'
+import { expectForcedColorsFocus } from './fixtures/forcedColors'
 
 test.setTimeout(60_000)
 const sizes = [{ width: 320, height: 740 }, { width: 768, height: 1024 }, { width: 740, height: 360 }]
@@ -9,6 +11,79 @@ async function tiles(page: Page) {
   const tile = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#eecfc3'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#995d75'; for (let x = 20; x < 256; x += 40) for (let y = 20; y < 256; y += 40) { ctx.beginPath(); ctx.arc(x, y, 8, 0, 7); ctx.fill() } return canvas.toDataURL('image/png').split(',')[1] })
   await page.route('**/qa/slide.dzi*', (route) => route.fulfill({ contentType: 'application/xml', body: '<Image TileSize="256" Overlap="0" Format="png" xmlns="http://schemas.microsoft.com/deepzoom/2008"><Size Width="256" Height="256"/></Image>' }))
   await page.route('**/qa/slide_files/**', (route) => route.fulfill({ contentType: 'image/png', body: Buffer.from(tile, 'base64') }))
+}
+async function currentViewerZoom(page: Page) {
+  return page.evaluate(async () => {
+    const resource = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))
+    if (!resource) return null
+    const OSD = (await import(resource.name)).default
+    let element: Element | null = document.querySelector('.openseadragon-canvas')
+    let viewer = element ? OSD.getViewer(element) : null
+    while (!viewer && element) { element = element.parentElement; viewer = element ? OSD.getViewer(element) : null }
+    return viewer?.viewport.getZoom(true) ?? null
+  })
+}
+async function waitForViewerSettled(page: Page) {
+  await expect.poll(() => page.evaluate(async () => {
+    const resource = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))
+    if (!resource) return false
+    const OSD = (await import(resource.name)).default
+    let element: Element | null = document.querySelector('.openseadragon-canvas')
+    let viewer = element ? OSD.getViewer(element) : null
+    while (!viewer && element) { element = element.parentElement; viewer = element ? OSD.getViewer(element) : null }
+    if (!viewer) return false
+    const size = viewer.viewport.getContainerSize()
+    return !viewer.isAnimating() && size.x === viewer.container.clientWidth && size.y === viewer.container.clientHeight
+  }), { timeout: 10_000 }).toBe(true)
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+}
+async function syntheticLandmarkGeometry(page: Page, source: { x: number; y: number }) {
+  return page.evaluate(async (sourcePoint) => {
+    const canvas = [...document.querySelectorAll('.openseadragon-canvas canvas')].find((candidate) => candidate.width && candidate.height)!
+    const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
+    let totalX = 0; let totalY = 0; let count = 0
+    for (let y = 0; y < pixels.height; y += 1) for (let x = 0; x < pixels.width; x += 1) {
+      const offset = (y * pixels.width + x) * 4
+      if (pixels.data[offset] > 220 && pixels.data[offset + 1] < 90 && pixels.data[offset + 2] < 90) { totalX += x; totalY += y; count += 1 }
+    }
+    const red = { x: totalX / count / canvas.width, y: totalY / count / canvas.height }
+    const resource = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))!
+    const OSD = (await import(resource.name)).default
+    let element: Element | null = document.querySelector('.openseadragon-canvas')
+    let viewer = element ? OSD.getViewer(element) : null
+    while (!viewer && element) { element = element.parentElement; viewer = element ? OSD.getViewer(element) : null }
+    const item = viewer!.world.getItemAt(0)
+    const point = new OSD.Point(sourcePoint.x, sourcePoint.y)
+    const projection = item.imageToViewerElementCoordinates(point)
+    const canvasBounds = viewer!.canvas.getBoundingClientRect()
+    const elementBounds = viewer!.element.getBoundingClientRect()
+    const containerBounds = viewer!.container.getBoundingClientRect()
+    const visible = { x: canvasBounds.left + red.x * canvasBounds.width, y: canvasBounds.top + red.y * canvasBounds.height }
+    const toImage = (x: number, y: number) => {
+      const image = item.viewportToImageCoordinates(viewer!.viewport.pointFromPixel(new OSD.Point(x, y), true), true)
+      return { x: image.x, y: image.y }
+    }
+    const pagePoint = new OSD.Point(visible.x + scrollX, visible.y + scrollY)
+    const windowImage = item.windowToImageCoordinates(pagePoint)
+    return {
+      source: sourcePoint,
+      visible,
+      projectionFromViewerElement: { x: elementBounds.left + projection.x, y: elementBounds.top + projection.y },
+      projectionFromContainer: { x: containerBounds.left + projection.x, y: containerBounds.top + projection.y },
+      projectionFromCanvas: { x: canvasBounds.left + projection.x, y: canvasBounds.top + projection.y },
+      visibleToImage: toImage(visible.x - canvasBounds.left, visible.y - canvasBounds.top),
+      windowToImage: { x: windowImage.x, y: windowImage.y },
+      eventCoordinates: { localX: visible.x - canvasBounds.left, localY: visible.y - canvasBounds.top },
+      bounds: {
+        viewerElement: { left: elementBounds.left, top: elementBounds.top, width: elementBounds.width, height: elementBounds.height },
+        container: { left: containerBounds.left, top: containerBounds.top, width: containerBounds.width, height: containerBounds.height },
+        canvas: { left: canvasBounds.left, top: canvasBounds.top, width: canvasBounds.width, height: canvasBounds.height },
+        viewport: viewer!.viewport.getContainerSize(),
+      },
+      camera: { zoom: viewer!.viewport.getZoom(true), animating: viewer!.isAnimating() },
+      redPixels: count,
+    }
+  }, source)
 }
 async function noOverflow(page: Page) { const result = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth, offenders: [...document.querySelectorAll('*')].filter((el) => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 8).map((el) => ({ tag: el.tagName, class: el.className, right: el.getBoundingClientRect().right })) })); expect(result.scroll, JSON.stringify(result)).toBeLessThanOrEqual(result.width + 1) }
 async function contrast(page: Page, selector: string) {
@@ -24,6 +99,142 @@ async function contrast(page: Page, selector: string) {
   return colors
 }
 async function denyStorage(page: Page) { await page.addInitScript(() => { for (const method of ['getItem', 'setItem', 'removeItem']) Object.defineProperty(Storage.prototype, method, { configurable: true, value: () => { throw new DOMException('Synthetic storage denial', 'SecurityError') } }) }) }
+
+test('Study captures a rendered non-square landmark after pan, zoom, and orientation changes', async ({ page }, info) => {
+  test.skip(info.project.name !== 'chromium', 'Pixel-based landmark alignment uses one desktop Chromium sample.')
+  const servedTiles = await serveSyntheticDzi(page, {
+    path: '/qa/non-square',
+    width: 1024,
+    height: 512,
+    landmarks: [{ x: 256, y: 128, color: '#f01e1e', radius: 20 }],
+  })
+  const geometryStudy = {
+    ...study,
+    pack: {
+      ...study.pack,
+      slides: [{ ...study.pack.slides[0], tileSource: '/qa/non-square.dzi' }],
+      tasks: [study.pack.tasks[0]],
+    },
+  }
+  let submitted: { x?: number; y?: number } | null = null
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url()).pathname
+    if (url.endsWith('/study/session')) return route.fulfill({ status: 401, json: { detail: { code: 'STUDY_SESSION_REQUIRED' } } })
+    if (url.endsWith('/study/redeem')) return route.fulfill({ json: geometryStudy })
+    if (url.endsWith('/tasks/spatial/submit')) {
+      expect(route.request().headers()['x-study-csrf']).toBe('synthetic-study-csrf')
+      submitted = route.request().postDataJSON()
+      return route.fulfill({ json: { taskId: 'spatial', status: 'completed', correct: true, attemptCount: 1, explanation: 'Synthetic landmark captured', sources: [], hints: [] } })
+    }
+    return route.fulfill({ json: {} })
+  })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/study')
+  await page.getByLabel('One-time invitation code').fill('issued_Ab-cd0123456789CODE')
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Enter Study Mode' }).click()
+  await expect(page.getByRole('heading', { name: 'Select a synthetic region' })).toBeVisible()
+  await expect(page.locator('.openseadragon-canvas canvas').first()).toBeVisible()
+  await expect.poll(() => servedTiles.length).toBeGreaterThan(0)
+  await expect.poll(async () => visibleSyntheticLandmark(page)).not.toBeNull()
+  const canvas = page.locator('.openseadragon-canvas[tabindex="0"]')
+  await canvas.scrollIntoViewIfNeeded()
+
+  await page.getByRole('button', { name: 'Request faculty hint' }).click()
+  await page.getByLabel('4: Confident').check()
+  let marker = await visibleSyntheticLandmark(page)
+  expect(marker).not.toBeNull()
+  const zoomBefore = await currentViewerZoom(page)
+  await canvas.focus()
+  await page.keyboard.press('Equal')
+  await expect.poll(() => currentViewerZoom(page)).toBeGreaterThan(zoomBefore!)
+  await waitForViewerSettled(page)
+  marker = await visibleSyntheticLandmark(page)
+  expect(marker).not.toBeNull()
+  const geometrySamples = [{ step: 'zoom', geometry: await syntheticLandmarkGeometry(page, { x: 256, y: 128 }) }]
+
+  for (const viewport of [
+    { width: 844, height: 390 },
+    { width: 768, height: 1024 },
+    { width: 740, height: 360 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await waitForViewerSettled(page)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await expect(page.getByLabel('4: Confident')).toBeChecked()
+    await expect(page.getByText(/Hint 1:/)).toBeVisible()
+    geometrySamples.push({ step: `resize-${viewport.width}x${viewport.height}`, geometry: await syntheticLandmarkGeometry(page, { x: 256, y: 128 }) })
+  }
+
+  await canvas.scrollIntoViewIfNeeded()
+  marker = await visibleSyntheticLandmark(page)
+  expect(marker).not.toBeNull()
+  const canvasBounds = await canvas.boundingBox()
+  expect(canvasBounds).not.toBeNull()
+  await page.mouse.move(marker!.x, marker!.y)
+  await page.mouse.down()
+  await page.mouse.move(marker!.x + 24, marker!.y + 12, { steps: 4 })
+  await page.mouse.up()
+  await waitForViewerSettled(page)
+  await expect.poll(async () => {
+    const position = await visibleSyntheticLandmark(page)
+    return position ? Math.hypot(position.x - marker!.x, position.y - marker!.y) : 0
+  }).toBeGreaterThan(4)
+
+  const geometryAfterPan = await syntheticLandmarkGeometry(page, { x: 256, y: 128 })
+  geometrySamples.push({ step: 'pan', geometry: geometryAfterPan })
+  expect(Math.hypot(geometryAfterPan.visible.x - geometryAfterPan.projectionFromCanvas.x, geometryAfterPan.visible.y - geometryAfterPan.projectionFromCanvas.y)).toBeLessThanOrEqual(1)
+  await page.screenshot({ path: info.outputPath('study-marker-before-selection.png') })
+  await page.evaluate(() => {
+    const resource = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))
+    ;(window as Window & { __studyPointProbe?: unknown }).__studyPointProbe = null
+    ;(window as Window & { __studyPointProbeReady?: boolean }).__studyPointProbeReady = false
+    void (async () => {
+      const OSD = (await import(resource!.name)).default
+      let viewerElement: Element | null = document.querySelector('.openseadragon-canvas')
+      let viewer = viewerElement ? OSD.getViewer(viewerElement) : null
+      while (!viewer && viewerElement) { viewerElement = viewerElement.parentElement; viewer = viewerElement ? OSD.getViewer(viewerElement) : null }
+      if (!viewer) throw new Error('OpenSeadragon viewer was not attached to the canvas tree')
+      viewer.addHandler('canvas-click', (event: {
+        position: { x: number; y: number }
+        originalEvent: { clientX: number; clientY: number; pageX: number; pageY: number }
+      }) => {
+        const item = viewer.world.getItemAt(0)
+        const fromEvent = item.viewportToImageCoordinates(viewer.viewport.pointFromPixel(event.position, true), true)
+        const pagePoint = new OSD.Point(event.originalEvent.pageX, event.originalEvent.pageY)
+        const fromWindow = item.windowToImageCoordinates(pagePoint)
+        ;(window as Window & { __studyPointProbe?: unknown }).__studyPointProbe = {
+          eventPosition: { x: event.position.x, y: event.position.y },
+          eventClient: { x: event.originalEvent.clientX, y: event.originalEvent.clientY },
+          eventPage: { x: event.originalEvent.pageX, y: event.originalEvent.pageY },
+          viewportContainer: viewer.viewport.getContainerSize(),
+          imageSize: item.getContentSize(),
+          mappedImage: { x: fromEvent.x, y: fromEvent.y },
+          windowImage: { x: fromWindow.x, y: fromWindow.y },
+          viewerElementBounds: (() => { const r = viewer.element.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })(),
+          viewerContainerBounds: (() => { const r = viewer.container.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })(),
+          canvasBounds: (() => { const r = viewer.canvas.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })(),
+        }
+      })
+      ;(window as Window & { __studyPointProbeReady?: boolean }).__studyPointProbeReady = true
+    })()
+  })
+  await expect.poll(() => page.evaluate(() => (window as Window & { __studyPointProbeReady?: boolean }).__studyPointProbeReady)).toBe(true)
+  await page.mouse.click(geometryAfterPan.projectionFromCanvas.x, geometryAfterPan.projectionFromCanvas.y)
+  const pointProbeResult = await page.evaluate(() => (window as Window & { __studyPointProbe?: unknown }).__studyPointProbe)
+  console.log('Study landmark transform evidence:', JSON.stringify({ samples: geometrySamples, clickedLandmarkProjection: geometryAfterPan.projectionFromCanvas, event: pointProbeResult }))
+  await info.attach('study-canvas-coordinate-probe', { body: JSON.stringify({ samples: geometrySamples, clickedLandmarkProjection: geometryAfterPan.projectionFromCanvas, event: pointProbeResult }), contentType: 'application/json' })
+  await expect(page.getByText('Region selected at 0.250, 0.250')).toBeVisible()
+  await page.getByRole('button', { name: 'Check answer' }).click()
+  await expect(page.getByText('Synthetic landmark captured')).toBeVisible()
+  expect(submitted).not.toBeNull()
+  console.log('Study submitted landmark coordinate:', JSON.stringify(submitted))
+  expect(Math.abs(submitted!.x! - 0.25)).toBeLessThanOrEqual(1 / 1024)
+  expect(Math.abs(submitted!.y! - 0.25)).toBeLessThanOrEqual(1 / 512)
+  await info.attach('study-nonsquare-landmark', { body: JSON.stringify({ expectedSourcePoint: { x: 256, y: 128 }, submitted, servedTiles: servedTiles.slice(0, 10), viewport: '740x360' }), contentType: 'application/json' })
+  await page.screenshot({ path: info.outputPath('study-nonsquare-landmark.png'), fullPage: false })
+})
 
 test('Study actual invitation, denied storage, spatial target, keyboard confidence and released feedback', async ({ page }, info) => {
   await denyStorage(page)
@@ -78,6 +289,9 @@ test('Study actual invitation, denied storage, spatial target, keyboard confiden
   await expect(page.getByLabel('Your selected region pinned this point')).toHaveCount(0)
   await page.getByRole('radio', { name: 'Synthetic A', exact: true }).check()
   await expect(page.getByLabel('3: Probable')).toBeChecked()
+  const forcedFocus = await expectForcedColorsFocus(page, page.getByRole('button', { name: 'Check answer' }))
+  await expect(page.getByRole('radio', { name: 'Synthetic A', exact: true })).toBeChecked()
+  await info.attach('forced-colors-study', { body: JSON.stringify({ forcedFocus }), contentType: 'application/json' })
 })
 
 test('Classroom full stage, native tray, P and Alt-click anchored questions with retry', async ({ page }, info) => {
@@ -135,6 +349,10 @@ test('Classroom full stage, native tray, P and Alt-click anchored questions with
   await page.keyboard.press('Meta+Enter')
   await expect(page.getByLabel('Question at this point')).toHaveCount(0)
   await expect(page.locator('.classroom-message')).toContainText('Question sent to the teacher')
+  await page.keyboard.press('p')
+  const forcedFocus = await expectForcedColorsFocus(page, page.getByLabel('Question at this point'))
+  await expect(page.getByLabel('Question at this point')).toBeVisible()
+  await info.attach('forced-colors-classroom', { body: JSON.stringify({ forcedFocus }), contentType: 'application/json' })
 })
 
 test('Assessment practice survives denied reads and writes without promising persistence', async ({ page }, info) => {
@@ -154,6 +372,9 @@ test('Assessment practice survives denied reads and writes without promising per
     await info.attach(`practice-contrast-${size.width}-${theme}`, { body: JSON.stringify(await contrast(page, '.assessment-student-main')), contentType: 'application/json' })
     await page.screenshot({ path: info.outputPath(`practice-${size.width}x${size.height}-${theme}.png`), fullPage: true })
   }
+  const forcedFocus = await expectForcedColorsFocus(page, page.getByLabel('Synthetic answer'))
+  await expect(page.getByLabel('Synthetic answer')).toBeChecked()
+  await info.attach('forced-colors-assessment', { body: JSON.stringify({ forcedFocus }), contentType: 'application/json' })
 })
 
 test('native OSD pinned question sends from pointer button and keyboard', async ({ page }, info) => {
