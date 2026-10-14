@@ -27,14 +27,15 @@ SUBJECT = "fa0d3283cf04f3396ac2a8146b683ac5232761e3"
 
 def test_exact_restored_assets_are_admitted_after_owner_approval() -> None:
     ledger = validate(require_release_admission=True)
-    assert len(ledger["records"]) == 16
+    assert len(ledger["records"]) == 24
     assert ledger["releaseAdmission"] == "ADMITTED"
     assert all(
         r["releaseDisposition"] in {"ADMITTED", "EXCLUDED_NON_RELEASE"}
         for r in ledger["records"]
     )
-    images = [r for r in ledger["records"] if r["locator"].endswith(".webp")]
-    assert len(images) == 2
+    images = [r for r in ledger["records"] if r["locator"].endswith((".webp", ".png"))]
+    assert sum(r["locator"].endswith(".webp") for r in images) == 2
+    assert sum("auth-login-" in r["locator"] and r["locator"].endswith(".png") for r in images) == 8
     assert all(r["licensePermission"] == "OWNER_APPROVED_PATHLAB_DISTRIBUTION" for r in images)
 
 
