@@ -292,7 +292,7 @@ test('metadata, filters, folder share rotation, trash and restore persist', asyn
     await expect(positionLabel).toHaveText('1 / 2')
     await expect(previousSlide).toBeDisabled()
     await expect(nextSlide).toBeEnabled()
-    const navigatorTrigger = collectionViewer.getByRole('button', { name: 'Open slide navigator', exact: true })
+    const navigatorTrigger = collectionViewer.locator('.shared-viewer-header button.share-menu')
     await navigatorTrigger.click()
     await expect(navigatorTrigger).toHaveAttribute('aria-expanded', 'true')
     const sharedSearch = collectionViewer.getByRole('searchbox', { name: 'Search shared slides', exact: true })
