@@ -14,12 +14,12 @@ the current receipt is bound to implementation commit
 `3598ea7359bdbe57c57c9e59f945d233aa12145a`.
 
 The authoritative machine-readable record is
-[`dependency-inventory.json`](dependency-inventory.json). It contains 582 unique records:
+[`dependency-inventory.json`](dependency-inventory.json). It contains 586 unique records:
 
 - 451 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
   packages;
-- 73 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
-- 58 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
+- 78 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
+- 57 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
   tools, planned production inputs, models and model runtimes, and standards artifacts. The exact
   bundled font, icon, and WASM runtime packages are among the npm records and are required by the
   offline validator.
@@ -31,9 +31,14 @@ artifacts against checked-in hashes, and hashed license/notice files contained i
 The checked-in inventory does not treat registry metadata alone as final legal approval:
 `RECORDED_UNREVIEWED` means mechanically captured and still subject to P0-T05A/P0-T06 review.
 
+On 2026-10-14, the inventory was refreshed against browser qualification subject
+`a01f20dbe593885eb2c60c8b23e2fc266450c8a5` after the responsive login assets changed the compiled
+browser. It retains the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
+`RECORDED_UNREVIEWED`.
+
 ## Fail-closed findings
 
-119 records are `BLOCKED`. The material blockers are:
+118 records are `BLOCKED`. The material blockers are:
 
 - P0-T04 removed `combine-errors@3.0.3` and its now-unused transitive path. The current lock and
   inventory reject its reintroduction; `tus-js-client@4.3.1` remains exact, MIT-licensed, and
