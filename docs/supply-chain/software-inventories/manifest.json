@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "f210114e3eb98acbfbfee6532913588a6b9eb6a1abd23e0c24f6e8d917e6887e",
+      "sha256": "a4d5de81b9fef956c885d734c2dc7e101886ca5b09a55f0115192f90f7fbddc2",
       "sizeBytes": 743973
     },
     {
       "path": "build.spdx.json",
-      "sha256": "ae34c8177f22a29f8a5e4a5a38028028fd03bcb867c6efd2ffffedd438965c16",
+      "sha256": "0cd2efb0ab0bd97902b8630a31cd54f928c4e736a96f3f6ab4c15b616f414ea6",
       "sizeBytes": 601056
     },
     {
       "path": "source.cdx.json",
-      "sha256": "eb3ff134018c99a824dc363de467d89d28e3e2b47c74efb36d2fafc876d43ba7",
+      "sha256": "591653c4405f6a3bd5d80bad3c927392e1f27d27600f98147f2e5d19eff82ec7",
       "sizeBytes": 786527
     },
     {
       "path": "source.spdx.json",
-      "sha256": "c318cad2ae79c5b64a926642a882d2c245459b553ecd9456fc89400c4169e7ec",
+      "sha256": "da9e0dab44018d9759d61c43430b8c7f05a8dc9979e595e1bc7729c151376d8a",
       "sizeBytes": 634706
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-14T17:31:49Z",
+  "generatedAt": "2026-10-14T18:18:23Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -69,10 +69,10 @@
       "sizeBytes": 134403
     },
     {
-      "gitBlob": "1c18c189b201552bcf4986a29ab82ae0828f8519",
+      "gitBlob": "64b062748bf792f6cf4a0f330c824df98c0bf875",
       "path": "pyproject.toml",
-      "sha256": "642b9d083f6e46abc813fdee8d5fb158bfa7a43340e25f79bf9caae97ffe26fe",
-      "sizeBytes": 1874
+      "sha256": "4f9dfea671b88ddaaa5d3519fdd2548ccb356e68a21481e54af88aae61abca43",
+      "sizeBytes": 1945
     },
     {
       "gitBlob": "225bc78e696b41389c8e3132753b0372af5cedd5",
@@ -117,9 +117,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "e02a7dcce7c0bba94fe4c5dfeff1470b165ab46f",
+      "gitBlob": "5c5d42af740dd438d7e4204d1f43f03257cc272d",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "ef1013d1e0d034f7bed0974b413fada73c577c9bf97527cfb28b9a518a4d45a8",
+      "sha256": "71a87b1ae59e84e0b1539ab432af9645d7ec8a71f21be660f431281cee05e407",
       "sizeBytes": 828490
     },
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "3ba24e5d716ae51068351f38d284be67584e0aac",
+      "gitBlob": "8ced46c926d0853e49414a0804b7817197a589b6",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "3089b3e37679f9918d88c12406b027bb415b529efbedf74eaed3b95fcd8c8045",
+      "sha256": "c4021b9aa340e2d364723a5236d6520c4f02a636163df3edc1d955e8c29fb04d",
       "sizeBytes": 47961
     },
     {
@@ -171,9 +171,9 @@
       "sizeBytes": 37287
     },
     {
-      "gitBlob": "8e3244c79db5c1e69973f78872d02effc5ed708d",
+      "gitBlob": "ed776c70b83c92c711ec5029a33d459ee8d4258f",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "45f4f4b45be3a498a92088ac0a2d40a454282d3c315fd22fccc739c361c7c327",
+      "sha256": "eaf958eeb6e89f7f56e3cab2642112f4e0357332c19f0a3b37a2f454e7213776",
       "sizeBytes": 876545
     },
     {
@@ -1572,6 +1572,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "adeaf3ba033d4a99dfefcaa53a802e6fdf8fedd1",
-  "subjectTree": "bd9eb0d5108ac7283aa08c73a6cde5d458bcdd38"
+  "subjectCommit": "e53108fcbba14733026194aa81abc9c7875eb666",
+  "subjectTree": "6a7cb6622135ca126fe34e54689a429e99db6dea"
 }

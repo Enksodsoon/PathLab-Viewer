@@ -4,9 +4,9 @@
 
 The implementation generates deterministic SPDX 2.3 and CycloneDX 1.6 source/build inventories,
 a human-readable third-party notice bundle, and a hash-bound manifest from the existing dependency,
-toolchain, and asset-rights ledgers. The current reference inventory subject is implementation commit
-`adeaf3ba033d4a99dfefcaa53a802e6fdf8fedd1` with tree
-`bd9eb0d5108ac7283aa08c73a6cde5d458bcdd38`.
+toolchain, and asset-rights ledgers. The current reference inventory subject is commit
+`e53108fcbba14733026194aa81abc9c7875eb666` with tree
+`6a7cb6622135ca126fe34e54689a429e99db6dea`.
 
 This is an inventory result, not release admission. The current reference manifest reports
 `BLOCKED`: all 177 current shipped inputs are `RECORDED_UNREVIEWED`. The authoritative dependency
@@ -26,10 +26,10 @@ blockers, the unassembled-kit state, and these generated artifacts:
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `source.spdx.json` | 634706 | `c318cad2ae79c5b64a926642a882d2c245459b553ecd9456fc89400c4169e7ec` |
-| `source.cdx.json` | 786527 | `eb3ff134018c99a824dc363de467d89d28e3e2b47c74efb36d2fafc876d43ba7` |
-| `build.spdx.json` | 601056 | `ae34c8177f22a29f8a5e4a5a38028028fd03bcb867c6efd2ffffedd438965c16` |
-| `build.cdx.json` | 743973 | `f210114e3eb98acbfbfee6532913588a6b9eb6a1abd23e0c24f6e8d917e6887e` |
+| `source.spdx.json` | 634706 | `da9e0dab44018d9759d61c43430b8c7f05a8dc9979e595e1bc7729c151376d8a` |
+| `source.cdx.json` | 786527 | `591653c4405f6a3bd5d80bad3c927392e1f27d27600f98147f2e5d19eff82ec7` |
+| `build.spdx.json` | 601056 | `0cd2efb0ab0bd97902b8630a31cd54f928c4e736a96f3f6ab4c15b616f414ea6` |
+| `build.cdx.json` | 743973 | `a4d5de81b9fef956c885d734c2dc7e101886ca5b09a55f0115192f90f7fbddc2` |
 | `THIRD_PARTY_NOTICES.txt` | 1465796 | `812c3eaf0b6856f3fc0f56f9af2d8a44c180566705d00747f5b2224dc24d927e` |
 
 The source documents cover 586 dependency records, 14 admitted verification-toolchain records,
@@ -69,7 +69,7 @@ From an exact checkout containing the immutable subject:
 
 ```text
 python scripts/generate_software_inventories.py \
-  --subject adeaf3ba033d4a99dfefcaa53a802e6fdf8fedd1 \
+  --subject e53108fcbba14733026194aa81abc9c7875eb666 \
   --output <temporary-output>
 python scripts/validate_software_inventories.py
 python -m pytest -q tests/backend/test_software_inventories.py
