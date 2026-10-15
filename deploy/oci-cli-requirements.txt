@@ -261,10 +261,6 @@ click==8.4.2 \
     --hash=sha256:9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6 \
     --hash=sha256:e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76
     # via oci-cli
-colorama==0.4.6 \
-    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
-    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
-    # via click
 crc32c==2.8 \
     --hash=sha256:0184369aad562d801f91f454c81f56b9ecb966f6b96684c4d6cf82fc8741d2ad \
     --hash=sha256:0450bb845b3c3c7b9bdc0b4e95620ec9a40824abdc8c86d6285c919a90743c1a \
@@ -737,13 +733,13 @@ multidict==6.9.1 \
     #   -r deploy/oci-cli-requirements.in
     #   aiohttp
     #   yarl
-oci==2.187.1 \
-    --hash=sha256:0c20492d852430ccc8e25ab12fec55c631e73c5be155067328f6b8322c6c6e3b \
-    --hash=sha256:9c7beeebe9f60ba92191f97d645185168c48877e3bbfff0fd9ab743106159f5f
+oci==2.187.2 \
+    --hash=sha256:4633bc33f81eddb48225e7e647c3456ec00c28c2e6daec059383e4ea9951bf57 \
+    --hash=sha256:4c6285814754f4331cbdcbfb5cab0880f8820604f96262666921806e5b8bbcf4
     # via oci-cli
-oci-cli==3.94.1 \
-    --hash=sha256:7f061e25ff35cb6bf63f4e4ba61fa02462c5728d6acdd0a3f08cec271e71a07c \
-    --hash=sha256:d4b8ea7c451d619f01d46e7e8f7c267b2235919df602a7dec7884ab479b3ba0c
+oci-cli==3.94.2 \
+    --hash=sha256:008abd772aa72fe9d21ce8d92bfc12093e51313b1e63e73621771928b306c008 \
+    --hash=sha256:8b7b2ef90af7510d4b4bfeee2649be210c47985db0b201a59022b057b40938d2
     # via -r deploy/oci-cli-requirements.in
 prompt-toolkit==3.0.43 \
     --hash=sha256:3527b7af26106cbc65a040bcc84839a3566ec1b051bb0bfe953631e704b0ff7d \
@@ -1013,9 +1009,9 @@ typing-extensions==4.16.0 \
     #   aiohttp
     #   aiosignal
     #   pyopenssl
-tzdata==2026.4 \
-    --hash=sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81 \
-    --hash=sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79
+tzdata==2026.5 \
+    --hash=sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7 \
+    --hash=sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac
     # via arrow
 urllib3==2.8.0 \
     --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3 \
