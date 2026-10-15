@@ -1,7 +1,7 @@
 {
   "schema": "pathlab.browser-distribution/1",
-  "subjectCommit": "3cc778968aab6e9e4eb8206caa05fbd3fc0d9c19",
-  "subjectTree": "d4174fa4d5aaedb1a046bcf4824b313535376d34",
+  "subjectCommit": "b3cb9d78f4cde2e26ecfd917da93239221eaefe4",
+  "subjectTree": "b9737510a9ef7cdbe522dd7bc7483aeb2e294b4a",
   "sourceScopes": [
     "apps/web",
     "packages",
@@ -25,7 +25,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "gitBlob": "522b7a4a689753a8d08f717afefb4dacb084b612"
+      "gitBlob": "eb3dd1cd0dddc8c0fa3df142194515944ca427a4"
     },
     {
       "path": ".pnpmfile.cjs",
@@ -1348,7 +1348,7 @@
       "gitBlob": "1b87342e938a8cee467b36ba036c6e5c8db11cae"
     }
   ],
-  "sourceInputSetSha256": "37b00ebc107fe1cfbf404f91c85a696ca91c7864a7c9f1e6ba24d88ca425a0f8",
+  "sourceInputSetSha256": "13567780818bba9599ed7b44d6303f8f3e4d53bcb85fefc346f8299d0d488f70",
   "excludedPackages": [
     {
       "id": "npm:eastasianwidth@0.2.0",
