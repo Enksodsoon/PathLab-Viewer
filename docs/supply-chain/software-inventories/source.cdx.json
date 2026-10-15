@@ -2,11 +2,11 @@
   "bomFormat": "CycloneDX",
   "components": [
     {
-      "bom-ref": "dependency:container:caddy@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9",
+      "bom-ref": "dependency:container:caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9"
+          "content": "d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
         }
       ],
       "licenses": [
@@ -20,7 +20,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "container:caddy@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9"
+          "value": "container:caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
         },
         {
           "name": "pathlab:role",
@@ -39,9 +39,9 @@
           "value": "[\"IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED\"]"
         }
       ],
-      "purl": "pkg:oci/caddy@2.11.6-alpine",
+      "purl": "pkg:oci/caddy@2.11.7-alpine",
       "type": "container",
-      "version": "2.11.6-alpine"
+      "version": "2.11.7-alpine"
     },
     {
       "bom-ref": "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
@@ -27653,7 +27653,7 @@
   "dependencies": [
     {
       "dependsOn": [
-        "dependency:container:caddy@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9",
+        "dependency:container:caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
         "dependency:container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
         "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
         "dependency:container:python@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b",
@@ -28278,11 +28278,11 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-landscape-v2.png",
         "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-portrait-v2.png"
       ],
-      "ref": "pathlab:source:11626d6388e0e3aed07106e1980b045a1e25a1dd"
+      "ref": "pathlab:source:3dcc5d052f02763e8d26127347afa8935c5d18e3"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:container:caddy@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9"
+      "ref": "dependency:container:caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
     },
     {
       "dependsOn": [],
@@ -30779,15 +30779,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:11626d6388e0e3aed07106e1980b045a1e25a1dd",
+      "bom-ref": "pathlab:source:3dcc5d052f02763e8d26127347afa8935c5d18e3",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/11626d6388e0e3aed07106e1980b045a1e25a1dd"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/3dcc5d052f02763e8d26127347afa8935c5d18e3"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/11626d6388e0e3aed07106e1980b045a1e25a1dd"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/3dcc5d052f02763e8d26127347afa8935c5d18e3"
         }
       ],
       "licenses": [
@@ -30818,13 +30818,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@11626d6388e0e3aed07106e1980b045a1e25a1dd",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@3dcc5d052f02763e8d26127347afa8935c5d18e3",
       "type": "application",
-      "version": "11626d6388e0e3aed07106e1980b045a1e25a1dd"
+      "version": "3dcc5d052f02763e8d26127347afa8935c5d18e3"
     },
-    "timestamp": "2026-10-15T14:20:24Z"
+    "timestamp": "2026-10-15T16:55:10Z"
   },
-  "serialNumber": "urn:uuid:11626d63-88e0-43ae-a071-06e1980b045a",
+  "serialNumber": "urn:uuid:3dcc5d05-2f02-463e-ad26-127347afa893",
   "specVersion": "1.6",
   "version": 1
 }
