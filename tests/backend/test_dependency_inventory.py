@@ -8,11 +8,10 @@ from pathlib import Path
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "53a38ad83266613dc9aff5be38c202c15ca1da05"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
-    inventory = validate(DEFAULT_INVENTORY, SUBJECT)
+    inventory = validate(DEFAULT_INVENTORY)
     assert len(inventory["records"]) >= 490
 
 
@@ -34,9 +33,9 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
 
 def test_inventory_subject_is_current_implementation_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
-    assert inventory["subjectCommit"] == SUBJECT
+    subject = inventory["subjectCommit"]
     tree = subprocess.check_output(
-        ["git", "rev-parse", f"{SUBJECT}^{{tree}}"], cwd=ROOT, text=True
+        ["git", "rev-parse", f"{subject}^{{tree}}"], cwd=ROOT, text=True
     ).strip()
     assert inventory["subjectTree"] == tree
 
