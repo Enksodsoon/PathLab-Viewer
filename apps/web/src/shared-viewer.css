@@ -1,6 +1,7 @@
 .shared-viewer-shell {
   height: 100vh;
   height: 100svh;
+  height: 100dvh;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   grid-template-rows: 74px minmax(0, 1fr);
@@ -318,6 +319,10 @@
   cursor: pointer;
 }
 
+.share-menu {
+  display: none;
+}
+
 .shared-viewer-tools button:hover,
 .share-menu:hover,
 .share-rail-heading button:hover {
@@ -343,14 +348,15 @@
 @media (max-width: 760px) {
   .shared-viewer-shell {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 68px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .shared-viewer-header {
     grid-column: 1;
     grid-row: 1;
+    min-height: 60px;
     gap: 8px;
-    padding: 8px 10px;
+    padding: max(8px, env(safe-area-inset-top)) 10px 8px;
   }
 
   .shared-viewer-header > div {
@@ -379,8 +385,12 @@
   .share-slide-rail {
     position: fixed;
     inset: 0 auto 0 0;
+    box-sizing: border-box;
     z-index: 20;
     width: min(340px, 90vw);
+    max-height: 100dvh;
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
     transform: translateX(-105%);
     visibility: hidden;
     border-right-color: var(--border);
@@ -413,6 +423,7 @@
 
   .shared-viewer-stage {
     grid-row: 2;
+    min-height: 0;
   }
 
   .shared-slide-caption {
@@ -454,6 +465,17 @@
   .shared-scale-bar {
     right: 12px;
     bottom: 76px;
+  }
+
+  .shared-viewer-tools {
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .shared-viewer-tools button,
+  .share-menu,
+  .share-rail-heading button {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

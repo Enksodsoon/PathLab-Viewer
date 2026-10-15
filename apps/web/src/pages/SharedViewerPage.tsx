@@ -77,7 +77,7 @@ function SharedSlideButton({
   select: (position: number) => void
 }) {
   return (
-    <button type="button" className={item.position === position ? 'active' : ''} onClick={() => select(item.position)}>
+    <button type="button" className={item.position === position ? 'active' : ''} aria-current={item.position === position ? 'page' : undefined} onClick={() => select(item.position)}>
       <img src={item.thumbnailUrl} alt="" loading="lazy" />
       <span><strong>{item.displayName}</strong><small>{[item.organSite, item.stain].filter(Boolean).join(' · ')}</small></span>
     </button>
@@ -119,19 +119,97 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
   const [missing, setMissing] = useState(false)
   const [retry, setRetry] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [narrowLayout, setNarrowLayout] = useState(() => (
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(max-width: 760px)').matches
+      : false
+  ))
   const [search, setSearch] = useState('')
   const [scaleBar, setScaleBar] = useState<{ microns: number; width: number } | null>(null)
   const controls = useRef<ViewerHandle | null>(null)
   const navigatorTrigger = useRef<HTMLButtonElement | null>(null)
-  const wasDrawerOpen = useRef(drawerOpen)
+  const navigatorClose = useRef<HTMLButtonElement | null>(null)
+  const slideRail = useRef<HTMLElement | null>(null)
+  const headerTitle = useRef<HTMLHeadingElement | null>(null)
+  const drawerOpenRef = useRef(drawerOpen)
+  const wasDrawerOpen = useRef(false)
   const ready = useCallback((handle: ViewerHandle) => { controls.current = handle }, [])
 
+  const restoreNavigatorFocus = useCallback(() => {
+    if (narrowLayout && navigatorTrigger.current?.getClientRects().length) {
+      navigatorTrigger.current.focus()
+      return
+    }
+    headerTitle.current?.focus()
+  }, [narrowLayout])
+  const closeNavigator = useCallback(() => {
+    drawerOpenRef.current = false
+    setDrawerOpen(false)
+  }, [])
+  const openNavigator = useCallback(() => {
+    drawerOpenRef.current = true
+    setDrawerOpen(true)
+  }, [])
+
   useEffect(() => {
-    if (wasDrawerOpen.current && !drawerOpen && window.matchMedia('(max-width: 760px)').matches) {
-      navigatorTrigger.current?.focus()
+    const media = window.matchMedia('(max-width: 760px)')
+    const updateLayout = (event: MediaQueryListEvent) => {
+      setNarrowLayout(event.matches)
+      if (event.matches && slideRail.current?.contains(document.activeElement)) {
+        window.requestAnimationFrame(() => navigatorTrigger.current?.focus())
+      }
+      if (!event.matches && drawerOpenRef.current) {
+        drawerOpenRef.current = false
+        setDrawerOpen(false)
+        window.requestAnimationFrame(() => headerTitle.current?.focus())
+      }
+    }
+    setNarrowLayout(media.matches)
+    media.addEventListener('change', updateLayout)
+    return () => media.removeEventListener('change', updateLayout)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (drawerOpen && narrowLayout) {
+      navigatorClose.current?.focus()
+    } else if (wasDrawerOpen.current) {
+      restoreNavigatorFocus()
     }
     wasDrawerOpen.current = drawerOpen
-  }, [drawerOpen])
+  }, [drawerOpen, narrowLayout, restoreNavigatorFocus])
+
+  useEffect(() => {
+    if (!drawerOpen || !narrowLayout) return
+    const handleDrawerKeys = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('dialog[open]'))) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        closeNavigator()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = [...(slideRail.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), summary, a[href], [tabindex]:not([tabindex="-1"])',
+      ) ?? [])].filter((item) => item.getClientRects().length > 0)
+      if (!items.length) {
+        event.preventDefault()
+        slideRail.current?.focus()
+        return
+      }
+      const first = items[0]
+      const last = items.at(-1)!
+      if (event.shiftKey && (document.activeElement === first || !slideRail.current?.contains(document.activeElement))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (document.activeElement === last || !slideRail.current?.contains(document.activeElement))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleDrawerKeys, true)
+    return () => document.removeEventListener('keydown', handleDrawerKeys, true)
+  }, [closeNavigator, drawerOpen, narrowLayout])
   const storageKey = `pathlab-share-position:${targetType}:${publicId}`
 
   useEffect(() => {
@@ -155,8 +233,8 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
     const bounded = Math.max(0, Math.min(next, manifest.slides.length - 1))
     setPosition(bounded)
     try { sessionStorage.setItem(storageKey, String(bounded)) } catch { /* Navigation remains available. */ }
-    setDrawerOpen(false)
-  }, [manifest, storageKey])
+    closeNavigator()
+  }, [closeNavigator, manifest, storageKey])
 
   useLayoutEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -227,18 +305,28 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
   )
   return (
     <div className={`shared-viewer-shell ${drawerOpen ? 'drawer-open' : ''}`}>
-      <header className="shared-viewer-header">
+      <header className="shared-viewer-header" aria-hidden={narrowLayout && drawerOpen || undefined} inert={narrowLayout && drawerOpen || undefined}>
         <button ref={navigatorTrigger} type="button" className="share-menu" aria-label="Open slide navigator"
-          aria-controls="shared-slide-rail" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}><Menu /></button>
-        <div><p>PathLab Viewer</p><h1>{manifest.name}</h1></div>
+          aria-controls="shared-slide-rail" aria-expanded={drawerOpen} onClick={openNavigator}><Menu /></button>
+        <div><p>PathLab Viewer</p><h1 ref={headerTitle} tabIndex={-1}>{manifest.name}</h1></div>
         <ThemeControl compact className="shared-theme-control" />
         <span>{position + 1} / {manifest.slides.length}</span>
       </header>
-      <button type="button" className="share-drawer-backdrop" aria-label="Close slide navigator" onClick={() => setDrawerOpen(false)} />
-      <aside id="shared-slide-rail" className="share-slide-rail" aria-label="Shared slides">
+      <button type="button" className="share-drawer-backdrop" aria-hidden="true" tabIndex={-1} inert={!drawerOpen || undefined} onClick={closeNavigator} />
+      <aside
+        ref={slideRail}
+        id="shared-slide-rail"
+        className="share-slide-rail"
+        aria-label="Shared slides"
+        aria-hidden={narrowLayout && !drawerOpen || undefined}
+        aria-modal={narrowLayout && drawerOpen || undefined}
+        role={narrowLayout && drawerOpen ? 'dialog' : undefined}
+        inert={narrowLayout && !drawerOpen || undefined}
+        tabIndex={-1}
+      >
         <div className="share-rail-heading">
           <div><p>Teaching set</p><h2>{manifest.name}</h2></div>
-          <button type="button" aria-label="Close slide navigator" onClick={() => setDrawerOpen(false)}><X /></button>
+          <button ref={navigatorClose} type="button" aria-label="Close slide navigator" onClick={closeNavigator}><X /></button>
         </div>
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this set" aria-label="Search shared slides" />
         <div className="share-slide-list">
@@ -250,7 +338,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
           ))}
         </div>
       </aside>
-      <main className="shared-viewer-stage">
+      <main className="shared-viewer-stage" aria-hidden={narrowLayout && drawerOpen || undefined} inert={narrowLayout && drawerOpen || undefined}>
         <OpenSeadragonViewer
           tileSource={slide.tileSource}
           posterUrl={slide.thumbnailUrl}

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { expectForcedColorsFocus } from './fixtures/forcedColors'
 
 test.describe.configure({ mode: 'serial', timeout: 120_000 })
 
@@ -374,6 +375,24 @@ test('keeps the full private Canvas Focus workspace usable on desktop', async ({
 
   await page.keyboard.press('Control+s')
   await expect(page.locator('.annotation-save-status')).toHaveText(/Saved|No changes/)
+})
+
+test('keeps annotation selection and keyboard focus visible in forced colors', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/admin/preview/private-1')
+  const toolbar = page.getByRole('toolbar', { name: 'Annotation tools' })
+  await expect(toolbar).toBeVisible({ timeout: 30_000 })
+  const select = toolbar.getByRole('button', { name: 'Select', exact: true })
+  await select.click()
+  await expect(select).toHaveAttribute('aria-pressed', 'true')
+  const focus = await expectForcedColorsFocus(page, select)
+  const selection = await select.evaluate((element) => ({
+    outlineColor: getComputedStyle(element).outlineColor,
+    outlineWidth: getComputedStyle(element).outlineWidth,
+    borderColor: getComputedStyle(element).borderColor,
+  }))
+  expect(Number.parseFloat(selection.outlineWidth)).toBeGreaterThanOrEqual(1)
+  await info.attach('forced-colors-annotation', { body: JSON.stringify({ focus, selection }), contentType: 'application/json' })
 })
 
 test('shows selected annotations moving with the pointer before release', async ({ page }) => {

@@ -347,11 +347,11 @@ def test_ci_runs_the_bounded_annotation_browser_matrix() -> None:
     browser_job = workflow.split("\n  browser:\n", maxsplit=1)[1].split(
         "\n  containers:\n", maxsplit=1
     )[0]
-    assert "timeout-minutes: 20" in browser_job
+    assert "timeout-minutes: 30" in browser_job
     matrix_step = browser_job.split(
         "- name: Run authentication, library, Classroom and viewer browser matrix", maxsplit=1
     )[1].split("- name: Retain browser failure diagnostics", maxsplit=1)[0]
-    assert "timeout-minutes: 16" in matrix_step
+    assert "timeout-minutes: 25" in matrix_step
     assert "if: failure() || cancelled()" in browser_job
     assert "playwright install --with-deps chromium firefox webkit" in browser_job
     assert 'PLAYWRIGHT_PORT: "5217"' in browser_job

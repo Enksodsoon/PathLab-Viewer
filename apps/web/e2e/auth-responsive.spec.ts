@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { expectForcedColorsFocus } from './fixtures/forcedColors'
 
 test.describe.configure({ mode: 'serial' })
 test.setTimeout(90_000)
@@ -294,6 +295,19 @@ test('keeps sign-in usable when decorative artwork fails and in forced colors', 
   await expect(page.getByRole('button', { name: 'Enter workspace' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth))
+})
+
+test('preserves visible focus and form boundaries in forced colors', async ({ page }, info) => {
+  await page.goto('/admin')
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible({ timeout: 20_000 })
+  const focus = await expectForcedColorsFocus(page, page.getByLabel('Username'))
+  const field = await page.locator('.auth-input').first().evaluate((element) => ({
+    borderStyle: getComputedStyle(element).borderBottomStyle,
+    borderWidth: getComputedStyle(element).borderBottomWidth,
+  }))
+  expect(field.borderStyle).toBe('solid')
+  expect(Number.parseFloat(field.borderWidth)).toBeGreaterThan(0)
+  await info.attach('forced-colors-auth', { body: JSON.stringify({ focus, field }), contentType: 'application/json' })
 })
 
 test('keeps continuous motion below the long-task threshold', async ({ page }, testInfo) => {

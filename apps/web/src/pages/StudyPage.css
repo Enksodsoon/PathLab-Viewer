@@ -29,3 +29,32 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(-
 @media(max-width:640px){.study-topbar{flex-wrap:wrap;padding:12px 16px;gap:10px}.study-topbar-actions{width:100%;justify-content:space-between;flex-wrap:wrap}}
 
 .study-center-target{position:static;margin:12px;max-width:calc(100% - 24px)}.study-location{position:static;margin:0 12px 12px;display:inline-block}.study-slide{min-height:0}
+
+.study-entry,.study-shell{min-height:100vh;min-height:100svh;min-height:100dvh}
+.study-topbar{padding-top:max(0px,env(safe-area-inset-top))}
+.study-entry-card{margin:clamp(12px,8vh,72px) auto}
+.study-slide,.study-task{min-height:0}
+.study-slide>div{height:clamp(220px,58dvh,600px);min-height:0}
+.study-task{overflow:visible}
+.study-footer{padding-bottom:max(20px,env(safe-area-inset-bottom))}
+.study-shell :is(button,input,select,textarea,a,summary):focus-visible{outline:3px solid var(--focus,#2f73d9);outline-offset:3px}
+
+@media(max-width:900px){
+  .study-workspace{grid-template-columns:minmax(0,1fr);padding-bottom:max(24px,env(safe-area-inset-bottom))}
+  .study-slide>div{height:clamp(220px,52dvh,520px);min-height:0}
+  .study-course-heading{gap:10px;padding-block:20px}
+}
+
+@media(max-height:480px){
+  .study-entry-card{margin-block:12px;padding-block:20px}
+  .study-course-heading{padding-block:12px}
+  .study-workspace{gap:12px}
+  .study-slide>div{height:220px}
+}
+
+@media(forced-colors:active){
+  .study-entry-card,.study-slide,.study-task,.study-task-overview,.study-feedback,.study-tutor,.study-evidence,.study-option,.study-confidence label{border-color:CanvasText}
+  .study-option:has(input:checked),.study-confidence label:has(input:checked){border:2px solid Highlight;background:Canvas;color:CanvasText}
+  .study-center-target,.study-topbar button,.study-task button,.study-entry button,.study-footer button{border:1px solid ButtonText;background:ButtonFace!important;color:ButtonText!important}
+  .study-center-target:focus-visible,.study-shell :is(button,input,select,textarea,a,summary):focus-visible{outline-color:Highlight}
+}

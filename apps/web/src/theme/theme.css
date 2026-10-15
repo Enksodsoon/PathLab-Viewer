@@ -141,3 +141,81 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+@media (forced-colors: active) {
+  :root,
+  [data-theme='light'],
+  [data-theme='dark'] {
+    --canvas: Canvas;
+    --surface: Canvas;
+    --surface-card: Canvas;
+    --surface-elevated: Canvas;
+    --navigator-surface: Canvas;
+    --ink: CanvasText;
+    --body: CanvasText;
+    --muted: GrayText;
+    --border: CanvasText;
+    --border-soft: CanvasText;
+    --primary: LinkText;
+    --primary-hover: LinkText;
+    --on-primary: ButtonText;
+    --on-primary-hover: ButtonText;
+    --focus: Highlight;
+    --success: CanvasText;
+    --warning: CanvasText;
+    --danger: CanvasText;
+    --shadow-color: CanvasText;
+  }
+
+  :focus-visible,
+  :has(> input:focus-visible) {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  button,
+  [role='button'],
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select,
+  summary {
+    border: 1px solid ButtonText !important;
+  }
+
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    background: Field;
+    color: FieldText;
+  }
+
+  :where([aria-pressed='true'], [aria-selected='true'], [aria-current]:not([aria-current='false']), [data-state='checked']) {
+    outline: 2px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  .theme-control__option:has(input:checked) {
+    outline: 2px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  dialog,
+  [role='dialog'],
+  [aria-modal='true'],
+  [data-overlay]:not([aria-hidden='true']) {
+    border: 2px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  dialog::backdrop {
+    background: CanvasText;
+    opacity: .65;
+  }
+
+  .share-drawer-backdrop {
+    background: CanvasText;
+    opacity: .65;
+  }
+}

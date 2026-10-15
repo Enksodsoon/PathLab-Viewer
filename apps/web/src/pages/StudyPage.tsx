@@ -29,6 +29,16 @@ import './StudyPage.css'
 
 type Feedback = Awaited<ReturnType<typeof submitStudyTask>>
 
+type StudyViewerAttachment = { viewer: OpenSeadragon.Viewer; imageReady: boolean } | null
+
+function readySpatialImage(viewer: OpenSeadragon.Viewer | null) {
+  const item = viewer?.world.getItemAt(0)
+  if (!item) return null
+  const size = item.getContentSize()
+  if (!Number.isFinite(size.x) || size.x <= 0 || !Number.isFinite(size.y) || size.y <= 0) return null
+  return { item, size }
+}
+
 function message(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === 'STUDY_SUBMISSION_THROTTLED') return 'Please wait before submitting another task.'
@@ -65,7 +75,7 @@ export function StudyPage() {
   const [question, setQuestion] = useState('')
   const [tutorClaims, setTutorClaims] = useState<KnowledgeClaim[]>([])
   const [tutorStatus, setTutorStatus] = useState('')
-  const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
+  const [viewerAttachment, setViewerAttachment] = useState<StudyViewerAttachment>(null)
   const taskGeneration = useRef(0)
   const tutorWorker = useRef<Worker | null>(null)
   const startedAt = useRef(Date.now())
@@ -150,15 +160,24 @@ export function StudyPage() {
   }
 
   const attachSpatialSelection: ViewerAttachmentCallback = useCallback((viewer: OpenSeadragon.Viewer) => {
-    setViewer(viewer)
+    setViewerAttachment({ viewer, imageReady: false })
+    const markImageReady = () => {
+      const image = readySpatialImage(viewer)
+      setViewerAttachment((current) => current?.viewer === viewer ? { viewer, imageReady: image !== null } : current)
+    }
+    const markImageNotReady = () => {
+      setViewerAttachment((current) => current?.viewer === viewer ? { viewer, imageReady: false } : current)
+    }
     const selectPoint = (event: OpenSeadragon.ViewerEvent & { position?: OpenSeadragon.Point; quick?: boolean }) => {
       if (!event.quick || !event.position) return
-      const image = viewer.world.getItemAt(0)
+      const image = readySpatialImage(viewer)
       if (!image) return
-      const point = image.viewportToImageCoordinates(viewer.viewport.pointFromPixel(event.position))
-      const size = image.getContentSize()
+      const point = image.item.viewportToImageCoordinates(viewer.viewport.pointFromPixel(event.position, true), true)
+      const { size } = image
       setLocation({ x: Math.max(0, Math.min(1, point.x / size.x)), y: Math.max(0, Math.min(1, point.y / size.y)) })
     }
+    viewer.addHandler('open', markImageReady)
+    viewer.addHandler('close', markImageNotReady)
     viewer.addHandler('canvas-click', selectPoint)
     const observePan = () => {
       const center = viewer.viewport.getCenter(true)
@@ -180,7 +199,14 @@ export function StudyPage() {
       navigation.current.lastZoom = zoom
     }
     viewer.addHandler('pan', observePan); viewer.addHandler('zoom', observeZoom)
-    return () => { setViewer(null); viewer.removeHandler('canvas-click', selectPoint); viewer.removeHandler('pan', observePan); viewer.removeHandler('zoom', observeZoom) }
+    return () => {
+      setViewerAttachment((current) => current?.viewer === viewer ? null : current)
+      viewer.removeHandler('open', markImageReady)
+      viewer.removeHandler('close', markImageNotReady)
+      viewer.removeHandler('canvas-click', selectPoint)
+      viewer.removeHandler('pan', observePan)
+      viewer.removeHandler('zoom', observeZoom)
+    }
   }, [])
 
   const enableAi = async () => {
@@ -344,12 +370,13 @@ export function StudyPage() {
     <div className="study-workspace">
       <section className="study-slide" aria-label="Teaching slide">
         {slide ? <OpenSeadragonViewer tileSource={slide.tileSource} onReady={() => undefined} onViewerAttach={attachSpatialSelection} /> : <p>Slide unavailable.</p>}
-        <ClassroomPinOverlays viewer={viewer} slideId={slide?.viewerSlideId ?? ''} pins={task?.type === 'spatial' && location ? [{ participantId: 'study-selection', alias: 'Your selected region', slideId: slide?.viewerSlideId ?? '', ...location, focused: true }] : []} />
-        {task?.type === 'spatial' ? <button className="study-center-target" type="button" onClick={() => {
-          const item = viewer?.world.getItemAt(0)
-          if (!viewer || !item) return
-          const point = item.viewportToImageCoordinates(viewer.viewport.getCenter(true))
-          const size = item.getContentSize()
+        <ClassroomPinOverlays viewer={viewerAttachment?.viewer ?? null} slideId={slide?.viewerSlideId ?? ''} pins={task?.type === 'spatial' && location ? [{ participantId: 'study-selection', alias: 'Your selected region', slideId: slide?.viewerSlideId ?? '', ...location, focused: true }] : []} />
+        {task?.type === 'spatial' ? <button className="study-center-target" type="button" disabled={!viewerAttachment?.imageReady} onClick={() => {
+          const viewer = viewerAttachment?.viewer
+          const image = readySpatialImage(viewer ?? null)
+          if (!viewerAttachment?.imageReady || !viewer || !image) return
+          const point = image.item.viewportToImageCoordinates(viewer.viewport.getCenter(true), true)
+          const { size } = image
           setLocation({ x: Math.max(0, Math.min(1, point.x / size.x)), y: Math.max(0, Math.min(1, point.y / size.y)) })
         }}>Select centre of visible field</button> : null}
         {task?.type === 'spatial' && location ? <p className="study-location" role="status">Region selected at {location.x.toFixed(3)}, {location.y.toFixed(3)}</p> : null}
