@@ -32,10 +32,13 @@ The checked-in inventory does not treat registry metadata alone as final legal a
 `RECORDED_UNREVIEWED` means mechanically captured and still subject to P0-T05A/P0-T06 review.
 
 On 2026-10-15, the inventory was refreshed for the responsive login artwork and 52px input-height fix.
-The browser qualification receipt covers source commit `d35d6f1002767ad3408c1ce030f934092a08c745`.
-This inventory is bound to receipt commit `8620ab7a68a87d7efcb8a314725ab2efc56556bf`. It retains
-the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
-`RECORDED_UNREVIEWED`.
+That browser qualification covered source commit `d35d6f1002767ad3408c1ce030f934092a08c745` and
+receipt commit `8620ab7a68a87d7efcb8a314725ab2efc56556bf`.
+
+A later refresh updated the browser qualification after the CI timeout change. It covers source
+commit `b3cb9d78f4cde2e26ecfd917da93239221eaefe4`; this dependency inventory is bound to receipt
+commit `44c0ad8c183ef55d847ab96bd76df587cd2da2e7`. The 586 records retain the same admission
+boundaries: 118 remain `BLOCKED` and 468 remain `RECORDED_UNREVIEWED`.
 
 ## Fail-closed findings
 
