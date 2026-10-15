@@ -31,9 +31,12 @@ artifacts against checked-in hashes, and hashed license/notice files contained i
 The checked-in inventory does not treat registry metadata alone as final legal approval:
 `RECORDED_UNREVIEWED` means mechanically captured and still subject to P0-T05A/P0-T06 review.
 
-On 2026-10-15, the inventory was refreshed for the responsive login artwork and 52px input-height fix.
-The browser qualification receipt covers source commit `d35d6f1002767ad3408c1ce030f934092a08c745`.
-This inventory is bound to receipt commit `8620ab7a68a87d7efcb8a314725ab2efc56556bf`. It retains
+The prior 2026-10-15 inventory refresh covered the responsive login artwork and 52px input-height fix.
+Its browser qualification receipt covers source commit `d35d6f1002767ad3408c1ce030f934092a08c745`.
+That inventory was bound to receipt commit `8620ab7a68a87d7efcb8a314725ab2efc56556bf`.
+On 2026-10-15, the inventory was regenerated after rebasing the responsive display changes onto `main`.
+The browser qualification receipt covers source commit `9ddab32347e04728d95b59ed83692e1d2e814511`.
+This inventory is bound to receipt commit `53a38ad83266613dc9aff5be38c202c15ca1da05`. It retains
 the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
 `RECORDED_UNREVIEWED`.
 
