@@ -2,27 +2,27 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "812c3eaf0b6856f3fc0f56f9af2d8a44c180566705d00747f5b2224dc24d927e",
+      "sha256": "7a21dfb9f274974f9a43e7786b30c9a126342b9cc070d1c542f87cb327169fca",
       "sizeBytes": 1465796
     },
     {
       "path": "build.cdx.json",
-      "sha256": "e9521f0c98519fc5e08dea87c0a60f4540345c14e302e56ea8ecde195215d457",
+      "sha256": "feff7e7d799b6b9d33f374d67e0b5da6d6c35ed6c574941e540dc8a3ac647ad1",
       "sizeBytes": 743973
     },
     {
       "path": "build.spdx.json",
-      "sha256": "2ed4c0a46c5d41dd18665b1eebde45482d631b194fde9d21e2a1573b6e022621",
+      "sha256": "737906be34c1ac6d0f6f4a41d07ed4911f6afe9529d7c9eafba5d4ee40e792df",
       "sizeBytes": 601056
     },
     {
       "path": "source.cdx.json",
-      "sha256": "4025c4850a20443352281b9a13d9617efafd0521f186f9520970fbe9bdb4d7cf",
+      "sha256": "a513b7596b2fe6c97c68d74d5c36bc687ae76d29c4919c37bdcd315a8f778d15",
       "sizeBytes": 786527
     },
     {
       "path": "source.spdx.json",
-      "sha256": "57d57eae2f2345e2f0f531d53b3d74900ea1c401bd4f1ec6475aa8225d1cdf0c",
+      "sha256": "d608f3000b17257676987feddebb1812ff8ebecfd9e3a8008c60bc0a3add4ddd",
       "sizeBytes": 634706
     }
   ],
@@ -31,7 +31,7 @@
     "assetRecords": 24,
     "buildComponents": 586,
     "currentShippedInputs": 177,
-    "dependencyRecordIdsSha256": "5c4ff4d13c00c9c0bcb5bda924e0df1d716c910bb73477bd4b0a0747554f9fa9",
+    "dependencyRecordIdsSha256": "92711d89694a6ff72de679c1f3dd150ee56a9c45f30aca7f3a6864fdd587fc77",
     "dependencyRecords": 586,
     "sourceComponents": 624,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-15T00:22:46Z",
+  "generatedAt": "2026-10-15T14:20:24Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -99,9 +99,9 @@
       "sizeBytes": 1538
     },
     {
-      "gitBlob": "4b2d68f698d3485636235c25e64f688c9c7f9dfd",
+      "gitBlob": "5feb5b6f045acc919180acfa2187b45a35b9a19d",
       "path": "deploy/Dockerfile.web",
-      "sha256": "6fe57433f4a19f961845e45324f25f45d7dcdbfa872e16421c52267b4511379b",
+      "sha256": "715f86c8181cfeca858c9f556c10af4a760f25ad9e276b4b3a9394d2f1cbbf29",
       "sizeBytes": 926
     },
     {
@@ -117,9 +117,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "3f0af9358c072b09e8ccb616a56f95e55dea6509",
+      "gitBlob": "438ece6377675807634f59c1ce7c92c4d2de4bbd",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "f47560c58644c29849a0a1fa1bb0c28da5a66bea2808b5cfce90db236eaa569c",
+      "sha256": "9033ae3cad818a305a9ee15e4ffbea4fc3af23571cd98c15ce2db9f9d3056b1b",
       "sizeBytes": 828490
     },
     {
@@ -165,15 +165,15 @@
       "sizeBytes": 15900
     },
     {
-      "gitBlob": "82f367bee52397807aee0021758e23068c2c3336",
+      "gitBlob": "066c82da4aaa593e83551b418e5a0c3e52070e49",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d",
+      "sha256": "1f85c1a617f6d7e3bec5857ca2f0ae915a2cee177374175a7f0597384a90fa06",
       "sizeBytes": 37287
     },
     {
-      "gitBlob": "2fd603ffb4a953fffc1093ec9a1445d01d250092",
+      "gitBlob": "c2777d6c9a22f18cdf698df1af4738188d6ab9ba",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "9b5ee801245e5fc5e9d9c1d4e3fe4bfb754f4f84dd04c69487d6bfec1024bb23",
+      "sha256": "8d3614d5a9f528227bc5e221bfbdc98725a2d60e1d39258d1c6b88a3326f1871",
       "sizeBytes": 876801
     },
     {
@@ -1572,6 +1572,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "41d31505bd4e471bf43248907753de99063b47ac",
-  "subjectTree": "097f308e805afe715ff26cf58edf22f7cf872eb8"
+  "subjectCommit": "11626d6388e0e3aed07106e1980b045a1e25a1dd",
+  "subjectTree": "45f1ff9cc23d3af53503da51d28698b86a744a83"
 }
