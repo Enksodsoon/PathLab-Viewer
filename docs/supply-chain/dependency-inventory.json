@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T00:19:13.221027Z",
+  "generatedAt": "2026-10-15T14:16:32.699967Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -7,11 +7,11 @@
       "blockers": [
         "IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED"
       ],
-      "checksum": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
+      "checksum": "sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9",
       "checksumVerified": true,
       "distribution": "development-only-container",
       "ecosystem": "container",
-      "id": "container:caddy@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
+      "id": "container:caddy@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9",
       "license": "UNKNOWN",
       "manifestRefs": [
         "deploy/Dockerfile.web"
@@ -23,7 +23,7 @@
       "purpose": "current web container server",
       "role": "current-development-runtime",
       "source": "docker.io/library/caddy",
-      "version": "2.11.4-alpine"
+      "version": "2.11.6-alpine"
     },
     {
       "admission": "BLOCKED",
@@ -13921,7 +13921,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "aa073e64c72187f4b6466efc3541c266c59760d6a56baf1cf7bb461c831c9a9e",
+      "metadataSha256": "5c0577a6486dc31491d78c9c121e5990e41955e542d5f786d28e6fbd3ba9a429",
       "name": "fastapi",
       "noticeFiles": [
         {
@@ -18145,14 +18145,14 @@
       "sha256": "96e3df69822ae6170ee6b8209fb861f8ce0673b6bd4d1cf03fed6733761c28a3"
     },
     {
-      "gitBlob": "82f367bee52397807aee0021758e23068c2c3336",
+      "gitBlob": "066c82da4aaa593e83551b418e5a0c3e52070e49",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
+      "sha256": "1f85c1a617f6d7e3bec5857ca2f0ae915a2cee177374175a7f0597384a90fa06"
     },
     {
-      "gitBlob": "2fd603ffb4a953fffc1093ec9a1445d01d250092",
+      "gitBlob": "c2777d6c9a22f18cdf698df1af4738188d6ab9ba",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "9b5ee801245e5fc5e9d9c1d4e3fe4bfb754f4f84dd04c69487d6bfec1024bb23"
+      "sha256": "8d3614d5a9f528227bc5e221bfbdc98725a2d60e1d39258d1c6b88a3326f1871"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19150,6 +19150,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "53a38ad83266613dc9aff5be38c202c15ca1da05",
-  "subjectTree": "8d8a6a250ddf48e5ccf01527d367e53b7d3d341c"
+  "subjectCommit": "4d527c25a5425a98df27ee15eedbdbc74d3c6fb1",
+  "subjectTree": "a0703cb194381aead3b8d45a92733d72fdde709c"
 }
