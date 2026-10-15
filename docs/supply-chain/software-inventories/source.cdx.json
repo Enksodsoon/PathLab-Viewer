@@ -27320,6 +27320,334 @@
       ],
       "type": "file",
       "version": "319459263cc4d66e"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-desktop-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fa9c00d499374ac61ce08547e7ef2703559f475cb17b72a49e85c111a9895d86"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-dark-desktop-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-dark-desktop-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "fa9c00d499374ac6"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-mobile-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5a7c3464ddbcd0e5c918a8640ad0d388a97895f761e24385d2712eaddf4d4662"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-dark-mobile-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-dark-mobile-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "5a7c3464ddbcd0e5"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2fadd8040f2db9d698af6111350aa674bae4e8273ed746ec8a01020f09b841d1"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "2fadd8040f2db9d6"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "49f0bbf30da7797952eca7a8e09419b73364239bb55bcea90bb8f0ae900eb0a7"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "49f0bbf30da77979"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-desktop-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "60066497285db614bfa9bb9c3d0d67a61a3637fdba0953170e74b6ecc21ece64"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-light-desktop-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-light-desktop-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "60066497285db614"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-mobile-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4043f54f61f8116963fb5d05c7553a97de36541d328b0468c2b5af94868ee20a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-light-mobile-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-light-mobile-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "4043f54f61f81169"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-landscape-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "98d8e2a284d190c7d72c122a95acc7a9ac2176e4baed743c0cfcf666f5b8c2e6"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-light-tablet-landscape-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-light-tablet-landscape-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "98d8e2a284d190c7"
+    },
+    {
+      "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-portrait-v2.png",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ef36a95f8d72a937b101aced982a205217a37140f62a9a47ae5c4689576dfd0e"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "OWNER_APPROVED_PATHLAB_DISTRIBUTION"
+          }
+        }
+      ],
+      "name": "apps/web/src/assets/auth-login-light-tablet-portrait-v2.png",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:repository-file:apps/web/src/assets/auth-login-light-tablet-portrait-v2.png"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "ef36a95f8d72a937"
     }
   ],
   "dependencies": [
@@ -27940,9 +28268,17 @@
         "asset:asset:package-font:npm:@fontsource-variable/source-sans-3@5.3.0#files/source-sans-3-latin-wght-normal.woff2",
         "asset:asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
-        "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
+        "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-desktop-v2.png",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-mobile-v2.png",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-light-desktop-v2.png",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-light-mobile-v2.png",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-landscape-v2.png",
+        "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-portrait-v2.png"
       ],
-      "ref": "pathlab:source:7ce9f0617a6708893cc4964b4501538dd35d8269"
+      "ref": "pathlab:source:41d31505bd4e471bf43248907753de99063b47ac"
     },
     {
       "dependsOn": [],
@@ -30407,19 +30743,51 @@
     {
       "dependsOn": [],
       "ref": "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-desktop-v2.png"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-mobile-v2.png"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-landscape-v2.png"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-dark-tablet-portrait-v2.png"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-desktop-v2.png"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-mobile-v2.png"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-landscape-v2.png"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:repository-file:apps/web/src/assets/auth-login-light-tablet-portrait-v2.png"
     }
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:7ce9f0617a6708893cc4964b4501538dd35d8269",
+      "bom-ref": "pathlab:source:41d31505bd4e471bf43248907753de99063b47ac",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7ce9f0617a6708893cc4964b4501538dd35d8269"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/41d31505bd4e471bf43248907753de99063b47ac"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7ce9f0617a6708893cc4964b4501538dd35d8269"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/41d31505bd4e471bf43248907753de99063b47ac"
         }
       ],
       "licenses": [
@@ -30450,13 +30818,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@7ce9f0617a6708893cc4964b4501538dd35d8269",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@41d31505bd4e471bf43248907753de99063b47ac",
       "type": "application",
-      "version": "7ce9f0617a6708893cc4964b4501538dd35d8269"
+      "version": "41d31505bd4e471bf43248907753de99063b47ac"
     },
-    "timestamp": "2026-10-08T05:44:16Z"
+    "timestamp": "2026-10-15T00:22:46Z"
   },
-  "serialNumber": "urn:uuid:7ce9f061-7a67-4889-acc4-964b4501538d",
+  "serialNumber": "urn:uuid:41d31505-bd4e-471b-a432-48907753de99",
   "specVersion": "1.6",
   "version": 1
 }

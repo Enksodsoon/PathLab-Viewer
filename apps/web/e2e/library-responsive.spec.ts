@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expectForcedColorsFocus, focusByTabSequence } from './fixtures/forcedColors'
 
 const navigation = {
   counts: { all: 2, unfiled: 0, shared: 0, processing: 0, failed: 0, trash: 0 },
@@ -365,6 +366,29 @@ test('isolates the closed mobile navigator and restores focus after Escape', asy
   await expect(navigator).toBeHidden()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   await expect(toggle).toBeFocused()
+})
+
+test('keeps the mobile library drawer and active navigation visible in forced colors', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ forcedColors: 'active' })
+  const toggle = page.getByRole('button', { name: 'Slide library' })
+  await focusByTabSequence(page, toggle, 'Slide library')
+  await page.keyboard.press('Enter')
+  const navigator = page.locator('#library-navigator')
+  await expect(navigator).toBeVisible()
+  const focus = await expectForcedColorsFocus(
+    page,
+    navigator.getByRole('button', { name: 'Close library navigator' }),
+    { alreadyFocused: true },
+  )
+  const drawer = await navigator.evaluate((element) => ({
+    color: getComputedStyle(element).color,
+    background: getComputedStyle(element).backgroundColor,
+    borderColor: getComputedStyle(element).borderRightColor,
+    borderWidth: getComputedStyle(element).borderRightWidth,
+  }))
+  expect(Number.parseFloat(drawer.borderWidth)).toBeGreaterThan(0)
+  await info.attach('forced-colors-library', { body: JSON.stringify({ focus, drawer }), contentType: 'application/json' })
 })
 
 test('contains table scrolling without widening the document', async ({ page }) => {

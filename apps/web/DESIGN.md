@@ -13,6 +13,8 @@ layered-slide mark, and square loader are governed by the
 [restoration receipt](../../docs/supply-chain/WARM_UI_ASSET_RECEIPT.json).
 No new visual concept or third-party design source is introduced.
 
+The PathLab wordmark and product descriptor follow the [shared brand guide](../../docs/brand/PATHLAB_BRAND_GUIDE.md) used by Viewer, Forge, and future PathLab projects.
+
 ## Foundations
 
 - Display type: Cormorant Garamond.

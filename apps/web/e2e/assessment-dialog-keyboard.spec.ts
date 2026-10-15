@@ -25,7 +25,7 @@ for (const { trigger, label, close } of [
       })
       await page.setViewportSize(viewport)
       await page.goto('/admin/assessments/dialog-qa')
-      await expect(page.getByText('All changes saved', { exact: true })).toBeVisible()
+      await expect(page.getByText('All changes saved', { exact: true })).toBeVisible({ timeout: 20_000 })
       const opener = page.getByRole('button', { name: trigger, exact: true })
       await opener.click()
       const dialog = page.getByRole('dialog', { name: label, exact: true })

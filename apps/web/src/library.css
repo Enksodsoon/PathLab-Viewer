@@ -114,8 +114,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-rail-brand .brand {
+  --brand-mark-width:34px;
+  --brand-mark-height:34px;
+  --brand-gap:0px;
   justify-content: center;
-  gap: 0;
+  column-gap:0;
 }
 
 .library-rail-brand .brand > span:not(.brand-mark) {
@@ -132,8 +135,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-rail-brand .brand-mark svg {
-  width: 20px;
-  height: 20px;
+  width:75%;
+  height:75%;
 }
 
 .rail-expanded .library-rail-brand {
@@ -141,9 +144,10 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .rail-expanded .library-rail-brand .brand {
+  --brand-gap:7px;
   width: 100%;
   justify-content: flex-start;
-  gap: 7px;
+  column-gap:7px;
   overflow: hidden;
 }
 
@@ -153,6 +157,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .rail-expanded .library-rail-brand .brand-product {
   display: none !important;
+}
+
+.rail-expanded .library-rail-brand .brand-name {
+  grid-row:1 / span 2;
+  align-self:center;
 }
 
 .library-rail-primary {

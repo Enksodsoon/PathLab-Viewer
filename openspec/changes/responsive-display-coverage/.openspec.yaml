@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-14
+goal: Preserve viewer and learner state while ensuring accessible, usable
+  layouts across supported displays and viewport changes.

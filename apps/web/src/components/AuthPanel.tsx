@@ -3,14 +3,19 @@ import {
   Eye,
   EyeSlash,
   Key,
-  ShieldCheck,
 } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { ApiError, login, recoverPassword } from '../api'
-import darkArtwork from '../assets/auth-histology-solace-dark.webp'
-import lightArtwork from '../assets/auth-histology-solace-light.webp'
+import darkDesktopArtwork from '../assets/auth-login-dark-desktop-v2.png'
+import darkMobileArtwork from '../assets/auth-login-dark-mobile-v2.png'
+import darkTabletLandscapeArtwork from '../assets/auth-login-dark-tablet-landscape-v2.png'
+import darkTabletPortraitArtwork from '../assets/auth-login-dark-tablet-portrait-v2.png'
+import lightDesktopArtwork from '../assets/auth-login-light-desktop-v2.png'
+import lightMobileArtwork from '../assets/auth-login-light-mobile-v2.png'
+import lightTabletLandscapeArtwork from '../assets/auth-login-light-tablet-landscape-v2.png'
+import lightTabletPortraitArtwork from '../assets/auth-login-light-tablet-portrait-v2.png'
 import { ThemeControl } from '../theme/ThemeControl'
 import { useTheme } from '../theme/ThemeProvider'
 import { Brand } from './Brand'
@@ -20,6 +25,20 @@ import { StatusMessage } from './StatusMessage'
 const MIN_NEW_PASSWORD_LENGTH = 12
 const MAX_NEW_PASSWORD_LENGTH = 128
 const RECOVERY_PASSWORD_REQUIREMENTS = '12–128 characters.'
+const artworkByTheme = {
+  dark: {
+    desktop: darkDesktopArtwork,
+    mobile: darkMobileArtwork,
+    tabletLandscape: darkTabletLandscapeArtwork,
+    tabletPortrait: darkTabletPortraitArtwork,
+  },
+  light: {
+    desktop: lightDesktopArtwork,
+    mobile: lightMobileArtwork,
+    tabletLandscape: lightTabletLandscapeArtwork,
+    tabletPortrait: lightTabletPortraitArtwork,
+  },
+}
 
 function hasValidNewPasswordLength(password: string) {
   const codePointLength = Array.from(password).length
@@ -33,8 +52,9 @@ interface AuthPanelProps {
 
 export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
   const { resolvedTheme } = useTheme()
+  const artwork = artworkByTheme[resolvedTheme]
   const [mode, setMode] = useState<'login' | 'recover'>('login')
-  const [username, setUsername] = useState('admin')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [recoveryCode, setRecoveryCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -43,6 +63,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
+  const [focusModality, setFocusModality] = useState<'keyboard' | 'pointer'>('keyboard')
   const busyRef = useRef(false)
   const formHeadingRef = useRef<HTMLHeadingElement>(null)
   const previousMode = useRef(mode)
@@ -124,14 +145,40 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
   }
 
   return (
-    <main className={`auth-shell${mode === 'recover' ? ' recovery-mode' : ''}`}>
+    <main
+      className={`auth-shell${mode === 'recover' ? ' recovery-mode' : ''}`}
+      data-focus-modality={focusModality}
+      onPointerDownCapture={() => setFocusModality('pointer')}
+      onKeyDownCapture={(event) => {
+        if (event.key === 'Tab') setFocusModality('keyboard')
+      }}
+    >
+      <picture className="auth-visual" aria-hidden="true">
+        <source media="(max-width: 767px) and (orientation: portrait)" srcSet={artwork.mobile} />
+        <source media="(max-width: 1439px) and (orientation: portrait)" srcSet={artwork.tabletPortrait} />
+        <source media="(max-width: 1439px)" srcSet={artwork.tabletLandscape} />
+        <img
+          alt=""
+          className="auth-visual-image"
+          data-auth-artwork-theme={resolvedTheme}
+          decoding="async"
+          fetchPriority="high"
+          onError={(event) => { event.currentTarget.style.visibility = 'hidden' }}
+          onLoad={(event) => { event.currentTarget.style.visibility = 'visible' }}
+          src={artwork.desktop}
+        />
+      </picture>
       <div className="auth-layout">
+        <header className="auth-panel-header">
+          <Brand variant="library" />
+          <ThemeControl compact />
+        </header>
         <section className="auth-form-panel" aria-labelledby="auth-form-title">
-          <header className="auth-panel-header">
-            <Brand variant="library" />
-            <ThemeControl compact />
-          </header>
           <div className="auth-form-wrap">
+            <div className="auth-visual-content">
+              <h1 id="auth-visual-title">A closer perspective.</h1>
+              <p className="auth-visual-caption">Slide library, reimagined</p>
+            </div>
             <form
               className="login-card auth-solace-card"
               aria-labelledby="auth-form-title"
@@ -140,11 +187,11 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
               <div className="auth-form-content" key={mode}>
                 <header className="auth-form-heading">
                   <h2 id="auth-form-title" ref={formHeadingRef} tabIndex={-1}>
-                    {mode === 'login' ? 'Administrator sign in' : 'Recover administrator access'}
+                    {mode === 'login' ? 'Welcome back' : 'Recover administrator access'}
                   </h2>
                   <p>
                     {mode === 'login'
-                      ? 'Continue to your secure slide library.'
+                      ? 'Sign in to continue to your slides'
                       : 'Use a server-issued recovery code to restore access.'}
                   </p>
                 </header>
@@ -157,8 +204,8 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
                       autoComplete="username"
+                      placeholder="admin"
                     />
-                    <span className="auth-inline-label" aria-hidden="true">Username</span>
                   </div>
                 </div>
                 {mode === 'login' ? (
@@ -172,6 +219,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                           value={password}
                           onChange={(event) => setPassword(event.target.value)}
                           autoComplete="current-password"
+                          placeholder="••••••••"
                         />
                         <button
                           className="password-visibility"
@@ -183,18 +231,14 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                             ? <EyeSlash aria-hidden="true" color="currentColor" />
                             : <Eye aria-hidden="true" color="currentColor" />}
                         </button>
-                        <span className="auth-inline-label" aria-hidden="true">Password</span>
                       </div>
                     </div>
                     {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
-                    <button className="button primary auth-submit" type="submit" disabled={busy}>
+                    <button className="button primary auth-submit" type="submit" aria-label={busy ? 'Signing in…' : 'Enter workspace'} disabled={busy}>
                       {busy ? (
                         <Loader label="Signing in…" size="small" inline />
                       ) : (
-                        <>
-                          <span>Enter workspace</span>
-                          <ArrowRight aria-hidden="true" color="currentColor" />
-                        </>
+                        <ArrowRight aria-hidden="true" color="currentColor" />
                       )}
                     </button>
                     <button
@@ -211,7 +255,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                       disabled={busy}
                     >
                       <Key aria-hidden="true" color="currentColor" />
-                      <span>Recover administrator access</span>
+                      <span>Forgot password?</span>
                     </button>
                   </>
                 ) : (
@@ -225,14 +269,12 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                       <label htmlFor="recovery-code">Recovery code</label>
                       <div className="auth-input">
                         <input id="recovery-code" value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} autoComplete="one-time-code" />
-                        <span className="auth-inline-label" aria-hidden="true">Recovery code</span>
                       </div>
                     </div>
                     <div className="auth-field">
                       <label htmlFor="recovery-new-password">New password</label>
                       <div className="auth-input">
                         <input id="recovery-new-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="recovery-password-requirements" />
-                        <span className="auth-inline-label" aria-hidden="true">New password</span>
                       </div>
                     </div>
                     <p id="recovery-password-requirements" className="password-requirements">{RECOVERY_PASSWORD_REQUIREMENTS}</p>
@@ -240,7 +282,6 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                       <label htmlFor="recovery-confirm-password">Confirm new password</label>
                       <div className="auth-input">
                         <input id="recovery-confirm-password" type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />
-                        <span className="auth-inline-label" aria-hidden="true">Confirm password</span>
                       </div>
                     </div>
                     {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
@@ -256,31 +297,6 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                 )}
               </div>
             </form>
-            <footer className="auth-footnote">
-              <ShieldCheck aria-hidden="true" color="currentColor" />
-              <span>Private by design. Built for whole-slide imaging.</span>
-            </footer>
-          </div>
-        </section>
-
-        <section className="auth-visual" aria-labelledby="auth-visual-title">
-          <img
-            alt=""
-            aria-hidden="true"
-            className="auth-visual-image"
-            data-auth-artwork-theme={resolvedTheme}
-            decoding="async"
-            fetchPriority="high"
-            src={resolvedTheme === 'dark' ? darkArtwork : lightArtwork}
-          />
-          <div className="auth-visual-grain" aria-hidden="true" />
-          <div className="auth-visual-content">
-            <h1 id="auth-visual-title">
-              See the whole{' '}
-              <br />
-              picture.
-            </h1>
-            <p className="auth-visual-caption">Built for detail. Designed for focus.</p>
           </div>
         </section>
       </div>

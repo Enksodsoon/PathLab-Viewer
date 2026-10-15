@@ -5,7 +5,7 @@ interface BrandProps {
 
 export function Brand({ variant = 'default', product = 'Viewer' }: BrandProps) {
   return (
-    <div className={`brand${variant === 'library' ? ' brand-library' : ''}`} role="img" aria-label="PathLab Viewer">
+    <div className={`brand${variant === 'library' ? ' brand-library' : ''}`} role="img" aria-label={`PathLab ${product}`}>
       <span className={`brand-mark${variant === 'library' ? ' brand-mark-layers' : ''}`}>
         <svg
           aria-hidden="true"
@@ -19,7 +19,7 @@ export function Brand({ variant = 'default', product = 'Viewer' }: BrandProps) {
           <path data-tissue-layer d="m4.5 21.7 11.5 5.7 11.5-5.7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
         </svg>
       </span>
-      <span>PathLab</span>
+      <span className="brand-name">PathLab</span>
       <span className="brand-product">{product}</span>
     </div>
   )
