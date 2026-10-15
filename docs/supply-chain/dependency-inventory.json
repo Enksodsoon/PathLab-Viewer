@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T14:16:32.699967Z",
+  "generatedAt": "2026-10-15T16:53:27.352809Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -7,11 +7,11 @@
       "blockers": [
         "IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED"
       ],
-      "checksum": "sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9",
+      "checksum": "sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
       "checksumVerified": true,
       "distribution": "development-only-container",
       "ecosystem": "container",
-      "id": "container:caddy@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9",
+      "id": "container:caddy@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
       "license": "UNKNOWN",
       "manifestRefs": [
         "deploy/Dockerfile.web"
@@ -23,7 +23,7 @@
       "purpose": "current web container server",
       "role": "current-development-runtime",
       "source": "docker.io/library/caddy",
-      "version": "2.11.6-alpine"
+      "version": "2.11.7-alpine"
     },
     {
       "admission": "BLOCKED",
@@ -18145,14 +18145,14 @@
       "sha256": "96e3df69822ae6170ee6b8209fb861f8ce0673b6bd4d1cf03fed6733761c28a3"
     },
     {
-      "gitBlob": "066c82da4aaa593e83551b418e5a0c3e52070e49",
+      "gitBlob": "72345c301166ff274fbf32ad430bb5ab3dff36a6",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "1f85c1a617f6d7e3bec5857ca2f0ae915a2cee177374175a7f0597384a90fa06"
+      "sha256": "33b48e03bd29980892d93f4ae8c7e78f375be19d3e7b1835a0f03198a999cb87"
     },
     {
-      "gitBlob": "c2777d6c9a22f18cdf698df1af4738188d6ab9ba",
+      "gitBlob": "d571861b10a57941f1801986dc6b32af6d46006b",
       "path": "docs/supply-chain/browser-distribution-receipt.json",
-      "sha256": "8d3614d5a9f528227bc5e221bfbdc98725a2d60e1d39258d1c6b88a3326f1871"
+      "sha256": "f05cd65adbcde3f227b461a691d05d6b298a3b748ab1aec9c1ec5679128080bd"
     },
     {
       "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
@@ -19150,6 +19150,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "4d527c25a5425a98df27ee15eedbdbc74d3c6fb1",
-  "subjectTree": "a0703cb194381aead3b8d45a92733d72fdde709c"
+  "subjectCommit": "d936d366bddd22b67040e9200fbdf058a36ccec3",
+  "subjectTree": "eb653033166d0de5b42b46482e07fc8cb20ea911"
 }
