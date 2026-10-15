@@ -5,8 +5,8 @@
 The implementation generates deterministic SPDX 2.3 and CycloneDX 1.6 source/build inventories,
 a human-readable third-party notice bundle, and a hash-bound manifest from the existing dependency,
 toolchain, and asset-rights ledgers. The current reference inventory subject is commit
-`e53108fcbba14733026194aa81abc9c7875eb666` with tree
-`6a7cb6622135ca126fe34e54689a429e99db6dea`.
+`41d31505bd4e471bf43248907753de99063b47ac` with tree
+`097f308e805afe715ff26cf58edf22f7cf872eb8`.
 
 This is an inventory result, not release admission. The current reference manifest reports
 `BLOCKED`: all 177 current shipped inputs are `RECORDED_UNREVIEWED`. The authoritative dependency
