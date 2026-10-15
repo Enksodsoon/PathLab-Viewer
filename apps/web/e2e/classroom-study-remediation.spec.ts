@@ -56,32 +56,10 @@ async function syntheticLandmarkGeometry(page: Page, source: { x: number; y: num
     const point = new OSD.Point(sourcePoint.x, sourcePoint.y)
     const projection = item.imageToViewerElementCoordinates(point)
     const canvasBounds = viewer!.canvas.getBoundingClientRect()
-    const elementBounds = viewer!.element.getBoundingClientRect()
-    const containerBounds = viewer!.container.getBoundingClientRect()
     const visible = { x: canvasBounds.left + red.x * canvasBounds.width, y: canvasBounds.top + red.y * canvasBounds.height }
-    const toImage = (x: number, y: number) => {
-      const image = item.viewportToImageCoordinates(viewer!.viewport.pointFromPixel(new OSD.Point(x, y), true), true)
-      return { x: image.x, y: image.y }
-    }
-    const pagePoint = new OSD.Point(visible.x + scrollX, visible.y + scrollY)
-    const windowImage = item.windowToImageCoordinates(pagePoint)
     return {
-      source: sourcePoint,
       visible,
-      projectionFromViewerElement: { x: elementBounds.left + projection.x, y: elementBounds.top + projection.y },
-      projectionFromContainer: { x: containerBounds.left + projection.x, y: containerBounds.top + projection.y },
       projectionFromCanvas: { x: canvasBounds.left + projection.x, y: canvasBounds.top + projection.y },
-      visibleToImage: toImage(visible.x - canvasBounds.left, visible.y - canvasBounds.top),
-      windowToImage: { x: windowImage.x, y: windowImage.y },
-      eventCoordinates: { localX: visible.x - canvasBounds.left, localY: visible.y - canvasBounds.top },
-      bounds: {
-        viewerElement: { left: elementBounds.left, top: elementBounds.top, width: elementBounds.width, height: elementBounds.height },
-        container: { left: containerBounds.left, top: containerBounds.top, width: containerBounds.width, height: containerBounds.height },
-        canvas: { left: canvasBounds.left, top: canvasBounds.top, width: canvasBounds.width, height: canvasBounds.height },
-        viewport: viewer!.viewport.getContainerSize(),
-      },
-      camera: { zoom: viewer!.viewport.getZoom(true), animating: viewer!.isAnimating() },
-      redPixels: count,
     }
   }, source)
 }
@@ -152,7 +130,8 @@ test('Study captures a rendered non-square landmark after pan, zoom, and orienta
   await waitForViewerSettled(page)
   marker = await visibleSyntheticLandmark(page)
   expect(marker).not.toBeNull()
-  const geometrySamples = [{ step: 'zoom', geometry: await syntheticLandmarkGeometry(page, { x: 256, y: 128 }) }]
+  let geometry = await syntheticLandmarkGeometry(page, { x: 256, y: 128 })
+  expect(Math.hypot(geometry.visible.x - geometry.projectionFromCanvas.x, geometry.visible.y - geometry.projectionFromCanvas.y)).toBeLessThanOrEqual(1)
 
   for (const viewport of [
     { width: 844, height: 390 },
@@ -164,14 +143,13 @@ test('Study captures a rendered non-square landmark after pan, zoom, and orienta
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
     await expect(page.getByLabel('4: Confident')).toBeChecked()
     await expect(page.getByText(/Hint 1:/)).toBeVisible()
-    geometrySamples.push({ step: `resize-${viewport.width}x${viewport.height}`, geometry: await syntheticLandmarkGeometry(page, { x: 256, y: 128 }) })
+    geometry = await syntheticLandmarkGeometry(page, { x: 256, y: 128 })
+    expect(Math.hypot(geometry.visible.x - geometry.projectionFromCanvas.x, geometry.visible.y - geometry.projectionFromCanvas.y)).toBeLessThanOrEqual(1)
   }
 
   await canvas.scrollIntoViewIfNeeded()
   marker = await visibleSyntheticLandmark(page)
   expect(marker).not.toBeNull()
-  const canvasBounds = await canvas.boundingBox()
-  expect(canvasBounds).not.toBeNull()
   await page.mouse.move(marker!.x, marker!.y)
   await page.mouse.down()
   await page.mouse.move(marker!.x + 24, marker!.y + 12, { steps: 4 })
@@ -183,48 +161,9 @@ test('Study captures a rendered non-square landmark after pan, zoom, and orienta
   }).toBeGreaterThan(4)
 
   const geometryAfterPan = await syntheticLandmarkGeometry(page, { x: 256, y: 128 })
-  geometrySamples.push({ step: 'pan', geometry: geometryAfterPan })
   expect(Math.hypot(geometryAfterPan.visible.x - geometryAfterPan.projectionFromCanvas.x, geometryAfterPan.visible.y - geometryAfterPan.projectionFromCanvas.y)).toBeLessThanOrEqual(1)
   await page.screenshot({ path: info.outputPath('study-marker-before-selection.png') })
-  await page.evaluate(() => {
-    const resource = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))
-    ;(window as Window & { __studyPointProbe?: unknown }).__studyPointProbe = null
-    ;(window as Window & { __studyPointProbeReady?: boolean }).__studyPointProbeReady = false
-    void (async () => {
-      const OSD = (await import(resource!.name)).default
-      let viewerElement: Element | null = document.querySelector('.openseadragon-canvas')
-      let viewer = viewerElement ? OSD.getViewer(viewerElement) : null
-      while (!viewer && viewerElement) { viewerElement = viewerElement.parentElement; viewer = viewerElement ? OSD.getViewer(viewerElement) : null }
-      if (!viewer) throw new Error('OpenSeadragon viewer was not attached to the canvas tree')
-      viewer.addHandler('canvas-click', (event: {
-        position: { x: number; y: number }
-        originalEvent: { clientX: number; clientY: number; pageX: number; pageY: number }
-      }) => {
-        const item = viewer.world.getItemAt(0)
-        const fromEvent = item.viewportToImageCoordinates(viewer.viewport.pointFromPixel(event.position, true), true)
-        const pagePoint = new OSD.Point(event.originalEvent.pageX, event.originalEvent.pageY)
-        const fromWindow = item.windowToImageCoordinates(pagePoint)
-        ;(window as Window & { __studyPointProbe?: unknown }).__studyPointProbe = {
-          eventPosition: { x: event.position.x, y: event.position.y },
-          eventClient: { x: event.originalEvent.clientX, y: event.originalEvent.clientY },
-          eventPage: { x: event.originalEvent.pageX, y: event.originalEvent.pageY },
-          viewportContainer: viewer.viewport.getContainerSize(),
-          imageSize: item.getContentSize(),
-          mappedImage: { x: fromEvent.x, y: fromEvent.y },
-          windowImage: { x: fromWindow.x, y: fromWindow.y },
-          viewerElementBounds: (() => { const r = viewer.element.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })(),
-          viewerContainerBounds: (() => { const r = viewer.container.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })(),
-          canvasBounds: (() => { const r = viewer.canvas.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })(),
-        }
-      })
-      ;(window as Window & { __studyPointProbeReady?: boolean }).__studyPointProbeReady = true
-    })()
-  })
-  await expect.poll(() => page.evaluate(() => (window as Window & { __studyPointProbeReady?: boolean }).__studyPointProbeReady)).toBe(true)
   await page.mouse.click(geometryAfterPan.projectionFromCanvas.x, geometryAfterPan.projectionFromCanvas.y)
-  const pointProbeResult = await page.evaluate(() => (window as Window & { __studyPointProbe?: unknown }).__studyPointProbe)
-  console.log('Study landmark transform evidence:', JSON.stringify({ samples: geometrySamples, clickedLandmarkProjection: geometryAfterPan.projectionFromCanvas, event: pointProbeResult }))
-  await info.attach('study-canvas-coordinate-probe', { body: JSON.stringify({ samples: geometrySamples, clickedLandmarkProjection: geometryAfterPan.projectionFromCanvas, event: pointProbeResult }), contentType: 'application/json' })
   await expect(page.getByText('Region selected at 0.250, 0.250')).toBeVisible()
   await page.getByRole('button', { name: 'Check answer' }).click()
   await expect(page.getByText('Synthetic landmark captured')).toBeVisible()
