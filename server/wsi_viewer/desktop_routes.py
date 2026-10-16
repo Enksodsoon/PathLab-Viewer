@@ -50,7 +50,7 @@ from .desktop_sync import (
 from .domain import SlideState
 from .evidence_contract import load_trusted_signers, parse_evidence, validate_evidence
 from .evidence_set_contract import validate_evidence_set
-from .identity import is_default_legacy_owner
+from .identity import DEFAULT_ORGANIZATION_ID, is_default_legacy_owner
 from .models import (
     AnalysisRun,
     Annotation,
@@ -683,6 +683,9 @@ def register_desktop_routes(
         authenticated: DesktopCredential = Depends(credential),
     ) -> dict[str, Any]:
         return {
+            "organizationId": DEFAULT_ORGANIZATION_ID,
+            "userId": authenticated.user_id,
+            "credentialId": authenticated.id,
             "deviceName": authenticated.device_name,
             "scopes": authenticated.scopes,
             "expiresAt": as_utc(authenticated.expires_at).isoformat(),

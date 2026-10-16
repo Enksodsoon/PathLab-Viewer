@@ -26,7 +26,7 @@ from wsi_viewer.cli import main as cli_main
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.identity import ensure_default_owner_membership
+from wsi_viewer.identity import DEFAULT_ORGANIZATION_ID, ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AnalysisRun,
@@ -497,7 +497,16 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
                 "persistedSha256": True,
             }
         ]
-        assert client.get("/api/v1/desktop/credential", headers=authorization).status_code == 200
+        credential_status = client.get("/api/v1/desktop/credential", headers=authorization)
+        assert credential_status.status_code == 200
+        status_body = credential_status.json()
+        assert status_body["organizationId"] == DEFAULT_ORGANIZATION_ID
+        with session_factory(client.app.state.settings)() as database:
+            stored = database.scalar(select(DesktopCredential))
+            assert stored is not None
+            assert status_body["userId"] == stored.user_id
+            assert status_body["credentialId"] == stored.id
+        assert "accessToken" not in status_body
         assert (
             client.post("/api/v1/desktop/credential/revoke", headers=authorization).status_code
             == 204
