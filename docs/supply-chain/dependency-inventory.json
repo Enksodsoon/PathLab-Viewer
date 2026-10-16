@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T00:19:13.221027Z",
+  "generatedAt": "2026-10-16T01:57:21.343419Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -31,11 +31,11 @@
       "blockers": [
         "IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED"
       ],
-      "checksum": "sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
+      "checksum": "sha256:f1394b3ffc021bc3f4aaf363e70a8d9667f7a9a63538bc824d7cc583129fffad",
       "checksumVerified": true,
       "distribution": "development-only-container",
       "ecosystem": "container",
-      "id": "container:node@sha256:c3c6e314fd42e41962360b2482fc18d150beb47976c3aa7b8b9689d7ef42a5c2",
+      "id": "container:node@sha256:f1394b3ffc021bc3f4aaf363e70a8d9667f7a9a63538bc824d7cc583129fffad",
       "license": "UNKNOWN",
       "manifestRefs": [
         "deploy/Dockerfile.web"
@@ -47,7 +47,7 @@
       "purpose": "current web build container base",
       "role": "build-only",
       "source": "docker.io/library/node",
-      "version": "26.10.0-alpine3.23"
+      "version": "26.11.1-alpine3.23"
     },
     {
       "admission": "BLOCKED",
@@ -13921,7 +13921,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "aa073e64c72187f4b6466efc3541c266c59760d6a56baf1cf7bb461c831c9a9e",
+      "metadataSha256": "5c0577a6486dc31491d78c9c121e5990e41955e542d5f786d28e6fbd3ba9a429",
       "name": "fastapi",
       "noticeFiles": [
         {
@@ -16610,7 +16610,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "91dcd45827308d59e6074acb4dcb9041e51543933c2b09f970415079ac4462fa",
+      "metadataSha256": "28b982b2a514e00bcf10ce9a5a4c3e0eea656c65ecef2880d83ce91e60f49552",
       "name": "tifffile",
       "noticeFiles": [
         {
@@ -18145,9 +18145,9 @@
       "sha256": "96e3df69822ae6170ee6b8209fb861f8ce0673b6bd4d1cf03fed6733761c28a3"
     },
     {
-      "gitBlob": "82f367bee52397807aee0021758e23068c2c3336",
+      "gitBlob": "66be568883dacd08e4caaf99ade8aa12ebc4e9f9",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "a167c6d0aa8552f69e4c48079e71b41329863c3bcba724e7fc6a371c9907f88d"
+      "sha256": "4eb6591f13f8d00120d80a4410d031de8d93b468c0273831d55e96c640f4835b"
     },
     {
       "gitBlob": "2fd603ffb4a953fffc1093ec9a1445d01d250092",
@@ -19150,6 +19150,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "53a38ad83266613dc9aff5be38c202c15ca1da05",
-  "subjectTree": "8d8a6a250ddf48e5ccf01527d367e53b7d3d341c"
+  "subjectCommit": "2c30a30a156b6d5257537024aa14d1e5821ee5e2",
+  "subjectTree": "16b9b63e54eb5124ddbe1f68d3e759b6128d0789"
 }
