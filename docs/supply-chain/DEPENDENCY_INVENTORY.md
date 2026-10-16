@@ -40,6 +40,8 @@ This inventory is bound to receipt commit `53a38ad83266613dc9aff5be38c202c15ca1d
 the existing admission boundaries: 118 records remain `BLOCKED` and 468 remain
 `RECORDED_UNREVIEWED`.
 
+On 2026-10-16, the pinned Node builder image was updated to 26.11.1-alpine3.23 and its exact digest was synchronized in the manual dependency source. The regenerated inventory is bound to source commit `2c30a30a156b6d5257537024aa14d1e5821ee5e2`; admission remains unchanged.
+
 ## Fail-closed findings
 
 118 records are `BLOCKED`. The material blockers are:
