@@ -2,28 +2,28 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "973eefc08ec1f2ab63532d680bd39d4d4e79f302092afe07647eb21dcc257cba",
-      "sizeBytes": 1465796
+      "sha256": "f188f164882839c8bada5119bda0f11f512ded039a6359233c5421892f26b9c4",
+      "sizeBytes": 1465795
     },
     {
       "path": "build.cdx.json",
-      "sha256": "cf09fe910acff7f358da8a4802739db9407118c0a75dc57576c71d17dc51e78c",
-      "sizeBytes": 743973
+      "sha256": "98ac7810aafbd6759cd85bded624ba740fbaed2d02795dc45e0a5e4f224833e7",
+      "sizeBytes": 743947
     },
     {
       "path": "build.spdx.json",
-      "sha256": "202bdeb0fdf887fd8a300b27ae3e7171cb2293da11bb6746f6bd7ae8d173afac",
-      "sizeBytes": 601056
+      "sha256": "37731d931ae1c880388cc659d6446536f8c9a41a8975f5c9ac3067e3fffd39b5",
+      "sizeBytes": 601031
     },
     {
       "path": "source.cdx.json",
-      "sha256": "f78d2adeabb5ba27d854d82821bb28ba9b96a2eb1112f28b72b5dcee9f9d2cad",
-      "sizeBytes": 786527
+      "sha256": "36e7299d48cddad29773e3f8275fb6af08b8025646a4007276ff5196b1dbb788",
+      "sizeBytes": 786501
     },
     {
       "path": "source.spdx.json",
-      "sha256": "690485980ed43b9507c639c7725ba9c0c1c8dee4322dcebe674fca51272a5f73",
-      "sizeBytes": 634706
+      "sha256": "0fd876f508cb8e524648e8d6ea50a50e216ab56c3086c9896ba273309f80b54d",
+      "sizeBytes": 634681
     }
   ],
   "coverage": {
@@ -31,7 +31,7 @@
     "assetRecords": 24,
     "buildComponents": 586,
     "currentShippedInputs": 177,
-    "dependencyRecordIdsSha256": "885de49fbe59eaf1ce8cf0d908812c95e346de8676000fe90944ce0104e45789",
+    "dependencyRecordIdsSha256": "4e513e1164872299a483527a166a113c0a2b7e67ce6a7bf7490f0a865da7cf60",
     "dependencyRecords": 586,
     "sourceComponents": 624,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-16T02:05:15Z",
+  "generatedAt": "2026-10-16T13:57:18Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -69,9 +69,9 @@
       "sizeBytes": 134403
     },
     {
-      "gitBlob": "64b062748bf792f6cf4a0f330c824df98c0bf875",
+      "gitBlob": "9c01dafcaeb2a2017f6522bf4c08e1effe70bf46",
       "path": "pyproject.toml",
-      "sha256": "4f9dfea671b88ddaaa5d3519fdd2548ccb356e68a21481e54af88aae61abca43",
+      "sha256": "0609e63387f1ece173bbf934c8d131ed8269949d6c173ebad2498f12db52e3af",
       "sizeBytes": 1945
     },
     {
@@ -81,16 +81,16 @@
       "sizeBytes": 1804
     },
     {
-      "gitBlob": "d1e1274bc49e594cad759aac7372c4059452ac38",
+      "gitBlob": "1f6ccb0b4ea227c26d29939c13ea99f5134157ac",
       "path": "deploy/backend-requirements.txt",
-      "sha256": "717a3606a786dd360619d28a64abbfc0e81bb1dba56a818fd818f4e1382e1694",
-      "sizeBytes": 111420
+      "sha256": "85676ac8cf4878de464cd444016973bd32539618109e31fe06260f998d572246",
+      "sizeBytes": 123916
     },
     {
-      "gitBlob": "7c3994e7a77b03f8bdcd0146d43126d74123a672",
+      "gitBlob": "c11354cb0c5c81e78cffdf75a638bbfd9f9ef63c",
       "path": "deploy/oci-cli-requirements.txt",
-      "sha256": "96e3df69822ae6170ee6b8209fb861f8ce0673b6bd4d1cf03fed6733761c28a3",
-      "sizeBytes": 89802
+      "sha256": "65cd463dc6b4db536bdeef348fcb8b81ae6c67d46f576ea0893bd82ee6bf284d",
+      "sizeBytes": 89572
     },
     {
       "gitBlob": "60743a580f457375cdd42b0870e1b22c949a55c3",
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "8f50327890f6dbf232618b530d203cd5c664efe9",
+      "gitBlob": "508b413afcc0021b3d16fbe3c602f729677c6eb4",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "7edc9d018e5cd40a031ed2e73f8e96e83acb520c345dff99e5232fa0f9839e38",
-      "sizeBytes": 828490
+      "sha256": "c457e0219241b44da5641acda53e61a584d9da7721d4ccc0700c339d600244d4",
+      "sizeBytes": 839847
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -195,10 +195,10 @@
       "sizeBytes": 27
     },
     {
-      "gitBlob": "cd944968097f7c6b4d30eee513968aa84b2551c8",
+      "gitBlob": "a80f8422643a0680157859aaf1ef3b4c35885556",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "076cb9fadb1925da33a23251a9df073f2bfbfac5771032beeea771a4d580d7f4",
-      "sizeBytes": 148597
+      "sha256": "6219b21913a556fd3b9fa97873479f7a35e6d653ce5dc0115ce005ae38908f18",
+      "sizeBytes": 156694
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -265,6 +265,12 @@
       "path": "docs/supply-chain/notice-material/sha256/0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551",
       "sha256": "0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551",
       "sizeBytes": 1069
+    },
+    {
+      "gitBlob": "834a8c1befcd0a2eb349f88639eb642086a50a47",
+      "path": "docs/supply-chain/notice-material/sha256/0a9e78156ae8b96caf1b4f11ac2df424b83de29736f9e757630548a6272fdf90",
+      "sha256": "0a9e78156ae8b96caf1b4f11ac2df424b83de29736f9e757630548a6272fdf90",
+      "sizeBytes": 1543
     },
     {
       "gitBlob": "e28f5b6ae12123252b37d393581f01becb614f4e",
@@ -1535,28 +1541,28 @@
     "RECORDED_UNREVIEWED:pypi:cffi@2.1.1",
     "RECORDED_UNREVIEWED:pypi:click@8.5.0",
     "RECORDED_UNREVIEWED:pypi:cryptography@50.0.2",
-    "RECORDED_UNREVIEWED:pypi:fastapi@0.142.4",
+    "RECORDED_UNREVIEWED:pypi:fastapi@0.143.0",
     "RECORDED_UNREVIEWED:pypi:greenlet@3.5.6",
     "RECORDED_UNREVIEWED:pypi:h11@0.16.0",
     "RECORDED_UNREVIEWED:pypi:httpcore@1.0.9",
-    "RECORDED_UNREVIEWED:pypi:httptools@0.8.0",
+    "RECORDED_UNREVIEWED:pypi:httptools@0.9.0",
     "RECORDED_UNREVIEWED:pypi:httpx@0.28.1",
     "RECORDED_UNREVIEWED:pypi:idna@3.20",
     "RECORDED_UNREVIEWED:pypi:itsdangerous@2.2.0",
     "RECORDED_UNREVIEWED:pypi:lxml@6.1.3",
     "RECORDED_UNREVIEWED:pypi:mako@1.4.3",
-    "RECORDED_UNREVIEWED:pypi:markupsafe@3.0.3",
-    "RECORDED_UNREVIEWED:pypi:numpy@2.5.3",
+    "RECORDED_UNREVIEWED:pypi:markupsafe@3.0.4",
+    "RECORDED_UNREVIEWED:pypi:numpy@2.5.4",
     "RECORDED_UNREVIEWED:pypi:ome-types@0.6.3",
-    "RECORDED_UNREVIEWED:pypi:opentelemetry-api@1.45.0",
+    "RECORDED_UNREVIEWED:pypi:opentelemetry-api@1.45.1",
     "RECORDED_UNREVIEWED:pypi:pillow@12.3.0",
     "RECORDED_UNREVIEWED:pypi:psycopg-binary@3.3.6",
     "RECORDED_UNREVIEWED:pypi:psycopg@3.3.6",
-    "RECORDED_UNREVIEWED:pypi:pycparser@3.0",
-    "RECORDED_UNREVIEWED:pypi:pydantic-core@2.46.5",
+    "RECORDED_UNREVIEWED:pypi:pycparser@3.11",
+    "RECORDED_UNREVIEWED:pypi:pydantic-core@2.50.1",
     "RECORDED_UNREVIEWED:pypi:pydantic-extra-types@2.11.1",
     "RECORDED_UNREVIEWED:pypi:pydantic-settings@2.15.0",
-    "RECORDED_UNREVIEWED:pypi:pydantic@2.13.5",
+    "RECORDED_UNREVIEWED:pypi:pydantic@2.14.1",
     "RECORDED_UNREVIEWED:pypi:python-dotenv@1.2.4",
     "RECORDED_UNREVIEWED:pypi:pyvips@3.2.0",
     "RECORDED_UNREVIEWED:pypi:pyyaml@6.0.3",
@@ -1568,10 +1574,10 @@
     "RECORDED_UNREVIEWED:pypi:uvicorn@0.54.0",
     "RECORDED_UNREVIEWED:pypi:uvloop@0.23.0",
     "RECORDED_UNREVIEWED:pypi:watchfiles@1.3.0",
-    "RECORDED_UNREVIEWED:pypi:websockets@17.1",
+    "RECORDED_UNREVIEWED:pypi:websockets@17.2",
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "b12ae3cc80ab7e5f11c0f8dc2d199554a4d08ff1",
-  "subjectTree": "499d4b332d25e7c3fabedd764d5ea51c94c66425"
+  "subjectCommit": "88a626b8b62e376b4edba88957cbbfd462aa3fb8",
+  "subjectTree": "af862baa6847dcec14e65a80a0095759498293fa"
 }
